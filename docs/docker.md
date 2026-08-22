@@ -26,10 +26,8 @@ is included.
    (publish it elsewhere with `HOST_PORT=8080` in `.env.local`).
 
 > Use `HOST_PORT`, not `PORT`, to move the published port. `PORT` is
-> what the server listens on _inside_ the container, and `env_file`
-> would inject it there — leaving the app on a port the mapping and
-> the healthcheck don't target. Compose pins it to 3000 for that
-> reason.
+> what the server listens on _inside_ the container. Compose pins it
+> to 3000 for that reason.
 
 ## Build-time vs runtime variables
 
@@ -38,9 +36,16 @@ is included.
   `docker-compose.yml`. If you change any of them, rebuild:
   `docker compose --env-file .env.local up --build -d`.
 - Everything else (`SUPABASE_SERVICE_ROLE_KEY`, `ENCRYPTION_KEY`,
-  `META_APP_SECRET`, …) is read at **runtime** from `.env.local` via
-  `env_file` and is never baked into the image — safe to change with
-  just a container restart.
+  `META_APP_SECRET`, …) is read at **runtime**, forwarded into the
+  container via `environment: ${VAR}` entries in `docker-compose.yml`
+  — safe to change with just a container restart. These are resolved
+  by Compose's variable substitution, which locally comes from
+  `--env-file .env.local` and on a platform like Dokploy comes from
+  whatever env vars it injects into the `docker compose` process —
+  deliberately *not* `env_file: .env.local`, since that key requires
+  a real file at that path relative to the compose file, and
+  `.env.local` is gitignored so a fresh clone (e.g. Dokploy's) never
+  has one.
 
 ## Plain Docker (no Compose)
 

@@ -12,16 +12,31 @@ services:
         NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY}
         NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
         NEXT_PUBLIC_APP_LOCALE: ${NEXT_PUBLIC_APP_LOCALE:-en}
-    # Runtime (server-only) secrets come from .env.local; they are
-    # never baked into the image.
-    env_file:
-      - .env.local
-    # The server always listens on 3000 inside the container. Pinned
-    # here because `environment` wins over `env_file`, so a stray PORT
-    # in .env.local can't desync the app from the mapping and the
-    # healthcheck below.
+    # Runtime (server-only) secrets are read via ${VAR} substitution
+    # rather than `env_file: .env.local` — the latter requires a real
+    # file at that path relative to the compose file, which breaks on
+    # platforms (e.g. Dokploy) that inject variables into the process
+    # environment instead of writing a dotenv file into the git
+    # checkout (.env.local is gitignored, so a fresh clone never has
+    # one). ${VAR} substitution works the same way locally: `docker
+    # compose --env-file .env.local up --build` feeds this file's
+    # contents into the same substitution mechanism already used by
+    # `build.args` above.
     environment:
       PORT: 3000
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
+      META_APP_SECRET: ${META_APP_SECRET:-}
+      NEXT_PUBLIC_SUPABASE_URL: ${NEXT_PUBLIC_SUPABASE_URL:-}
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: ${NEXT_PUBLIC_SUPABASE_ANON_KEY:-}
+      NEXT_PUBLIC_SITE_URL: ${NEXT_PUBLIC_SITE_URL:-}
+      NEXT_PUBLIC_APP_LOCALE: ${NEXT_PUBLIC_APP_LOCALE:-en}
+      ALLOWED_INVITE_HOSTS: ${ALLOWED_INVITE_HOSTS:-}
+      AUTOMATION_CRON_SECRET: ${AUTOMATION_CRON_SECRET:-}
+      META_APP_ID: ${META_APP_ID:-}
+      WHATSAPP_TEMPLATES_DRY_RUN: ${WHATSAPP_TEMPLATES_DRY_RUN:-}
+      AI_REQUEST_TIMEOUT_MS: ${AI_REQUEST_TIMEOUT_MS:-}
+      AI_CONTEXT_MESSAGE_LIMIT: ${AI_CONTEXT_MESSAGE_LIMIT:-}
     # Host side only — HOST_PORT=8080 publishes the app on :8080.
     ports:
       - '${HOST_PORT:-3000}:3000'
