@@ -195,22 +195,24 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         aria-label="Primary"
       >
         {/* Logo row. On mobile we put a close button here; on desktop the
-            close button is hidden since the sidebar is always-visible. */}
-        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
-          <Link href="/dashboard" className="flex items-center gap-2">
+            close button is hidden since the sidebar is always-visible.
+            The close button is absolutely positioned so the logo can be
+            truly centered in the row regardless of its presence. */}
+        <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-border px-4">
+          <Link href="/dashboard" className="flex items-center justify-center">
             <img
               src={logoUrl}
               alt={companyName}
-              width={32}
-              height={32}
-              className="h-8 w-8 rounded-lg object-contain"
+              width={64}
+              height={64}
+              className="h-16 w-16 rounded-lg object-contain"
             />
           </Link>
           <button
             type="button"
             onClick={onClose}
             aria-label={t("closeMenu")}
-            className="flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+            className="absolute right-4 top-1/2 flex h-9 w-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
           >
             <X className="h-5 w-5" />
           </button>
