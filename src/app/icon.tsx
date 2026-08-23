@@ -16,6 +16,13 @@ export const runtime = "nodejs";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
+// public/logo.png is a wide icon+wordmark lockup — fine for the
+// sidebar, but its text is illegible at 32px. public/logo-mark.png is
+// the same brand mark cropped to just the icon, used only as the
+// *default* favicon fallback below. A super admin's custom uploaded
+// logo (an absolute URL, handled in the branch below) is used as-is.
+const DEFAULT_FAVICON_PATH = "/logo-mark.png";
+
 async function readLocalLogo(publicPath: string): Promise<string> {
   const filePath = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
   const buffer = await readFile(filePath);
@@ -44,9 +51,9 @@ async function loadLogoDataUri(): Promise<string> {
       const mime = res.headers.get("content-type") || "image/png";
       return `data:${mime};base64,${buffer.toString("base64")}`;
     }
-    return await readLocalLogo(logoUrl);
+    return await readLocalLogo(DEFAULT_FAVICON_PATH);
   } catch {
-    return readLocalLogo(DEFAULT_BRANDING.logoUrl);
+    return readLocalLogo(DEFAULT_FAVICON_PATH);
   }
 }
 

@@ -200,12 +200,16 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
             truly centered in the row regardless of its presence. */}
         <div className="relative flex h-24 shrink-0 items-center justify-center border-b border-border px-4">
           <Link href="/dashboard" className="flex items-center justify-center">
+            {/* The brand mark (public/logo.png) is a wide icon+wordmark
+                lockup with a transparent background, not a square icon —
+                size by height and let width follow so it isn't
+                letterboxed inside a square box. */}
             <img
               src={logoUrl}
               alt={companyName}
-              width={64}
-              height={64}
-              className="h-16 w-16 rounded-lg object-contain"
+              width={200}
+              height={107}
+              className="h-16 w-auto max-w-[85%] object-contain"
             />
           </Link>
           <button
