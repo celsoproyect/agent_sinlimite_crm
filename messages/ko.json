@@ -16,7 +16,7 @@
   },
   "Sidebar": {
     "dashboard": "대시보드",
-    "inbox": "인박스",
+    "inbox": "메시지",
     "notifications": "알림",
     "contacts": "연락처",
     "pipelines": "파이프라인",
@@ -42,7 +42,7 @@
   },
   "Header": {
     "dashboard": "대시보드",
-    "inbox": "인박스",
+    "inbox": "메시지",
     "notifications": "알림",
     "contacts": "연락처",
     "pipelines": "파이프라인",
@@ -1736,7 +1736,12 @@
       "addDoc": "문서 추가",
       "reindex": "재색인",
       "reindexTooltip": "모든 문서를 다시 임베딩합니다 (예: 임베딩 키 추가 후)",
-      "loading": "불러오는 중…"
+      "loading": "불러오는 중…",
+      "uploadDoc": "파일 업로드",
+      "uploadSuccess": "파일이 업로드되어 색인되었습니다.",
+      "uploadFailed": "파일 업로드에 실패했습니다.",
+      "fileTooLarge": "파일이 너무 큽니다 (최대 16MB).",
+      "sourceUpload": "업로드된 파일"
     }
   },
   "SuperAdmin": {
@@ -1746,6 +1751,7 @@
     "tabBranding": "브랜딩",
     "tabAccount": "계정",
     "tabAgent": "AI 에이전트",
+    "tabUsers": "사용자",
     "branding": {
       "title": "브랜딩",
       "description": "로그인 화면, 사이드바, 브라우저 탭에 표시되는 회사 이름과 로고입니다.",
@@ -1771,6 +1777,50 @@
       "saveChanges": "변경 사항 저장",
       "saved": "계정 이름이 업데이트되었습니다",
       "saveFailed": "계정 이름 저장에 실패했습니다"
+    },
+    "users": {
+      "title": "사용자",
+      "description": "모든 클라이언트 계정의 사용자를 추가, 수정, 삭제할 수 있습니다 — 비밀번호 재설정도 포함됩니다.",
+      "addUser": "사용자 추가",
+      "you": "나",
+      "unnamed": "이름 없음",
+      "noUsers": "아직 사용자가 없습니다",
+      "loadFailed": "사용자를 불러오지 못했습니다",
+      "superAdminBadge": "슈퍼 관리자",
+      "cancel": "취소",
+      "fullNameLabel": "이름",
+      "fullNameRequired": "이름은 필수입니다",
+      "emailLabel": "이메일",
+      "emailInvalid": "유효한 이메일을 입력하세요",
+      "passwordLabel": "비밀번호",
+      "passwordHint": "8자 이상. 사용자가 나중에 변경할 수 있습니다.",
+      "passwordTooShort": "비밀번호는 8자 이상이어야 합니다",
+      "accountLabel": "계정",
+      "accountPlaceholder": "계정을 선택하세요",
+      "accountRequired": "계정을 선택하세요",
+      "roleLabel": "역할",
+      "createDialogTitle": "사용자 추가",
+      "createDialogDesc": "이 사용자의 로그인을 생성하고 선택한 계정과 역할에 배정합니다.",
+      "create": "사용자 생성",
+      "creating": "생성 중…",
+      "createdToast": "{name}님이 추가되었습니다",
+      "createFailed": "사용자 생성에 실패했습니다",
+      "editDialogTitle": "사용자 수정",
+      "editDialogDesc": "이 사용자의 이름, 계정, 역할, 비밀번호를 수정합니다.",
+      "ownerHint": "이 사용자는 계정 소유자입니다 — 역할 및 계정 변경은 여기서 지원되지 않습니다. 소유권 이전을 사용하세요.",
+      "resetPasswordLabel": "비밀번호 재설정",
+      "newPasswordPlaceholder": "새 비밀번호",
+      "leaveBlankHint": "비워두면 현재 비밀번호가 유지됩니다.",
+      "saveChanges": "변경 사항 저장",
+      "saving": "저장 중…",
+      "updatedToast": "{name}님이 업데이트되었습니다",
+      "updateFailed": "사용자 업데이트에 실패했습니다",
+      "deleteDialogTitle": "사용자 삭제",
+      "deleteDialogDesc": "<bold>{name}</bold>님의 로그인을 영구적으로 삭제하고 계정에서 제거합니다. 이 작업은 되돌릴 수 없습니다.",
+      "deleteBtn": "사용자 삭제",
+      "deleting": "삭제 중…",
+      "deletedToast": "{name}님이 삭제되었습니다",
+      "deleteFailed": "사용자 삭제에 실패했습니다"
     }
   }
 }

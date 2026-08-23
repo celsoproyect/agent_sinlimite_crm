@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import {
   getCurrentAccount,
-  requireRole,
+  requireSuperAdmin,
   toErrorResponse,
 } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
@@ -59,17 +59,22 @@ export async function GET() {
 }
 
 /**
- * POST /api/ai/config  (admin+)
+ * POST /api/ai/config  (super admin only)
  *
  * Upsert the account's AI config. Validates the key with the provider
  * before persisting (mirrors the WhatsApp config verifying with Meta
  * first), then stores the key AES-256-GCM-encrypted. When `api_key` is
  * omitted the existing stored key is reused (the form sends it only
  * when the user re-enters it).
+ *
+ * Provider/API-key setup moved to /super-admin (migration 040/041) —
+ * a client's own admin/owner can no longer reach this, enforced here
+ * and at the RLS layer (ai_configs_insert/update/delete now require
+ * is_super_admin, not just admin+).
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { supabase, accountId, userId } = await requireSuperAdmin()
 
     const limit = checkRateLimit(`ai-config:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
@@ -250,14 +255,14 @@ export async function POST(request: Request) {
 }
 
 /**
- * DELETE /api/ai/config  (admin+)
+ * DELETE /api/ai/config  (super admin only)
  *
  * Removes the account's AI config (turns everything off and forgets the
  * key). Also used to recover from a corrupted encrypted key.
  */
 export async function DELETE() {
   try {
-    const { supabase, accountId } = await requireRole('admin')
+    const { supabase, accountId } = await requireSuperAdmin()
     const { error } = await supabase
       .from('ai_configs')
       .delete()

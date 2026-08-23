@@ -2,7 +2,7 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ShieldCheck, Palette, Building2, Bot, Loader2 } from 'lucide-react';
+import { ShieldCheck, Palette, Building2, Bot, Loader2, UsersRound } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -10,11 +10,17 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiConfig } from '@/components/settings/ai-config';
 import { BrandingPanel } from '@/components/super-admin/branding-panel';
 import { AccountNamePanel } from '@/components/super-admin/account-name-panel';
+import { UsersPanel } from '@/components/super-admin/users-panel';
 
-type TabId = 'branding' | 'account' | 'agent';
+type TabId = 'branding' | 'account' | 'agent' | 'users';
 
 function isTabId(value: string | null): value is TabId {
-  return value === 'branding' || value === 'account' || value === 'agent';
+  return (
+    value === 'branding' ||
+    value === 'account' ||
+    value === 'agent' ||
+    value === 'users'
+  );
 }
 
 // `useSearchParams` needs a Suspense boundary to avoid opting the page
@@ -86,6 +92,9 @@ function SuperAdminPageInner() {
           <TabsTrigger value="agent">
             <Bot className="mr-1.5 h-4 w-4" /> {t('tabAgent')}
           </TabsTrigger>
+          <TabsTrigger value="users">
+            <UsersRound className="mr-1.5 h-4 w-4" /> {t('tabUsers')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="mt-4">
@@ -96,6 +105,9 @@ function SuperAdminPageInner() {
         </TabsContent>
         <TabsContent value="agent" className="mt-4">
           <AiConfig />
+        </TabsContent>
+        <TabsContent value="users" className="mt-4">
+          <UsersPanel />
         </TabsContent>
       </Tabs>
     </div>

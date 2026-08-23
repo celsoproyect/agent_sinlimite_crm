@@ -2,19 +2,25 @@
 // /api/account
 //
 //   GET   — current caller's account + role. Any member.
-//   PATCH — rename the account.                  Admin+.
+//   PATCH — rename the account.                  Super admin only.
 //
 // Why both verbs share a route file
 //   They speak about the same singular resource (the caller's
-//   account) and reuse the same `requireRole` plumbing. Splitting
+//   account) and reuse the same account-context plumbing. Splitting
 //   them across files would duplicate the `account_id` lookup
 //   without buying anything.
+//
+// Renaming used to be admin+; it now requires `is_super_admin`
+// (migration 040/041) so a client's own admin/owner can't reach it
+// — enforced here AND at the RLS layer via a column guard trigger
+// on accounts.name, since this route's `ctx.supabase` is the same
+// RLS-scoped client a direct PostgREST call would use.
 // ============================================================
 
 import { NextResponse } from "next/server";
 
 import {
-  requireRole,
+  requireSuperAdmin,
   getCurrentAccount,
   toErrorResponse,
 } from "@/lib/auth/account";
@@ -40,7 +46,7 @@ const MAX_NAME_LEN = 80;
 
 export async function PATCH(request: Request) {
   try {
-    const ctx = await requireRole("admin");
+    const ctx = await requireSuperAdmin();
 
     // Per-user limit on admin-class mutations. Bounds accidental
     // abuse (script run in a loop) and a compromised admin session

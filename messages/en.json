@@ -16,7 +16,7 @@
   },
   "Sidebar": {
     "dashboard": "Dashboard",
-    "inbox": "Inbox",
+    "inbox": "Messages",
     "notifications": "Notifications",
     "contacts": "Contacts",
     "pipelines": "Pipelines",
@@ -42,7 +42,7 @@
   },
   "Header": {
     "dashboard": "Dashboard",
-    "inbox": "Inbox",
+    "inbox": "Messages",
     "notifications": "Notifications",
     "contacts": "Contacts",
     "pipelines": "Pipelines",
@@ -1736,7 +1736,12 @@
       "addDoc": "Add document",
       "reindex": "Reindex",
       "reindexTooltip": "Re-embed all documents (e.g. after adding an embeddings key)",
-      "loading": "Loading…"
+      "loading": "Loading…",
+      "uploadDoc": "Upload file",
+      "uploadSuccess": "File uploaded and indexed.",
+      "uploadFailed": "Failed to upload the file.",
+      "fileTooLarge": "File is too large (max 16 MB).",
+      "sourceUpload": "Uploaded file"
     }
   },
   "SuperAdmin": {
@@ -1746,6 +1751,7 @@
     "tabBranding": "Branding",
     "tabAccount": "Account",
     "tabAgent": "AI agent",
+    "tabUsers": "Users",
     "branding": {
       "title": "Branding",
       "description": "The company name and logo shown on the login screen, sidebar, and browser tab.",
@@ -1771,6 +1777,50 @@
       "saveChanges": "Save changes",
       "saved": "Account name updated",
       "saveFailed": "Failed to save account name"
+    },
+    "users": {
+      "title": "Users",
+      "description": "Add, edit, or remove users on any client account — including resetting their password.",
+      "addUser": "Add user",
+      "you": "You",
+      "unnamed": "Unnamed",
+      "noUsers": "No users yet",
+      "loadFailed": "Failed to load users",
+      "superAdminBadge": "Super admin",
+      "cancel": "Cancel",
+      "fullNameLabel": "Full name",
+      "fullNameRequired": "Full name is required",
+      "emailLabel": "Email",
+      "emailInvalid": "A valid email is required",
+      "passwordLabel": "Password",
+      "passwordHint": "At least 8 characters. The user can change it later.",
+      "passwordTooShort": "Password must be at least 8 characters",
+      "accountLabel": "Account",
+      "accountPlaceholder": "Choose an account",
+      "accountRequired": "Choose an account",
+      "roleLabel": "Role",
+      "createDialogTitle": "Add user",
+      "createDialogDesc": "Creates a login for this person and assigns them to the chosen account and role.",
+      "create": "Create user",
+      "creating": "Creating…",
+      "createdToast": "{name} was added",
+      "createFailed": "Failed to create user",
+      "editDialogTitle": "Edit user",
+      "editDialogDesc": "Update this user's name, account, role, or password.",
+      "ownerHint": "This user owns an account — role and account changes aren't supported here. Use ownership transfer instead.",
+      "resetPasswordLabel": "Reset password",
+      "newPasswordPlaceholder": "New password",
+      "leaveBlankHint": "Leave blank to keep their current password.",
+      "saveChanges": "Save changes",
+      "saving": "Saving…",
+      "updatedToast": "{name} was updated",
+      "updateFailed": "Failed to update user",
+      "deleteDialogTitle": "Delete user",
+      "deleteDialogDesc": "This permanently deletes <bold>{name}</bold>'s login and removes them from their account. This cannot be undone.",
+      "deleteBtn": "Delete user",
+      "deleting": "Deleting…",
+      "deletedToast": "{name} was deleted",
+      "deleteFailed": "Failed to delete user"
     }
   }
 }

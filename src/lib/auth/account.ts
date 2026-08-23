@@ -188,3 +188,27 @@ export async function requireRole(min: AccountRole): Promise<AccountContext> {
   }
   return ctx;
 }
+
+/**
+ * Resolve the caller's account context and enforce platform-level
+ * super admin access (`profiles.is_super_admin`, migration 040).
+ *
+ * This is orthogonal to `account_role` — even an account's `owner`
+ * fails this check unless they were granted `is_super_admin` by
+ * direct SQL (see 040's header comment). Use for routes backing
+ * /super-admin (branding, account rename, AI provider config) that
+ * must stay off-limits to a client's own admins, not just hidden
+ * from their UI.
+ */
+export async function requireSuperAdmin(): Promise<AccountContext> {
+  const ctx = await getCurrentAccount();
+  const { data, error } = await ctx.supabase
+    .from("profiles")
+    .select("is_super_admin")
+    .eq("user_id", ctx.userId)
+    .maybeSingle();
+  if (error || !data?.is_super_admin) {
+    throw new ForbiddenError("This action requires super admin access");
+  }
+  return ctx;
+}

@@ -205,9 +205,6 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               height={32}
               className="h-8 w-8 rounded-lg object-contain"
             />
-            <span className="text-sm font-semibold text-foreground">
-              {companyName}
-            </span>
           </Link>
           <button
             type="button"

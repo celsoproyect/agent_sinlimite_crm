@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Plus, Trash2, Pencil, RefreshCw, BookOpen } from 'lucide-react';
+import { Loader2, Plus, Trash2, Pencil, RefreshCw, BookOpen, Upload, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -20,7 +20,11 @@ interface DocSummary {
   id: string;
   title: string;
   updated_at: string;
+  metadata?: { source?: string; file_name?: string } | null;
 }
+
+const UPLOAD_ACCEPT = '.pdf,.docx,.xlsx,.csv,.txt,.md';
+const UPLOAD_MAX_BYTES = 16 * 1024 * 1024;
 
 /** Editor target: 'new' when creating, a doc id when editing, null when closed. */
 type EditTarget = 'new' | string | null;
@@ -41,6 +45,8 @@ export function AiKnowledgeCard({
   const [content, setContent] = useState('');
   const [saving, setSaving] = useState(false);
   const [reindexing, setReindexing] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const loadedAccountIdRef = useRef<string | null>(null);
   const t = useTranslations('Settings.aiKnowledge');
 
@@ -140,6 +146,36 @@ export function AiKnowledgeCard({
     }
   };
 
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+
+    if (file.size > UPLOAD_MAX_BYTES) {
+      toast.error(t('fileTooLarge'));
+      return;
+    }
+
+    setUploading(true);
+    try {
+      const body = new FormData();
+      body.append('file', file);
+      const res = await fetch('/api/ai/knowledge/upload', { method: 'POST', body });
+      const data = await res.json();
+      if (res.ok) {
+        if (data.warning) toast.warning(data.warning);
+        else toast.success(t('uploadSuccess'));
+        await fetchDocs();
+      } else {
+        toast.error(data.error ?? t('uploadFailed'));
+      }
+    } catch {
+      toast.error(t('uploadFailed'));
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const reindex = async () => {
     setReindexing(true);
     try {
@@ -189,8 +225,14 @@ export function AiKnowledgeCard({
                     key={doc.id}
                     className="flex items-center justify-between gap-2 px-3 py-2"
                   >
-                    <span className="min-w-0 truncate text-sm text-foreground">
-                      {doc.title}
+                    <span className="flex min-w-0 items-center gap-1.5 truncate text-sm text-foreground">
+                      {doc.metadata?.source === 'upload' && (
+                        <FileText
+                          className="h-3.5 w-3.5 shrink-0 text-muted-foreground"
+                          aria-label={t('sourceUpload')}
+                        />
+                      )}
+                      <span className="truncate">{doc.title}</span>
                     </span>
                     {canEdit && (
                       <span className="flex shrink-0 gap-1">
@@ -254,10 +296,32 @@ export function AiKnowledgeCard({
               </div>
             ) : (
               canEdit && (
-                <div className="flex items-center justify-between">
-                  <Button variant="outline" size="sm" onClick={openNew}>
-                    <Plus className="mr-2 h-4 w-4" /> {t('addDoc')}
-                  </Button>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="flex flex-wrap gap-2">
+                    <Button variant="outline" size="sm" onClick={openNew}>
+                      <Plus className="mr-2 h-4 w-4" /> {t('addDoc')}
+                    </Button>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept={UPLOAD_ACCEPT}
+                      className="hidden"
+                      onChange={onPickFile}
+                    />
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={uploading}
+                    >
+                      {uploading ? (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      ) : (
+                        <Upload className="mr-2 h-4 w-4" />
+                      )}
+                      {t('uploadDoc')}
+                    </Button>
+                  </div>
                   {hasEmbeddingsKey && docs.length > 0 && (
                     <Button
                       variant="ghost"
