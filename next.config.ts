@@ -70,6 +70,26 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   /**
+   * The KB file-upload route's parsers (pdf-parse, mammoth, exceljs)
+   * use conditional `exports` maps / dynamic requires that Next's
+   * build-time file tracer (@vercel/nft) fails to resolve as
+   * dependencies of the route. Left alone, `.next/standalone` ships
+   * without them, so the route's top-level `import` throws "Cannot
+   * find module" at request time in prod (works fine in `next dev`,
+   * which uses the full node_modules — this only breaks in Docker).
+   * Force-including them here is the documented fix (see
+   * next.config.js `output` docs, "Caveats").
+   */
+  outputFileTracingIncludes: {
+    "/api/ai/knowledge/upload": [
+      "./node_modules/pdf-parse/**/*",
+      "./node_modules/mammoth/**/*",
+      "./node_modules/exceljs/**/*",
+      "./node_modules/csv-parse/**/*",
+    ],
+  },
+
+  /**
    * Cross-origin dev access (Next.js 16).
    *
    * Next 16 blocks requests to dev-only resources (`/_next/*` internals,
