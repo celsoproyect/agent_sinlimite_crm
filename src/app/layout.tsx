@@ -6,6 +6,8 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemedToaster } from "@/components/themed-toaster";
+import { createClient } from "@/lib/supabase/server";
+import { DEFAULT_COMPANY_NAME } from "@/lib/branding";
 import {
   DEFAULT_MODE,
   DEFAULT_THEME,
@@ -20,25 +22,44 @@ const inter = Inter({
   subsets: ["latin"],
 });
 
-export const metadata: Metadata = {
-  title: {
-    default: "Sin Limite IA",
-    template: "%s — Sin Limite IA",
-  },
-  description: "Self-hostable CRM template for WhatsApp.",
-  robots: {
-    index: false,
-    follow: false,
-  },
-  icons: {
-    icon: [{ url: "/icon" }],
-  },
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
-};
+// Reads the deployment's branded name from `platform_settings`
+// (public SELECT, migration 040) so the browser tab title follows a
+// super admin's rebrand without a redeploy. Falls back to the code
+// default on a pre-migration-040 deployment or any read error.
+export async function generateMetadata(): Promise<Metadata> {
+  let companyName: string = DEFAULT_COMPANY_NAME;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase
+      .from("platform_settings")
+      .select("company_name")
+      .eq("id", true)
+      .maybeSingle();
+    if (data?.company_name) companyName = data.company_name;
+  } catch {
+    // Keep the default — this must never block the app from rendering.
+  }
+
+  return {
+    title: {
+      default: companyName,
+      template: `%s — ${companyName}`,
+    },
+    description: "Self-hostable CRM template for WhatsApp.",
+    robots: {
+      index: false,
+      follow: false,
+    },
+    icons: {
+      icon: [{ url: "/icon" }],
+    },
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#020617",

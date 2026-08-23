@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
+import { useBranding } from "@/hooks/use-branding";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import {
@@ -18,6 +19,7 @@ import {
   Radio,
   Settings,
   Shield,
+  ShieldCheck,
   User,
   UserCog,
   Users,
@@ -105,6 +107,12 @@ const bottomNavItems = [
   { href: "/settings", labelKey: "settings", icon: Settings },
 ];
 
+const superAdminNavItem: NavItem = {
+  href: "/super-admin",
+  labelKey: "superAdmin",
+  icon: ShieldCheck,
+};
+
 interface SidebarProps {
   /** Controlled on mobile by the Header's hamburger button. Ignored on lg+. */
   open?: boolean;
@@ -116,7 +124,9 @@ import { useTranslations } from "next-intl";
 export function Sidebar({ open = false, onClose }: SidebarProps) {
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
-  const { profile, profileLoading, account, accountRole, signOut } = useAuth();
+  const { profile, profileLoading, account, accountRole, isSuperAdmin, signOut } =
+    useAuth();
+  const { companyName, logoUrl } = useBranding();
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
   // Only surface the account-name strip when it actually carries
@@ -189,14 +199,14 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border px-4">
           <Link href="/dashboard" className="flex items-center gap-2">
             <img
-              src="/logo.png"
-              alt="Sin Limite IA"
+              src={logoUrl}
+              alt={companyName}
               width={32}
               height={32}
               className="h-8 w-8 rounded-lg object-contain"
             />
             <span className="text-sm font-semibold text-foreground">
-              {t("title")}
+              {companyName}
             </span>
           </Link>
           <button
@@ -275,7 +285,10 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           <div className="my-4 border-t border-border" />
 
           <ul className="flex flex-col gap-1">
-            {bottomNavItems.map((item) => {
+            {(isSuperAdmin
+              ? [...bottomNavItems, superAdminNavItem]
+              : bottomNavItems
+            ).map((item) => {
               const isActive = pathname.startsWith(item.href);
               return (
                 <li key={item.href}>

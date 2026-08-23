@@ -15,7 +15,6 @@
     "createAccount": "Create account"
   },
   "Sidebar": {
-    "title": "Sin Limite IA",
     "dashboard": "Dashboard",
     "inbox": "Inbox",
     "notifications": "Notifications",
@@ -26,6 +25,7 @@
     "flows": "Flows",
     "aiAgents": "AI Agents",
     "settings": "Settings",
+    "superAdmin": "Super Admin",
     "beta": "Beta",
     "unreadConversations": "{count} unread {count, plural, =1 {conversation} other {conversations}}",
     "unreadNotifications": "{count} unread {count, plural, =1 {notification} other {notifications}}",
@@ -1737,6 +1737,40 @@
       "reindex": "Reindex",
       "reindexTooltip": "Re-embed all documents (e.g. after adding an embeddings key)",
       "loading": "Loading…"
+    }
+  },
+  "SuperAdmin": {
+    "loading": "Loading…",
+    "pageTitle": "Super Admin",
+    "pageDesc": "Deployment-wide settings — visible only to you, hidden from every client account.",
+    "tabBranding": "Branding",
+    "tabAccount": "Account",
+    "tabAgent": "AI agent",
+    "branding": {
+      "title": "Branding",
+      "description": "The company name and logo shown on the login screen, sidebar, and browser tab.",
+      "loading": "Loading…",
+      "changeLogo": "Change logo",
+      "logoHint": "PNG, JPEG, WebP or SVG, up to 5 MB.",
+      "companyName": "Company name",
+      "companyNameHint": "Replaces every visible mention of the default product name.",
+      "nameRequired": "Company name is required",
+      "unsupportedImage": "Unsupported image type",
+      "imageTooLarge": "Image is larger than 5 MB",
+      "saving": "Saving…",
+      "saveChanges": "Save changes",
+      "saved": "Branding updated",
+      "saveFailed": "Failed to save branding"
+    },
+    "account": {
+      "title": "Account",
+      "description": "Rename the workspace your clients see across the app.",
+      "accountName": "Account name",
+      "nameRequired": "Account name is required",
+      "saving": "Saving…",
+      "saveChanges": "Save changes",
+      "saved": "Account name updated",
+      "saveFailed": "Failed to save account name"
     }
   }
 }

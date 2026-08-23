@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
+import { useBranding } from "@/hooks/use-branding";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,6 +38,7 @@ function LoginPageInner() {
   // page to accept rather than to /dashboard.
   const inviteToken = searchParams.get("invite");
   const t = useTranslations("LoginPage");
+  const { companyName, logoUrl } = useBranding();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,8 +86,8 @@ function LoginPageInner() {
             </div>
           ) : (
             <img
-              src="/logo.png"
-              alt="Sin Limite IA"
+              src={logoUrl}
+              alt={companyName}
               width={128}
               height={128}
               className="mb-2 h-28 w-28 rounded-2xl object-contain"

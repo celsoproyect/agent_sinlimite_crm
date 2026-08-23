@@ -1,40 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
-import { Bot, Sparkles, Settings2, BarChart3 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Bot, Sparkles, BarChart3 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiPlayground } from '@/components/agents/ai-playground';
 import { AiUsageCard } from '@/components/agents/ai-usage';
-import { AiConfig } from '@/components/settings/ai-config';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 
-type Tab = 'playground' | 'setup' | 'usage';
-
+// Provider/API-key setup (formerly a "Setup" tab here) moved to
+// /super-admin — the config a reseller sets up once per client
+// install and doesn't want the client's own owner/admin touching.
+// Regular account roles only ever see Playground (+ Usage for
+// admin+) here.
 export default function AgentsPage() {
-  const { accountRole } = useAuth();
+  const router = useRouter();
+  const { accountRole, isSuperAdmin } = useAuth();
   const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
-  const [tab, setTab] = useState<Tab>('playground');
-  const [decided, setDecided] = useState(false);
-
-  // Land first-time users on Setup, returning users on the Playground.
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/ai/config');
-        const data = await res.json().catch(() => ({}));
-        if (!cancelled) setTab(data?.configured ? 'playground' : 'setup');
-      } catch {
-        if (!cancelled) setTab('setup');
-      } finally {
-        if (!cancelled) setDecided(true);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
 
   return (
     <div>
@@ -49,41 +31,34 @@ export default function AgentsPage() {
         playground before it replies to customers in the inbox.
       </p>
 
-      {decided && (
-        <Tabs
-          value={tab}
-          onValueChange={(v) => setTab(v as Tab)}
-          className="mt-6"
-        >
-          <TabsList>
-            <TabsTrigger value="playground">
-              <Sparkles className="mr-1.5 h-4 w-4" /> Playground
-            </TabsTrigger>
-            <TabsTrigger value="setup">
-              <Settings2 className="mr-1.5 h-4 w-4" /> Setup
-            </TabsTrigger>
-            {canViewUsage && (
-              <TabsTrigger value="usage">
-                <BarChart3 className="mr-1.5 h-4 w-4" /> Usage
-              </TabsTrigger>
-            )}
-          </TabsList>
-
-          <TabsContent value="playground" className="mt-4">
-            <AiPlayground onGoToSetup={() => setTab('setup')} />
-          </TabsContent>
-
-          <TabsContent value="setup" className="mt-4">
-            <AiConfig />
-          </TabsContent>
-
+      <Tabs defaultValue="playground" className="mt-6">
+        <TabsList>
+          <TabsTrigger value="playground">
+            <Sparkles className="mr-1.5 h-4 w-4" /> Playground
+          </TabsTrigger>
           {canViewUsage && (
-            <TabsContent value="usage" className="mt-4">
-              <AiUsageCard />
-            </TabsContent>
+            <TabsTrigger value="usage">
+              <BarChart3 className="mr-1.5 h-4 w-4" /> Usage
+            </TabsTrigger>
           )}
-        </Tabs>
-      )}
+        </TabsList>
+
+        <TabsContent value="playground" className="mt-4">
+          <AiPlayground
+            onGoToSetup={
+              isSuperAdmin
+                ? () => router.push('/super-admin?tab=agent')
+                : undefined
+            }
+          />
+        </TabsContent>
+
+        {canViewUsage && (
+          <TabsContent value="usage" className="mt-4">
+            <AiUsageCard />
+          </TabsContent>
+        )}
+      </Tabs>
     </div>
   );
 }

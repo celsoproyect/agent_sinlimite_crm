@@ -15,7 +15,6 @@
     "createAccount": "계정 만들기"
   },
   "Sidebar": {
-    "title": "WhatsApp용 CRM 템플릿",
     "dashboard": "대시보드",
     "inbox": "인박스",
     "notifications": "알림",
@@ -26,6 +25,7 @@
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
     "settings": "설정",
+    "superAdmin": "슈퍼 관리자",
     "beta": "베타",
     "unreadConversations": "읽지 않은 대화 {count}건",
     "unreadNotifications": "읽지 않은 알림 {count}건",
@@ -1737,6 +1737,40 @@
       "reindex": "재색인",
       "reindexTooltip": "모든 문서를 다시 임베딩합니다 (예: 임베딩 키 추가 후)",
       "loading": "불러오는 중…"
+    }
+  },
+  "SuperAdmin": {
+    "loading": "불러오는 중…",
+    "pageTitle": "슈퍼 관리자",
+    "pageDesc": "배포 전체 설정 — 오직 당신에게만 보이며, 모든 클라이언트 계정에는 숨겨집니다.",
+    "tabBranding": "브랜딩",
+    "tabAccount": "계정",
+    "tabAgent": "AI 에이전트",
+    "branding": {
+      "title": "브랜딩",
+      "description": "로그인 화면, 사이드바, 브라우저 탭에 표시되는 회사 이름과 로고입니다.",
+      "loading": "불러오는 중…",
+      "changeLogo": "로고 변경",
+      "logoHint": "PNG, JPEG, WebP 또는 SVG, 최대 5MB.",
+      "companyName": "회사 이름",
+      "companyNameHint": "기본 제품 이름이 표시되는 모든 곳을 대체합니다.",
+      "nameRequired": "회사 이름은 필수입니다",
+      "unsupportedImage": "지원되지 않는 이미지 형식입니다",
+      "imageTooLarge": "이미지가 5MB를 초과합니다",
+      "saving": "저장 중…",
+      "saveChanges": "변경 사항 저장",
+      "saved": "브랜딩이 업데이트되었습니다",
+      "saveFailed": "브랜딩 저장에 실패했습니다"
+    },
+    "account": {
+      "title": "계정",
+      "description": "클라이언트에게 표시되는 워크스페이스 이름을 변경합니다.",
+      "accountName": "계정 이름",
+      "nameRequired": "계정 이름은 필수입니다",
+      "saving": "저장 중…",
+      "saveChanges": "변경 사항 저장",
+      "saved": "계정 이름이 업데이트되었습니다",
+      "saveFailed": "계정 이름 저장에 실패했습니다"
     }
   }
 }
