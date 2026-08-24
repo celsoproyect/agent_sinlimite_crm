@@ -1,5 +1,6 @@
 import { PDFParse } from 'pdf-parse'
-import { getData as getPdfWorkerData } from 'pdf-parse/worker'
+import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 import mammoth from 'mammoth'
 import ExcelJS from 'exceljs'
 import { parse as parseCsv } from 'csv-parse/sync'
@@ -48,14 +49,28 @@ export function resolveUploadExt(fileName: string): SupportedUploadExt | null {
 // Under Turbopack's standalone bundle that module is inlined into a
 // shared server chunk, so the relative URL no longer points at a real
 // file ("Setting up fake worker failed: Cannot find module
-// '.../pdf.worker.mjs'") and every PDF upload fails. Pointing
-// `workerSrc` at the base64 data: URL pdf-parse ships for exactly this
-// case sidesteps path resolution entirely — pdfjs imports it directly
-// instead of resolving a file. Set once per process.
+// '.../pdf.worker.mjs'") and every PDF upload fails.
+//
+// pdf-parse ships a `./worker` entry point with a pre-embedded
+// base64 copy of the worker for exactly this case, but that entry's
+// single bundled file *also* unconditionally imports `@napi-rs/canvas`
+// (for its unused CanvasFactory export) — a native addon loader that
+// Turbopack cannot place in an ESM chunk at all, so importing it
+// statically fails the production build outright ("asset is not
+// placeable in ESM chunks"). Resolving the real pdfjs-dist worker file
+// with `require.resolve` at runtime (not a static `import`) sidesteps
+// both problems: Turbopack never sees it as part of the module graph,
+// and the resulting file:// URL is an absolute path that doesn't
+// depend on where Turbopack placed *our* chunk. `outputFileTracingIncludes`
+// in next.config.ts already ships pdfjs-dist's files into the
+// standalone output, so the file exists on disk at runtime. Set once
+// per process.
 let pdfWorkerConfigured = false
 function ensurePdfWorkerConfigured() {
   if (pdfWorkerConfigured) return
-  PDFParse.setWorker(getPdfWorkerData())
+  const require = createRequire(import.meta.url)
+  const workerPath = require.resolve('pdfjs-dist/legacy/build/pdf.worker.mjs')
+  PDFParse.setWorker(pathToFileURL(workerPath).href)
   pdfWorkerConfigured = true
 }
 

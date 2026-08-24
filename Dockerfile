@@ -42,7 +42,14 @@ WORKDIR /app
 ENV NODE_ENV=production \
     NEXT_TELEMETRY_DISABLED=1 \
     PORT=3000 \
-    HOSTNAME=0.0.0.0
+    HOSTNAME=0.0.0.0 \
+    TZ=America/Santo_Domingo
+
+# Alpine ships without the IANA tzdata package, so setting TZ to a
+# named zone silently does nothing (Date/Intl fall back to UTC) until
+# tzdata is installed — every server-rendered timestamp (dashboard,
+# inbox, automations) was showing UTC instead of local time.
+RUN apk add --no-cache tzdata
 
 RUN addgroup -S nextjs && adduser -S nextjs -G nextjs
 

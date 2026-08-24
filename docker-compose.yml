@@ -24,6 +24,7 @@ services:
     # `build.args` above.
     environment:
       PORT: 3000
+      TZ: ${TZ:-America/Santo_Domingo}
       SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY:-}
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-}
       META_APP_SECRET: ${META_APP_SECRET:-}
