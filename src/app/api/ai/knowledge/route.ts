@@ -10,17 +10,27 @@ import { ingestDocument } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
 
 /**
- * GET /api/ai/knowledge
+ * GET /api/ai/knowledge?knowledge_base_id=...
  *
- * List the account's knowledge-base documents (any member).
+ * List the account's documents in one knowledge base (any member).
  */
-export async function GET() {
+export async function GET(request: Request) {
   try {
     const { supabase, accountId } = await getCurrentAccount()
+    const knowledgeBaseId = new URL(request.url).searchParams.get(
+      'knowledge_base_id',
+    )
+    if (!knowledgeBaseId) {
+      return NextResponse.json(
+        { error: 'knowledge_base_id is required' },
+        { status: 400 },
+      )
+    }
     const { data, error } = await supabase
       .from('ai_knowledge_documents')
       .select('id, title, updated_at, metadata')
       .eq('account_id', accountId)
+      .eq('knowledge_base_id', knowledgeBaseId)
       .order('updated_at', { ascending: false })
     if (error) {
       console.error('[ai/knowledge GET] error:', error)
@@ -38,8 +48,9 @@ export async function GET() {
 /**
  * POST /api/ai/knowledge  (admin+)
  *
- * Create a document, then chunk + (optionally) embed it. If indexing
- * fails the document is still saved so the admin can retry via reindex.
+ * Create a document in a knowledge base, then chunk + (optionally) embed
+ * it. If indexing fails the document is still saved so the admin can
+ * retry via reindex.
  */
 export async function POST(request: Request) {
   try {
@@ -50,16 +61,38 @@ export async function POST(request: Request) {
     const body = await request.json().catch(() => null)
     const title = typeof body?.title === 'string' ? body.title.trim() : ''
     const content = typeof body?.content === 'string' ? body.content.trim() : ''
-    if (!title || !content) {
+    const knowledgeBaseId =
+      typeof body?.knowledge_base_id === 'string' ? body.knowledge_base_id : ''
+    if (!title || !content || !knowledgeBaseId) {
       return NextResponse.json(
-        { error: 'title and content are required' },
+        { error: 'title, content, and knowledge_base_id are required' },
         { status: 400 },
       )
     }
 
+    // Confirm the KB is actually this account's before tagging a
+    // document with it — the DB's composite FK backstops this, but
+    // checking here turns a cross-tenant mistake into a clean 404
+    // instead of a raw constraint-violation 500.
+    const { data: kb } = await supabase
+      .from('ai_knowledge_bases')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('id', knowledgeBaseId)
+      .maybeSingle()
+    if (!kb) {
+      return NextResponse.json({ error: 'Knowledge base not found' }, { status: 404 })
+    }
+
     const { data: doc, error } = await supabase
       .from('ai_knowledge_documents')
-      .insert({ account_id: accountId, created_by: userId, title, content })
+      .insert({
+        account_id: accountId,
+        created_by: userId,
+        knowledge_base_id: knowledgeBaseId,
+        title,
+        content,
+      })
       .select('id')
       .single()
     if (error || !doc) {
@@ -80,6 +113,7 @@ export async function POST(request: Request) {
         accountId,
         { embeddingsApiKey },
         doc.id,
+        knowledgeBaseId,
         content,
       )
     } catch (err) {

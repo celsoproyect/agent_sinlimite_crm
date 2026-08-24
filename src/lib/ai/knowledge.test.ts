@@ -10,8 +10,8 @@ vi.mock('./embeddings', () => ({
 import { retrieveKnowledge, ingestDocument } from './knowledge'
 
 interface FakeState {
-  semantic: { id: string; content: string }[]
-  fts: { id: string; content: string }[]
+  semantic: { id: string; content: string; kb_name: string }[]
+  fts: { id: string; content: string; kb_name: string }[]
   chunkCount: number
   rpcCalls: string[]
   inserted: Record<string, unknown>[] | null
@@ -81,9 +81,9 @@ describe('retrieveKnowledge', () => {
 
   it('uses lexical FTS only when there is no embeddings key', async () => {
     const { db, state } = makeDb()
-    state.fts = [{ id: 'f1', content: 'F1' }]
+    state.fts = [{ id: 'f1', content: 'F1', kb_name: 'General' }]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: null }, 'q')
-    expect(out).toEqual(['F1'])
+    expect(out).toEqual([{ content: 'F1', kbName: 'General' }])
     expect(state.rpcCalls).toEqual(['match_ai_knowledge_fts'])
     expect(h.embedTexts).not.toHaveBeenCalled()
   })
@@ -91,12 +91,16 @@ describe('retrieveKnowledge', () => {
   it('uses semantic search when an embeddings key is present', async () => {
     const { db, state } = makeDb()
     state.semantic = [
-      { id: 's1', content: 'S1' },
-      { id: 's2', content: 'S2' },
-      { id: 's3', content: 'S3' },
+      { id: 's1', content: 'S1', kb_name: 'Legal' },
+      { id: 's2', content: 'S2', kb_name: 'Legal' },
+      { id: 's3', content: 'S3', kb_name: 'Sales' },
     ]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 3)
-    expect(out).toEqual(['S1', 'S2', 'S3'])
+    expect(out).toEqual([
+      { content: 'S1', kbName: 'Legal' },
+      { content: 'S2', kbName: 'Legal' },
+      { content: 'S3', kbName: 'Sales' },
+    ])
     expect(h.embedTexts).toHaveBeenCalledTimes(1)
     // Enough semantic hits → no FTS top-up.
     expect(state.rpcCalls).toEqual(['match_ai_knowledge_semantic'])
@@ -105,15 +109,19 @@ describe('retrieveKnowledge', () => {
   it('tops up with FTS and dedupes when semantic is short', async () => {
     const { db, state } = makeDb()
     state.semantic = [
-      { id: 's1', content: 'S1' },
-      { id: 's2', content: 'S2' },
+      { id: 's1', content: 'S1', kb_name: 'Legal' },
+      { id: 's2', content: 'S2', kb_name: 'Legal' },
     ]
     state.fts = [
-      { id: 's2', content: 'S2-dup' }, // dedup by id
-      { id: 'f1', content: 'F1' },
+      { id: 's2', content: 'S2-dup', kb_name: 'Legal' }, // dedup by id
+      { id: 'f1', content: 'F1', kb_name: 'Sales' },
     ]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 3)
-    expect(out).toEqual(['S1', 'S2', 'F1'])
+    expect(out).toEqual([
+      { content: 'S1', kbName: 'Legal' },
+      { content: 'S2', kbName: 'Legal' },
+      { content: 'F1', kbName: 'Sales' },
+    ])
     expect(state.rpcCalls).toEqual([
       'match_ai_knowledge_semantic',
       'match_ai_knowledge_fts',
@@ -124,24 +132,25 @@ describe('retrieveKnowledge', () => {
 describe('ingestDocument', () => {
   it('embeds chunks when a key is present', async () => {
     const { db, state } = makeDb()
-    await ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', 'hello world')
+    await ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', 'kb-1', 'hello world')
     expect(h.embedTexts).toHaveBeenCalledTimes(1)
     expect(state.deletedFor).toBe('doc-1')
     expect(state.inserted).toHaveLength(1)
     expect(state.inserted![0].embedding).toBe('[0,0]') // literal from mocked embed
     expect(state.inserted![0].account_id).toBe('acct')
+    expect(state.inserted![0].knowledge_base_id).toBe('kb-1')
   })
 
   it('stores chunks without embeddings when there is no key', async () => {
     const { db, state } = makeDb()
-    await ingestDocument(db, 'acct', { embeddingsApiKey: null }, 'doc-1', 'hello world')
+    await ingestDocument(db, 'acct', { embeddingsApiKey: null }, 'doc-1', 'kb-1', 'hello world')
     expect(h.embedTexts).not.toHaveBeenCalled()
     expect(state.inserted![0].embedding).toBeNull()
   })
 
   it('deletes existing chunks and inserts nothing for empty content', async () => {
     const { db, state } = makeDb()
-    await ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', '   ')
+    await ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', 'kb-1', '   ')
     expect(state.deletedFor).toBe('doc-1')
     expect(state.inserted).toBeNull()
     expect(h.embedTexts).not.toHaveBeenCalled()
@@ -151,7 +160,7 @@ describe('ingestDocument', () => {
     const { db, state } = makeDb()
     h.embedTexts.mockRejectedValueOnce(new Error('rate limited'))
     await expect(
-      ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', 'hello world'),
+      ingestDocument(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'doc-1', 'kb-1', 'hello world'),
     ).rejects.toThrow('rate limited')
     // Chunks were inserted (lexical search works) despite the embed failure…
     expect(state.inserted).toHaveLength(1)

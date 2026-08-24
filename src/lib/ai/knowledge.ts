@@ -12,6 +12,45 @@ import { embedTexts, toVectorLiteral } from './embeddings'
 interface MatchRow {
   id: string
   content: string
+  kb_name: string
+}
+
+/** One retrieved excerpt, tagged with the collection it came from so
+ *  the model can attribute/weigh it correctly (see buildSystemPrompt). */
+export interface KnowledgeExcerpt {
+  content: string
+  kbName: string
+}
+
+/** A knowledge-base collection's name + description, for the system-
+ *  prompt roster (buildSystemPrompt) — tells the model what each
+ *  collection is for before it sees any retrieved content. */
+export interface KnowledgeBaseSummary {
+  name: string
+  description: string
+}
+
+/**
+ * List the account's knowledge-base collections for the system-prompt
+ * roster. Best-effort like retrieveKnowledge: any failure degrades to
+ * an empty roster rather than throwing into the draft / auto-reply path.
+ */
+export async function getKnowledgeBaseRoster(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<KnowledgeBaseSummary[]> {
+  try {
+    const { data, error } = await db
+      .from('ai_knowledge_bases')
+      .select('name, description')
+      .eq('account_id', accountId)
+      .order('name', { ascending: true })
+    if (error || !data) return []
+    return data as KnowledgeBaseSummary[]
+  } catch (err) {
+    console.error('[ai knowledge] roster fetch failed:', err)
+    return []
+  }
 }
 
 /**
@@ -29,6 +68,7 @@ export async function ingestDocument(
   accountId: string,
   config: Pick<AiConfig, 'embeddingsApiKey'>,
   documentId: string,
+  knowledgeBaseId: string,
   content: string,
 ): Promise<void> {
   const chunks = chunkText(content)
@@ -61,6 +101,7 @@ export async function ingestDocument(
   const rows = chunks.map((content, i) => ({
     document_id: documentId,
     account_id: accountId,
+    knowledge_base_id: knowledgeBaseId,
     chunk_index: i,
     content,
     embedding: embeddings ? toVectorLiteral(embeddings[i]) : null,
@@ -87,7 +128,7 @@ export async function retrieveKnowledge(
   config: Pick<AiConfig, 'embeddingsApiKey'>,
   queryText: string,
   k = 5,
-): Promise<string[]> {
+): Promise<KnowledgeExcerpt[]> {
   const query = queryText.trim()
   if (!query || k <= 0) return []
 
@@ -105,7 +146,7 @@ export async function retrieveKnowledge(
     return []
   }
 
-  const picked = new Map<string, string>() // id → content, preserves order
+  const picked = new Map<string, KnowledgeExcerpt>() // id → excerpt, preserves order
 
   // Semantic path.
   if (config.embeddingsApiKey) {
@@ -118,7 +159,8 @@ export async function retrieveKnowledge(
           p_match_count: k,
         })
         if (!error && Array.isArray(data)) {
-          for (const row of data as MatchRow[]) picked.set(row.id, row.content)
+          for (const row of data as MatchRow[])
+            picked.set(row.id, { content: row.content, kbName: row.kb_name })
         }
       }
     } catch (err) {
@@ -137,7 +179,8 @@ export async function retrieveKnowledge(
       if (!error && Array.isArray(data)) {
         for (const row of data as MatchRow[]) {
           if (picked.size >= k) break
-          if (!picked.has(row.id)) picked.set(row.id, row.content)
+          if (!picked.has(row.id))
+            picked.set(row.id, { content: row.content, kbName: row.kb_name })
         }
       }
     } catch (err) {

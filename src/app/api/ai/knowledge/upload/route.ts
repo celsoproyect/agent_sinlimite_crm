@@ -35,6 +35,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'file is required' }, { status: 400 })
     }
 
+    const knowledgeBaseIdField = form.get('knowledge_base_id')
+    const knowledgeBaseId =
+      typeof knowledgeBaseIdField === 'string' ? knowledgeBaseIdField : ''
+    if (!knowledgeBaseId) {
+      return NextResponse.json(
+        { error: 'knowledge_base_id is required' },
+        { status: 400 },
+      )
+    }
+    const { data: kb } = await supabase
+      .from('ai_knowledge_bases')
+      .select('id')
+      .eq('account_id', accountId)
+      .eq('id', knowledgeBaseId)
+      .maybeSingle()
+    if (!kb) {
+      return NextResponse.json({ error: 'Knowledge base not found' }, { status: 404 })
+    }
+
     if (file.size === 0) {
       return NextResponse.json({ error: 'The file is empty' }, { status: 400 })
     }
@@ -83,7 +102,14 @@ export async function POST(request: Request) {
 
     const { data: doc, error } = await supabase
       .from('ai_knowledge_documents')
-      .insert({ account_id: accountId, created_by: userId, title, content, metadata })
+      .insert({
+        account_id: accountId,
+        created_by: userId,
+        knowledge_base_id: knowledgeBaseId,
+        title,
+        content,
+        metadata,
+      })
       .select('id')
       .single()
     if (error || !doc) {
@@ -93,7 +119,14 @@ export async function POST(request: Request) {
 
     const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(supabase, accountId)
     try {
-      await ingestDocument(supabase, accountId, { embeddingsApiKey }, doc.id, content)
+      await ingestDocument(
+        supabase,
+        accountId,
+        { embeddingsApiKey },
+        doc.id,
+        knowledgeBaseId,
+        content,
+      )
     } catch (err) {
       const message = err instanceof AiError ? err.message : 'indexing failed'
       console.error('[ai/knowledge/upload] ingest error:', err)
