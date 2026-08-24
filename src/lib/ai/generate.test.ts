@@ -13,6 +13,7 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     autoReplyMaxPerConversation: 3,
     handoffAgentId: null,
     embeddingsApiKey: null,
+    embeddingsModel: 'text-embedding-3-small',
     ...overrides,
   }
 }
@@ -170,6 +171,155 @@ describe('generateReply — Anthropic', () => {
     })
     expect(res.handoff).toBe(true)
     expect(res.text).toBe('')
+  })
+
+  it('runs a tool-call round then returns the final text (OpenAI)', async () => {
+    const execute = vi.fn().mockResolvedValue([
+      { content: 'Ships in 3 days.', kbName: 'Shipping', title: 'Shipping FAQ' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'search_knowledge_base',
+                      arguments: JSON.stringify({
+                        query: 'shipping time',
+                        knowledge_base: 'Shipping',
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+          usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [{ message: { content: 'It ships in 3 days!' } }],
+          usage: { prompt_tokens: 20, completion_tokens: 6, total_tokens: 26 },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'How fast is shipping?' }],
+      knowledgeBases: [{ name: 'Shipping', description: 'Shipping policies' }],
+      searchKnowledgeBase: execute,
+    })
+
+    expect(res.text).toBe('It ships in 3 days!')
+    expect(res.usage).toEqual({ promptTokens: 30, completionTokens: 11, totalTokens: 41 })
+    expect(execute).toHaveBeenCalledWith({ query: 'shipping time', knowledgeBaseName: 'Shipping' })
+    expect(fetchMock).toHaveBeenCalledTimes(2)
+
+    // Second call's body includes the tool result message.
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
+    expect(toolMsg.content).toContain('Ships in 3 days.')
+  })
+
+  it('forces a final tool-free round after MAX_TOOL_ROUNDS (OpenAI)', async () => {
+    const execute = vi.fn().mockResolvedValue([])
+    const toolCallResponse = () =>
+      okResponse({
+        choices: [
+          {
+            message: {
+              content: null,
+              tool_calls: [
+                {
+                  id: 'call_x',
+                  type: 'function',
+                  function: {
+                    name: 'search_knowledge_base',
+                    arguments: JSON.stringify({ query: 'q' }),
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      })
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(toolCallResponse())
+      .mockResolvedValueOnce(toolCallResponse())
+      .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'Final answer.' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+      knowledgeBases: [{ name: 'General', description: 'General info' }],
+      searchKnowledgeBase: execute,
+    })
+
+    expect(res.text).toBe('Final answer.')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    // The third (forced) call must not offer tools.
+    const thirdBody = JSON.parse(fetchMock.mock.calls[2][1].body)
+    expect(thirdBody.tools).toBeUndefined()
+  })
+
+  it('runs a tool-call round then returns the final text (Anthropic)', async () => {
+    const execute = vi.fn().mockResolvedValue([
+      { content: 'We accept returns within 30 days.', kbName: 'Policies', title: 'Returns' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'search_knowledge_base',
+              input: { query: 'return policy', knowledge_base: 'Policies' },
+            },
+          ],
+          usage: { input_tokens: 12, output_tokens: 4 },
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [{ type: 'text', text: 'You can return it within 30 days.' }],
+          usage: { input_tokens: 20, output_tokens: 8 },
+        }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Can I return this?' }],
+      knowledgeBases: [{ name: 'Policies', description: 'Store policies' }],
+      searchKnowledgeBase: execute,
+    })
+
+    expect(res.text).toBe('You can return it within 30 days.')
+    expect(res.usage).toEqual({ promptTokens: 32, completionTokens: 12, totalTokens: 44 })
+    expect(execute).toHaveBeenCalledWith({ query: 'return policy', knowledgeBaseName: 'Policies' })
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolResultMsg = secondBody.messages.find(
+      (m: { role: string; content: unknown }) =>
+        m.role === 'user' && Array.isArray(m.content) && m.content[0]?.type === 'tool_result',
+    )
+    expect(toolResultMsg.content[0].content).toContain('We accept returns within 30 days.')
   })
 
   it('drops a leading assistant turn so the payload starts on the customer', async () => {

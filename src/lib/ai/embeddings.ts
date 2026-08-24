@@ -1,6 +1,7 @@
 import { AiError } from './types'
 import { aiRequestTimeoutMs } from './defaults'
 import { providerHttpError, toNetworkError } from './providers/shared'
+import { DEFAULT_EMBEDDINGS_MODEL, findEmbeddingModel } from './models'
 
 // ============================================================
 // Embeddings (OpenAI-compatible).
@@ -8,14 +9,14 @@ import { providerHttpError, toNetworkError } from './providers/shared'
 // Used for the knowledge base's optional semantic-search path: embed
 // each chunk at ingest, and embed the query at retrieval. Anthropic has
 // no embeddings endpoint, so this is always OpenAI's — the account
-// supplies a (possibly separate) embeddings key. 1536-dim
-// text-embedding-3-small matches the `vector(1536)` column in
-// migration 030.
+// supplies a (possibly separate) embeddings key. Every model in the
+// catalog (models.ts) resolves to 1536 dims to match the `vector(1536)`
+// column in migration 030.
 // ============================================================
 
 const OPENAI_EMBEDDINGS_URL = 'https://api.openai.com/v1/embeddings'
 
-export const EMBEDDING_MODEL = 'text-embedding-3-small'
+export const EMBEDDING_MODEL = DEFAULT_EMBEDDINGS_MODEL
 export const EMBEDDING_DIMENSIONS = 1536
 
 // OpenAI accepts an array input; keep batches modest so a big re-index
@@ -41,10 +42,21 @@ export function toVectorLiteral(embedding: number[]): string {
 export async function embedTexts(
   apiKey: string,
   inputs: string[],
+  model: string = EMBEDDING_MODEL,
 ): Promise<number[][]> {
   if (inputs.length === 0) return []
   const timeoutMs = aiRequestTimeoutMs()
   const out: number[][] = []
+  // Unknown model id (shouldn't happen — the API route validates
+  // against the catalog) falls back to the default rather than sending
+  // an unconstrained request that could return the wrong width.
+  const known = findEmbeddingModel(model)
+  const resolvedModel = known ? model : EMBEDDING_MODEL
+  const catalogEntry = known ?? findEmbeddingModel(EMBEDDING_MODEL)
+  const body: Record<string, unknown> = { model: resolvedModel, input: [] as string[] }
+  if (catalogEntry?.supportsDimensionsParam) {
+    body.dimensions = catalogEntry.dimensions
+  }
 
   for (let start = 0; start < inputs.length; start += BATCH_SIZE) {
     const batch = inputs.slice(start, start + BATCH_SIZE)
@@ -57,7 +69,7 @@ export async function embedTexts(
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ model: EMBEDDING_MODEL, input: batch }),
+        body: JSON.stringify({ ...body, input: batch }),
         signal: AbortSignal.timeout(timeoutMs),
       })
     } catch (err) {

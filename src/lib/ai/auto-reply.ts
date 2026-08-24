@@ -1,7 +1,7 @@
 import { supabaseAdmin } from './admin-client'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
-import { retrieveKnowledge, getKnowledgeBaseRoster } from './knowledge'
+import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -109,12 +109,18 @@ export async function dispatchInboundToAiReply(
       mode: 'auto_reply',
       knowledge,
       knowledgeBases,
+      toolAvailable: true,
     })
 
     const { text, handoff, usage } = await generateReply({
       config,
       systemPrompt,
       messages,
+      knowledgeBases,
+      searchKnowledgeBase: ({ query, knowledgeBaseName }) =>
+        knowledgeBaseName
+          ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
+          : Promise.resolve([]),
     })
 
     // Record token spend on the account's BYO key. Fire-and-forget so it

@@ -77,7 +77,7 @@ export async function PATCH(request: Request, { params }: Params) {
     if (!updated) return NextResponse.json({ error: 'Not found' }, { status: 404 })
 
     if (content !== undefined) {
-      const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(
+      const { key: embeddingsApiKey, corrupt, model } = await loadEmbeddingsKey(
         supabase,
         accountId,
       )
@@ -85,7 +85,7 @@ export async function PATCH(request: Request, { params }: Params) {
         await ingestDocument(
           supabase,
           accountId,
-          { embeddingsApiKey },
+          { embeddingsApiKey, embeddingsModel: model },
           id,
           updated.knowledge_base_id,
           content,

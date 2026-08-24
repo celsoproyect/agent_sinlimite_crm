@@ -18,6 +18,7 @@ export async function GET() {
       .from('ai_knowledge_bases')
       .select('id, name, description, updated_at')
       .eq('account_id', accountId)
+      .eq('is_faq', false)
       .order('name', { ascending: true })
     if (error) {
       console.error('[ai/knowledge-bases GET] error:', error)

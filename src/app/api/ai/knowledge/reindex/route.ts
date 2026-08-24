@@ -21,7 +21,7 @@ export async function POST() {
 
     const { data: docs, error } = await supabase
       .from('ai_knowledge_documents')
-      .select('id, content, knowledge_base_id')
+      .select('id, content, knowledge_base_id, metadata')
       .eq('account_id', accountId)
     if (error) {
       console.error('[ai/knowledge/reindex] fetch error:', error)
@@ -31,7 +31,7 @@ export async function POST() {
       )
     }
 
-    const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(
+    const { key: embeddingsApiKey, corrupt, model } = await loadEmbeddingsKey(
       supabase,
       accountId,
     )
@@ -53,13 +53,18 @@ export async function POST() {
     let reindexed = 0
     for (const doc of docs ?? []) {
       try {
+        const fileExt =
+          doc.metadata && typeof doc.metadata === 'object'
+            ? (doc.metadata as Record<string, unknown>).file_ext
+            : null
         await ingestDocument(
           supabase,
           accountId,
-          { embeddingsApiKey },
+          { embeddingsApiKey, embeddingsModel: model },
           doc.id,
           doc.knowledge_base_id,
           doc.content,
+          typeof fileExt === 'string' ? fileExt : null,
         )
         reindexed += 1
       } catch (err) {

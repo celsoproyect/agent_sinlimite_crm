@@ -1,8 +1,36 @@
 import { AiError, type AiUsage, type ChatMessage } from '../types'
+import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
 
 // ============================================================
 // Bits shared by the OpenAI + Anthropic adapters.
 // ============================================================
+
+/** The `search_knowledge_base` function/tool both adapters expose to the
+ *  model, and how to run it. `knowledgeBases` becomes the tool's
+ *  `knowledge_base` enum (which collection to target); `execute` is a
+ *  thin wrapper around `retrieveKnowledgeFromKb` supplied by the caller
+ *  (generate.ts), so this module never touches the DB directly. */
+export interface KnowledgeSearchTool {
+  knowledgeBases: KnowledgeBaseSummary[]
+  execute: (args: { query: string; knowledgeBaseName?: string }) => Promise<KnowledgeExcerpt[]>
+}
+
+export const KNOWLEDGE_SEARCH_TOOL_NAME = 'search_knowledge_base'
+
+/** Tool-call rounds allowed before the adapter forces a final,
+ *  tool-free round to guarantee text comes back. */
+export const MAX_TOOL_ROUNDS = 2
+
+/** Serialize excerpts for a tool result message — the model sees them
+ *  the same way it sees the automatically-retrieved excerpts (title
+ *  included, for internal attribution only; buildSystemPrompt already
+ *  instructs it never to surface a title/source to the customer). */
+export function excerptsToToolResult(excerpts: KnowledgeExcerpt[]): string {
+  if (excerpts.length === 0) return JSON.stringify({ results: [], note: 'No matching excerpts found.' })
+  return JSON.stringify({
+    results: excerpts.map((e) => ({ collection: e.kbName, title: e.title, content: e.content })),
+  })
+}
 
 export interface ProviderArgs {
   apiKey: string
@@ -10,6 +38,9 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  /** When present, the adapter exposes `search_knowledge_base` to the
+   *  model and runs its own internal multi-round tool-call loop. */
+  tool?: KnowledgeSearchTool
 }
 
 /**

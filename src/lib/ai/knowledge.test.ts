@@ -5,17 +5,20 @@ const h = vi.hoisted(() => ({ embedTexts: vi.fn() }))
 vi.mock('./embeddings', () => ({
   embedTexts: h.embedTexts,
   toVectorLiteral: (v: number[]) => `[${v.join(',')}]`,
+  EMBEDDING_MODEL: 'text-embedding-3-small',
 }))
 
-import { retrieveKnowledge, ingestDocument } from './knowledge'
+import { retrieveKnowledge, retrieveKnowledgeFromKb, ingestDocument } from './knowledge'
 
 interface FakeState {
-  semantic: { id: string; content: string; kb_name: string }[]
-  fts: { id: string; content: string; kb_name: string }[]
+  semantic: { id: string; content: string; kb_name: string; doc_title?: string | null }[]
+  fts: { id: string; content: string; kb_name: string; doc_title?: string | null }[]
   chunkCount: number
   rpcCalls: string[]
+  rpcArgs: Record<string, unknown>[]
   inserted: Record<string, unknown>[] | null
   deletedFor: string | null
+  kb: { id: string; name: string } | null
 }
 
 function makeDb() {
@@ -24,12 +27,15 @@ function makeDb() {
     fts: [],
     chunkCount: 5, // account has a non-empty KB by default
     rpcCalls: [],
+    rpcArgs: [],
     inserted: null,
     deletedFor: null,
+    kb: null,
   }
   const db = {
-    rpc: (name: string) => {
+    rpc: (name: string, args: Record<string, unknown>) => {
       state.rpcCalls.push(name)
+      state.rpcArgs.push(args)
       if (name === 'match_ai_knowledge_semantic')
         return Promise.resolve({ data: state.semantic, error: null })
       if (name === 'match_ai_knowledge_fts')
@@ -37,9 +43,22 @@ function makeDb() {
       return Promise.resolve({ data: null, error: null })
     },
     from: () => ({
-      // retrieveKnowledge's empty-KB count guard.
+      // retrieveKnowledge's empty-KB count guard AND
+      // retrieveKnowledgeFromKb's name→id lookup share this chain: `eq()`
+      // is thenable (resolves the count-guard shape) and also exposes
+      // `.ilike().maybeSingle()` for the KB name lookup.
       select: () => ({
-        eq: () => Promise.resolve({ count: state.chunkCount, error: null }),
+        eq: () => ({
+          then: (resolve: (v: { count: number; error: null }) => void) =>
+            resolve({ count: state.chunkCount, error: null }),
+          ilike: (_col: string, name: string) => ({
+            maybeSingle: () =>
+              Promise.resolve({
+                data: state.kb && state.kb.name.toLowerCase() === name.toLowerCase() ? state.kb : null,
+                error: null,
+              }),
+          }),
+        }),
       }),
       delete: () => ({
         eq: (_col: string, val: string) => {
@@ -81,9 +100,9 @@ describe('retrieveKnowledge', () => {
 
   it('uses lexical FTS only when there is no embeddings key', async () => {
     const { db, state } = makeDb()
-    state.fts = [{ id: 'f1', content: 'F1', kb_name: 'General' }]
+    state.fts = [{ id: 'f1', content: 'F1', kb_name: 'General', doc_title: 'Doc F' }]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: null }, 'q')
-    expect(out).toEqual([{ content: 'F1', kbName: 'General' }])
+    expect(out).toEqual([{ content: 'F1', kbName: 'General', title: 'Doc F' }])
     expect(state.rpcCalls).toEqual(['match_ai_knowledge_fts'])
     expect(h.embedTexts).not.toHaveBeenCalled()
   })
@@ -91,15 +110,15 @@ describe('retrieveKnowledge', () => {
   it('uses semantic search when an embeddings key is present', async () => {
     const { db, state } = makeDb()
     state.semantic = [
-      { id: 's1', content: 'S1', kb_name: 'Legal' },
-      { id: 's2', content: 'S2', kb_name: 'Legal' },
-      { id: 's3', content: 'S3', kb_name: 'Sales' },
+      { id: 's1', content: 'S1', kb_name: 'Legal', doc_title: 'Doc A' },
+      { id: 's2', content: 'S2', kb_name: 'Legal', doc_title: 'Doc A' },
+      { id: 's3', content: 'S3', kb_name: 'Sales', doc_title: 'Doc B' },
     ]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 3)
     expect(out).toEqual([
-      { content: 'S1', kbName: 'Legal' },
-      { content: 'S2', kbName: 'Legal' },
-      { content: 'S3', kbName: 'Sales' },
+      { content: 'S1', kbName: 'Legal', title: 'Doc A' },
+      { content: 'S2', kbName: 'Legal', title: 'Doc A' },
+      { content: 'S3', kbName: 'Sales', title: 'Doc B' },
     ])
     expect(h.embedTexts).toHaveBeenCalledTimes(1)
     // Enough semantic hits → no FTS top-up.
@@ -109,23 +128,51 @@ describe('retrieveKnowledge', () => {
   it('tops up with FTS and dedupes when semantic is short', async () => {
     const { db, state } = makeDb()
     state.semantic = [
-      { id: 's1', content: 'S1', kb_name: 'Legal' },
-      { id: 's2', content: 'S2', kb_name: 'Legal' },
+      { id: 's1', content: 'S1', kb_name: 'Legal', doc_title: 'Doc A' },
+      { id: 's2', content: 'S2', kb_name: 'Legal', doc_title: 'Doc A' },
     ]
     state.fts = [
-      { id: 's2', content: 'S2-dup', kb_name: 'Legal' }, // dedup by id
-      { id: 'f1', content: 'F1', kb_name: 'Sales' },
+      { id: 's2', content: 'S2-dup', kb_name: 'Legal', doc_title: 'Doc A' }, // dedup by id
+      { id: 'f1', content: 'F1', kb_name: 'Sales', doc_title: 'Doc B' },
     ]
     const out = await retrieveKnowledge(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 3)
     expect(out).toEqual([
-      { content: 'S1', kbName: 'Legal' },
-      { content: 'S2', kbName: 'Legal' },
-      { content: 'F1', kbName: 'Sales' },
+      { content: 'S1', kbName: 'Legal', title: 'Doc A' },
+      { content: 'S2', kbName: 'Legal', title: 'Doc A' },
+      { content: 'F1', kbName: 'Sales', title: 'Doc B' },
     ])
     expect(state.rpcCalls).toEqual([
       'match_ai_knowledge_semantic',
       'match_ai_knowledge_fts',
     ])
+  })
+})
+
+describe('retrieveKnowledgeFromKb', () => {
+  it('returns [] when the KB name does not resolve', async () => {
+    const { db, state } = makeDb()
+    state.kb = null
+    const out = await retrieveKnowledgeFromKb(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 'Unknown KB')
+    expect(out).toEqual([])
+    expect(state.rpcCalls).toEqual([])
+  })
+
+  it('resolves a KB by case-insensitive name and filters the RPCs by id', async () => {
+    const { db, state } = makeDb()
+    state.kb = { id: 'kb-123', name: 'Legal' }
+    state.semantic = [{ id: 's1', content: 'S1', kb_name: 'Legal', doc_title: 'Doc A' }]
+    const out = await retrieveKnowledgeFromKb(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', 'legal')
+    expect(out).toEqual([{ content: 'S1', kbName: 'Legal', title: 'Doc A' }])
+    expect(state.rpcArgs[0]).toMatchObject({ p_knowledge_base_id: 'kb-123' })
+  })
+
+  it('accepts a raw KB id without a name lookup', async () => {
+    const { db, state } = makeDb()
+    const id = '11111111-2222-3333-4444-555555555555'
+    state.semantic = [{ id: 's1', content: 'S1', kb_name: 'Legal', doc_title: 'Doc A' }]
+    const out = await retrieveKnowledgeFromKb(db, 'acct', { embeddingsApiKey: 'sk-x' }, 'q', id)
+    expect(out).toEqual([{ content: 'S1', kbName: 'Legal', title: 'Doc A' }])
+    expect(state.rpcArgs[0]).toMatchObject({ p_knowledge_base_id: id })
   })
 })
 

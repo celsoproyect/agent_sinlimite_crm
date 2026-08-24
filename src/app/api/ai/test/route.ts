@@ -3,6 +3,7 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
+import { DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
 import { AiError, type AiProvider } from '@/lib/ai/types'
 
 /**
@@ -73,6 +74,7 @@ export async function POST(request: Request) {
         autoReplyMaxPerConversation: 3,
         handoffAgentId: null,
         embeddingsApiKey: null,
+        embeddingsModel: DEFAULT_EMBEDDINGS_MODEL,
       })
     } catch (err) {
       if (err instanceof AiError) {

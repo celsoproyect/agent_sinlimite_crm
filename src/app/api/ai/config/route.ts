@@ -8,6 +8,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
+import { findEmbeddingModel, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
 import { AiError, type AiProvider } from '@/lib/ai/types'
 
 function bad(message: string) {
@@ -30,7 +31,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key, embeddings_model',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -130,6 +131,16 @@ export async function POST(request: Request) {
         : ''
     const clearEmbeddingsKey = body.embeddings_api_key === null
 
+    // Embeddings model: allow-listed server-side (not just in the UI's
+    // <Select>) because the column is a fixed `vector(1536)` — an
+    // unvalidated id could resolve to the wrong width and break every
+    // future embed for the account.
+    const rawEmbeddingsModel =
+      typeof body.embeddings_model === 'string' ? body.embeddings_model.trim() : ''
+    if (rawEmbeddingsModel && !findEmbeddingModel(rawEmbeddingsModel)) {
+      return bad('embeddings_model must be one of the supported embeddings models')
+    }
+
     // Reuse the stored key when the form didn't send a fresh one.
     const { data: existing } = await supabase
       .from('ai_configs')
@@ -172,6 +183,7 @@ export async function POST(request: Request) {
           autoReplyMaxPerConversation: maxPer,
           handoffAgentId: null,
           embeddingsApiKey: null,
+          embeddingsModel: rawEmbeddingsModel || DEFAULT_EMBEDDINGS_MODEL,
         })
       } catch (err) {
         if (err instanceof AiError) {
@@ -219,6 +231,7 @@ export async function POST(request: Request) {
     } else if (clearEmbeddingsKey) {
       shared.embeddings_api_key = null
     }
+    if (rawEmbeddingsModel) shared.embeddings_model = rawEmbeddingsModel
 
     if (existing) {
       const { error: upErr } = await supabase

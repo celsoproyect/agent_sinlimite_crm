@@ -26,7 +26,9 @@ import {
 } from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
+import { AiFaqCard } from './ai-faq';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
+import { OPENAI_CHAT_MODELS, OPENAI_EMBEDDING_MODELS, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models';
 import type { AiProvider } from '@/lib/ai/types';
 import type { AccountMember } from '@/types';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
@@ -68,6 +70,7 @@ export function AiConfig() {
   const [embeddingsKey, setEmbeddingsKey] = useState('');
   const [embeddingsKeyEdited, setEmbeddingsKeyEdited] = useState(false);
   const [hasStoredEmbeddingsKey, setHasStoredEmbeddingsKey] = useState(false);
+  const [embeddingsModel, setEmbeddingsModel] = useState(DEFAULT_EMBEDDINGS_MODEL);
   const [systemPrompt, setSystemPrompt] = useState('');
   const [isActive, setIsActive] = useState(false);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
@@ -106,6 +109,7 @@ export function AiConfig() {
         setHasStoredEmbeddingsKey(Boolean(data.has_embeddings_key));
         setEmbeddingsKey(data.has_embeddings_key ? MASKED_KEY : '');
         setEmbeddingsKeyEdited(false);
+        setEmbeddingsModel(data.embeddings_model || DEFAULT_EMBEDDINGS_MODEL);
       }
     } catch {
       toast.error(t('loadFailed'));
@@ -146,6 +150,7 @@ export function AiConfig() {
     model: model.trim(),
     api_key: keyPayload(),
     embeddings_api_key: embeddingsKeyPayload(),
+    embeddings_model: embeddingsModel,
     system_prompt: systemPrompt.trim() || null,
     is_active: isActive,
     auto_reply_enabled: autoReplyEnabled,
@@ -287,13 +292,32 @@ export function AiConfig() {
 
               <div className="space-y-2">
                 <Label htmlFor="ai-model">{t('model')}</Label>
-                <Input
-                  id="ai-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
-                  disabled={disabled}
-                />
+                {provider === 'openai' ? (
+                  <Select
+                    value={model}
+                    onValueChange={(v) => setModel(v ?? '')}
+                    disabled={disabled}
+                  >
+                    <SelectTrigger id="ai-model">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {OPENAI_CHAT_MODELS.map((m) => (
+                        <SelectItem key={m.id} value={m.id}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <Input
+                    id="ai-model"
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
+                    disabled={disabled}
+                  />
+                )}
               </div>
             </div>
 
@@ -376,6 +400,29 @@ export function AiConfig() {
                 {t('embeddingsHint', {
                   sameKeyText: provider === 'openai' ? t('sameKeyText') : '',
                 })}
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ai-embeddings-model">{t('embeddingsModel')}</Label>
+              <Select
+                value={embeddingsModel}
+                onValueChange={(v) => setEmbeddingsModel(v ?? DEFAULT_EMBEDDINGS_MODEL)}
+                disabled={disabled}
+              >
+                <SelectTrigger id="ai-embeddings-model">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {OPENAI_EMBEDDING_MODELS.map((m) => (
+                    <SelectItem key={m.id} value={m.id}>
+                      {m.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                {t('embeddingsModelHint')}
               </p>
             </div>
           </CardContent>
@@ -495,6 +542,8 @@ export function AiConfig() {
               : hasStoredEmbeddingsKey
           }
         />
+
+        <AiFaqCard accountId={accountId} canEdit={canEdit} />
 
         <div className="flex items-center justify-between">
           {configured ? (

@@ -29,6 +29,9 @@ export interface AiConfig {
    *  knowledge base is embedded and semantic retrieval turns on; when
    *  null, retrieval falls back to lexical full-text search. */
   embeddingsApiKey: string | null
+  /** Which OpenAI embeddings model to use (see lib/ai/models.ts) — always
+   *  resolves to 1536 dims to match the `vector(1536)` column. */
+  embeddingsModel: string
 }
 
 /** A single conversation turn in the shape both providers accept. */

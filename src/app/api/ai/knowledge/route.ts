@@ -103,7 +103,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(
+    const { key: embeddingsApiKey, corrupt, model } = await loadEmbeddingsKey(
       supabase,
       accountId,
     )
@@ -111,7 +111,7 @@ export async function POST(request: Request) {
       await ingestDocument(
         supabase,
         accountId,
-        { embeddingsApiKey },
+        { embeddingsApiKey, embeddingsModel: model },
         doc.id,
         knowledgeBaseId,
         content,

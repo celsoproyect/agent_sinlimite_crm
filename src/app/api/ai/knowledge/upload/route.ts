@@ -117,15 +117,16 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Failed to save document' }, { status: 500 })
     }
 
-    const { key: embeddingsApiKey, corrupt } = await loadEmbeddingsKey(supabase, accountId)
+    const { key: embeddingsApiKey, corrupt, model } = await loadEmbeddingsKey(supabase, accountId)
     try {
       await ingestDocument(
         supabase,
         accountId,
-        { embeddingsApiKey },
+        { embeddingsApiKey, embeddingsModel: model },
         doc.id,
         knowledgeBaseId,
         content,
+        ext,
       )
     } catch (err) {
       const message = err instanceof AiError ? err.message : 'indexing failed'

@@ -3,7 +3,7 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext } from '@/lib/ai/context'
-import { retrieveKnowledge, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
+import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
@@ -101,9 +101,19 @@ export async function POST(request: Request) {
       mode: 'draft',
       knowledge,
       knowledgeBases,
+      toolAvailable: true,
     })
 
-    const { text, usage } = await generateReply({ config, systemPrompt, messages })
+    const { text, usage } = await generateReply({
+      config,
+      systemPrompt,
+      messages,
+      knowledgeBases,
+      searchKnowledgeBase: ({ query, knowledgeBaseName }) =>
+        knowledgeBaseName
+          ? retrieveKnowledgeFromKb(supabase, accountId, config, query, knowledgeBaseName)
+          : Promise.resolve([]),
+    })
 
     // Record spend on the account's BYO key. Best-effort + via the
     // service role (the log has no `authenticated` INSERT policy). This

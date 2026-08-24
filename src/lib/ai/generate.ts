@@ -8,6 +8,8 @@ import {
 import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
+import type { KnowledgeSearchTool } from './providers/shared'
+import type { KnowledgeBaseSummary } from './knowledge'
 
 export interface GenerateArgs {
   config: AiConfig
@@ -15,6 +17,13 @@ export interface GenerateArgs {
   systemPrompt: string
   /** Recent conversation turns, oldest first. */
   messages: ChatMessage[]
+  /** The account's knowledge-base collections — required alongside
+   *  `searchKnowledgeBase` to enable the `search_knowledge_base` tool.
+   *  Omit either to run tool-free, as before. */
+  knowledgeBases?: KnowledgeBaseSummary[]
+  /** Runs a targeted KB search for the model's tool call (normally a
+   *  thin wrapper around `retrieveKnowledgeFromKb`). */
+  searchKnowledgeBase?: KnowledgeSearchTool['execute']
 }
 
 /**
@@ -23,14 +32,19 @@ export interface GenerateArgs {
  * of the raw text. Throws `AiError` on any provider/network failure.
  */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
-  const { config, systemPrompt, messages } = args
+  const { config, systemPrompt, messages, knowledgeBases, searchKnowledgeBase } = args
   const timeoutMs = aiRequestTimeoutMs()
+  const tool: KnowledgeSearchTool | undefined =
+    knowledgeBases && knowledgeBases.length > 0 && searchKnowledgeBase
+      ? { knowledgeBases, execute: searchKnowledgeBase }
+      : undefined
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
     systemPrompt,
     messages,
     timeoutMs,
+    tool,
   }
 
   let result: { text: string; usage: AiUsage | null }

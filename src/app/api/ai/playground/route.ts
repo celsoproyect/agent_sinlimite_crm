@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadAiConfig } from '@/lib/ai/config'
-import { retrieveKnowledge, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
+import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
@@ -81,9 +81,19 @@ export async function POST(request: Request) {
       mode: 'auto_reply',
       knowledge,
       knowledgeBases,
+      toolAvailable: true,
     })
 
-    const { text, handoff } = await generateReply({ config, systemPrompt, messages })
+    const { text, handoff } = await generateReply({
+      config,
+      systemPrompt,
+      messages,
+      knowledgeBases,
+      searchKnowledgeBase: ({ query, knowledgeBaseName }) =>
+        knowledgeBaseName
+          ? retrieveKnowledgeFromKb(supabase, accountId, config, query, knowledgeBaseName)
+          : Promise.resolve([]),
+    })
     return NextResponse.json({ reply: text, handoff })
   } catch (err) {
     if (err instanceof AiError) {

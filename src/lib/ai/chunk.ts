@@ -10,11 +10,20 @@
 
 const DEFAULT_MAX_CHARS = 1200
 
+// ~12.5% of the default chunk size — enough to carry the end of a
+// sentence/paragraph across a chunk boundary (so a Q&A or explanation
+// split across two chunks doesn't lose its lead-in) without meaningfully
+// inflating storage or embedding cost. Opt-in via `overlapChars`; the
+// default stays 0 so existing non-overlapping behavior is unchanged
+// unless a caller asks for it.
+export const DEFAULT_OVERLAP_CHARS = 150
+
 export function chunkText(
   content: string,
-  opts: { maxChars?: number } = {},
+  opts: { maxChars?: number; overlapChars?: number } = {},
 ): string[] {
   const maxChars = opts.maxChars ?? DEFAULT_MAX_CHARS
+  const overlapChars = opts.overlapChars ?? 0
   const text = content.replace(/\r\n/g, '\n').trim()
   if (!text) return []
 
@@ -49,5 +58,15 @@ export function chunkText(
   }
   flush()
 
-  return chunks
+  if (overlapChars <= 0 || chunks.length < 2) return chunks
+
+  // Stitch in the tail of each preceding chunk so retrieval doesn't lose
+  // context that falls right on a boundary. Applies uniformly whether the
+  // boundary came from paragraph packing or a hard split — both can land
+  // mid-thought on tabular-free prose.
+  return chunks.map((chunk, i) => {
+    if (i === 0) return chunk
+    const tail = chunks[i - 1].slice(-overlapChars).trimStart()
+    return tail ? `${tail}\n\n${chunk}` : chunk
+  })
 }

@@ -1,4 +1,5 @@
 import { PDFParse } from 'pdf-parse'
+import { getData as getPdfWorkerData } from 'pdf-parse/worker'
 import mammoth from 'mammoth'
 import ExcelJS from 'exceljs'
 import { parse as parseCsv } from 'csv-parse/sync'
@@ -42,7 +43,24 @@ export function resolveUploadExt(fileName: string): SupportedUploadExt | null {
     : null
 }
 
+// pdfjs-dist (used internally by pdf-parse) defaults to locating its
+// worker script by resolving a relative URL off its own module location.
+// Under Turbopack's standalone bundle that module is inlined into a
+// shared server chunk, so the relative URL no longer points at a real
+// file ("Setting up fake worker failed: Cannot find module
+// '.../pdf.worker.mjs'") and every PDF upload fails. Pointing
+// `workerSrc` at the base64 data: URL pdf-parse ships for exactly this
+// case sidesteps path resolution entirely — pdfjs imports it directly
+// instead of resolving a file. Set once per process.
+let pdfWorkerConfigured = false
+function ensurePdfWorkerConfigured() {
+  if (pdfWorkerConfigured) return
+  PDFParse.setWorker(getPdfWorkerData())
+  pdfWorkerConfigured = true
+}
+
 async function extractPdf(buffer: Buffer): Promise<string> {
+  ensurePdfWorkerConfigured()
   const parser = new PDFParse({ data: buffer })
   try {
     const result = await parser.getText()

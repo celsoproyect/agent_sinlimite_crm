@@ -108,4 +108,42 @@ describe('embedTexts', () => {
     )
     await expect(embedTexts('sk-x', ['a', 'b'])).rejects.toBeInstanceOf(AiError)
   })
+
+  it('sends dimensions for text-embedding-3-large', async () => {
+    const fetchMock = vi.fn(async (_url: string, opts: { body: string }) => {
+      const n = JSON.parse(opts.body).input.length
+      return okEmbeddings(n)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await embedTexts('sk-x', ['a'], 'text-embedding-3-large')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.model).toBe('text-embedding-3-large')
+    expect(body.dimensions).toBe(1536)
+  })
+
+  it('omits dimensions for ada-002', async () => {
+    const fetchMock = vi.fn(async (_url: string, opts: { body: string }) => {
+      const n = JSON.parse(opts.body).input.length
+      return okEmbeddings(n)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await embedTexts('sk-x', ['a'], 'text-embedding-ada-002')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.model).toBe('text-embedding-ada-002')
+    expect(body.dimensions).toBeUndefined()
+  })
+
+  it('falls back to the default model for an unknown id', async () => {
+    const fetchMock = vi.fn(async (_url: string, opts: { body: string }) => {
+      const n = JSON.parse(opts.body).input.length
+      return okEmbeddings(n)
+    })
+    vi.stubGlobal('fetch', fetchMock)
+
+    await embedTexts('sk-x', ['a'], 'some-made-up-model')
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.model).toBe('text-embedding-3-small')
+  })
 })
