@@ -1727,6 +1727,7 @@
       "semanticSearchOn": " Semantic search is on (embeddings key set).",
       "keywordSearchOn": " Using keyword search — add an embeddings key above for semantic search.",
       "noDocs": "No documents yet.",
+      "editDocFormTitle": "Edit document",
       "editDocTitle": "Title",
       "editDocTitlePlaceholder": "e.g. Returns & refunds policy",
       "editDocContent": "Content",

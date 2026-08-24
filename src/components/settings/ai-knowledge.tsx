@@ -535,6 +535,9 @@ function KnowledgeBaseDetail({
 
             {editing !== null ? (
               <div className="space-y-3 rounded-md border border-border p-3">
+                <p className="text-sm font-medium text-foreground">
+                  {editing === 'new' ? t('addDoc') : t('editDocFormTitle')}
+                </p>
                 <div className="space-y-2">
                   <Label htmlFor="kb-doc-title">{t('editDocTitle')}</Label>
                   <Input

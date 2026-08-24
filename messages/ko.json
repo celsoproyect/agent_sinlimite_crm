@@ -1727,6 +1727,7 @@
       "semanticSearchOn": " 의미 기반 검색이 켜져 있습니다 (임베딩 키 설정됨).",
       "keywordSearchOn": " 키워드 검색을 사용 중입니다 — 의미 기반 검색을 사용하려면 위에서 임베딩 키를 추가하세요.",
       "noDocs": "아직 문서가 없습니다.",
+      "editDocFormTitle": "문서 수정",
       "editDocTitle": "제목",
       "editDocTitlePlaceholder": "예: 반품 & 환불 정책",
       "editDocContent": "내용",
