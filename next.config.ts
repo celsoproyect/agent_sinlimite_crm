@@ -70,22 +70,118 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   /**
-   * The KB file-upload route's parsers (pdf-parse, mammoth, exceljs)
-   * use conditional `exports` maps / dynamic requires that Next's
-   * build-time file tracer (@vercel/nft) fails to resolve as
+   * The KB file-upload route's parsers (pdf-parse, mammoth, exceljs,
+   * csv-parse) use conditional `exports` maps / dynamic requires that
+   * Next's build-time file tracer (@vercel/nft) fails to resolve as
    * dependencies of the route. Left alone, `.next/standalone` ships
    * without them, so the route's top-level `import` throws "Cannot
    * find module" at request time in prod (works fine in `next dev`,
    * which uses the full node_modules — this only breaks in Docker).
-   * Force-including them here is the documented fix (see
-   * next.config.js `output` docs, "Caveats").
+   *
+   * Naming just the four top-level packages (the original fix) is not
+   * enough: the tracer never even walks their `require()` calls, so
+   * their own hoisted transitive dependencies (pdfjs-dist for
+   * pdf-parse; jszip, @xmldom/xmldom, etc. for mammoth; archiver,
+   * unzipper, etc. for exceljs) are missing too, and the module still
+   * crashes as soon as a parser is actually invoked. This list is the
+   * full transitive dependency closure (computed by walking each
+   * package's package.json `dependencies` recursively against the
+   * installed node_modules tree) — regenerate it the same way if any
+   * of these four packages' dependencies ever change.
+   *
+   * `@napi-rs/canvas` (an optional native binding pdf-parse only uses
+   * for image rendering, not text extraction) is deliberately left
+   * out: pdf-parse wraps that require in try/catch and degrades
+   * gracefully when it's absent.
    */
   outputFileTracingIncludes: {
     "/api/ai/knowledge/upload": [
-      "./node_modules/pdf-parse/**/*",
-      "./node_modules/mammoth/**/*",
-      "./node_modules/exceljs/**/*",
+      "./node_modules/@fast-csv/format/**/*",
+      "./node_modules/@fast-csv/parse/**/*",
+      "./node_modules/@xmldom/xmldom/**/*",
+      "./node_modules/archiver/**/*",
+      "./node_modules/async/**/*",
+      "./node_modules/balanced-match/**/*",
+      "./node_modules/base64-js/**/*",
+      "./node_modules/big-integer/**/*",
+      "./node_modules/binary/**/*",
+      "./node_modules/bl/**/*",
+      "./node_modules/bluebird/**/*",
+      "./node_modules/buffer/**/*",
+      "./node_modules/buffer-crc32/**/*",
+      "./node_modules/buffer-indexof-polyfill/**/*",
+      "./node_modules/buffers/**/*",
+      "./node_modules/chainsaw/**/*",
+      "./node_modules/compress-commons/**/*",
+      "./node_modules/concat-map/**/*",
+      "./node_modules/core-util-is/**/*",
+      "./node_modules/crc-32/**/*",
+      "./node_modules/crc32-stream/**/*",
       "./node_modules/csv-parse/**/*",
+      "./node_modules/dayjs/**/*",
+      "./node_modules/dingbat-to-unicode/**/*",
+      "./node_modules/duck/**/*",
+      "./node_modules/duplexer2/**/*",
+      "./node_modules/end-of-stream/**/*",
+      "./node_modules/exceljs/**/*",
+      "./node_modules/fast-csv/**/*",
+      "./node_modules/fs-constants/**/*",
+      "./node_modules/fs.realpath/**/*",
+      "./node_modules/fstream/**/*",
+      "./node_modules/glob/**/*",
+      "./node_modules/graceful-fs/**/*",
+      "./node_modules/ieee754/**/*",
+      "./node_modules/immediate/**/*",
+      "./node_modules/inflight/**/*",
+      "./node_modules/inherits/**/*",
+      "./node_modules/jszip/**/*",
+      "./node_modules/lazystream/**/*",
+      "./node_modules/lie/**/*",
+      "./node_modules/listenercount/**/*",
+      "./node_modules/lodash.defaults/**/*",
+      "./node_modules/lodash.difference/**/*",
+      "./node_modules/lodash.escaperegexp/**/*",
+      "./node_modules/lodash.flatten/**/*",
+      "./node_modules/lodash.groupby/**/*",
+      "./node_modules/lodash.isboolean/**/*",
+      "./node_modules/lodash.isequal/**/*",
+      "./node_modules/lodash.isfunction/**/*",
+      "./node_modules/lodash.isnil/**/*",
+      "./node_modules/lodash.isplainobject/**/*",
+      "./node_modules/lodash.isundefined/**/*",
+      "./node_modules/lodash.union/**/*",
+      "./node_modules/lodash.uniq/**/*",
+      "./node_modules/lop/**/*",
+      "./node_modules/mammoth/**/*",
+      "./node_modules/minimist/**/*",
+      "./node_modules/mkdirp/**/*",
+      "./node_modules/normalize-path/**/*",
+      "./node_modules/once/**/*",
+      "./node_modules/option/**/*",
+      "./node_modules/pako/**/*",
+      "./node_modules/path-is-absolute/**/*",
+      "./node_modules/pdf-parse/**/*",
+      "./node_modules/pdfjs-dist/**/*",
+      "./node_modules/process-nextick-args/**/*",
+      "./node_modules/readable-stream/**/*",
+      "./node_modules/readdir-glob/**/*",
+      "./node_modules/rimraf/**/*",
+      "./node_modules/safe-buffer/**/*",
+      "./node_modules/saxes/**/*",
+      "./node_modules/setimmediate/**/*",
+      "./node_modules/sprintf-js/**/*",
+      "./node_modules/string_decoder/**/*",
+      "./node_modules/tar-stream/**/*",
+      "./node_modules/tmp/**/*",
+      "./node_modules/traverse/**/*",
+      "./node_modules/underscore/**/*",
+      "./node_modules/unzipper/**/*",
+      "./node_modules/util-deprecate/**/*",
+      "./node_modules/uuid/**/*",
+      "./node_modules/wrappy/**/*",
+      "./node_modules/xmlbuilder/**/*",
+      "./node_modules/xmlchars/**/*",
+      "./node_modules/zip-stream/**/*",
     ],
   },
 
