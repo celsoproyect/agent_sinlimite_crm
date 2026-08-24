@@ -12,6 +12,7 @@ import {
   Upload,
   FileText,
   ArrowLeft,
+  ChevronRight,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -205,14 +206,17 @@ export function AiKnowledgeCard({
                     <button
                       type="button"
                       onClick={() => setSelectedKb(kb)}
-                      className="flex min-w-0 flex-1 flex-col items-start gap-0.5 text-left"
+                      className="flex min-w-0 flex-1 items-center gap-2 text-left"
                     >
-                      <span className="truncate text-sm font-medium text-foreground">
-                        {kb.name}
+                      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
+                        <span className="truncate text-sm font-medium text-foreground">
+                          {kb.name}
+                        </span>
+                        <span className="line-clamp-1 text-xs text-muted-foreground">
+                          {kb.description}
+                        </span>
                       </span>
-                      <span className="line-clamp-1 text-xs text-muted-foreground">
-                        {kb.description}
-                      </span>
+                      <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" />
                     </button>
                     {canEdit && (
                       <span className="flex shrink-0 gap-1">
