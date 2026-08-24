@@ -89,13 +89,27 @@ const nextConfig: NextConfig = {
    * installed node_modules tree) — regenerate it the same way if any
    * of these four packages' dependencies ever change.
    *
-   * `@napi-rs/canvas` (an optional native binding pdf-parse only uses
-   * for image rendering, not text extraction) is deliberately left
-   * out: pdf-parse wraps that require in try/catch and degrades
-   * gracefully when it's absent.
+   * `@napi-rs/canvas` IS required even though pdf-parse only needs it
+   * for image rendering, not text extraction: pdfjs-dist's Node
+   * ("legacy") build uses it to polyfill the DOMMatrix / ImageData /
+   * Path2D browser globals it needs for text-position transforms.
+   * pdf-parse wraps the `require("@napi-rs/canvas")` itself in
+   * try/catch and only *warns* when it's missing — but that leaves
+   * `DOMMatrix` undefined, and other code in the same bundled chunk
+   * references it unconditionally, so real-world PDFs (ones complex
+   * enough to need a text transform matrix — trivial single-line test
+   * PDFs don't hit this path) crash the whole chunk at module-eval
+   * time with `ReferenceError: DOMMatrix is not defined`. Since mammoth
+   * and pdf-parse get bundled into the same chunk, that crash takes
+   * .docx uploads down with it too, even though mammoth never touches
+   * canvas. The platform-specific native binary lands under a sibling
+   * `@napi-rs/canvas-<platform>` package chosen by `npm ci` for
+   * whatever OS/arch actually builds the image, hence the scope-wide
+   * glob below instead of naming one variant.
    */
   outputFileTracingIncludes: {
     "/api/ai/knowledge/upload": [
+      "./node_modules/@napi-rs/**/*",
       "./node_modules/@fast-csv/format/**/*",
       "./node_modules/@fast-csv/parse/**/*",
       "./node_modules/@xmldom/xmldom/**/*",
