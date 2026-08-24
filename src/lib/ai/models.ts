@@ -31,27 +31,40 @@ export interface OpenAiEmbeddingModel {
 }
 
 export const OPENAI_CHAT_MODELS: OpenAiChatModel[] = [
-  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (equilibrado, por defecto)' },
-  { id: 'gpt-5.4', label: 'GPT-5.4 (más capaz)' },
-  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (más económico)' },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (balanced, default)' },
+  { id: 'gpt-5.4', label: 'GPT-5.4 (most capable)' },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)' },
+  { id: 'gpt-5', label: 'GPT-5' },
+  { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
+  { id: 'gpt-5-nano', label: 'GPT-5 Nano' },
+  { id: 'o4-mini', label: 'o4-mini (reasoning)' },
+  { id: 'o3', label: 'o3 (reasoning)' },
+  { id: 'o3-mini', label: 'o3-mini (reasoning)' },
+  { id: 'o1', label: 'o1 (reasoning)' },
+  { id: 'o1-mini', label: 'o1-mini (reasoning)' },
+  { id: 'gpt-4.1', label: 'GPT-4.1' },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
+  { id: 'gpt-4o', label: 'GPT-4o' },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
 ]
 
 export const OPENAI_EMBEDDING_MODELS: OpenAiEmbeddingModel[] = [
   {
     id: 'text-embedding-3-small',
-    label: 'text-embedding-3-small (recomendado)',
+    label: 'text-embedding-3-small (recommended)',
     dimensions: 1536,
     supportsDimensionsParam: true,
   },
   {
     id: 'text-embedding-3-large',
-    label: 'text-embedding-3-large (mayor calidad, más lento)',
+    label: 'text-embedding-3-large (higher quality, slower)',
     dimensions: 1536,
     supportsDimensionsParam: true,
   },
   {
     id: 'text-embedding-ada-002',
-    label: 'text-embedding-ada-002 (legado)',
+    label: 'text-embedding-ada-002 (legacy)',
     dimensions: 1536,
     supportsDimensionsParam: false,
   },

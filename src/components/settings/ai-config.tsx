@@ -270,55 +270,53 @@ export function AiConfig() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="space-y-2">
-                <Label>{t('provider')}</Label>
+            <div className="space-y-2">
+              <Label>{t('provider')}</Label>
+              <Select
+                value={provider}
+                onValueChange={(v) => handleProviderChange(v as AiProvider)}
+                disabled={disabled}
+              >
+                <SelectTrigger className="w-full">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
+                  <SelectItem value="anthropic">
+                    {PROVIDER_LABEL.anthropic}
+                  </SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ai-model">{t('model')}</Label>
+              {provider === 'openai' ? (
                 <Select
-                  value={provider}
-                  onValueChange={(v) => handleProviderChange(v as AiProvider)}
+                  value={model}
+                  onValueChange={(v) => setModel(v ?? '')}
                   disabled={disabled}
                 >
-                  <SelectTrigger>
+                  <SelectTrigger id="ai-model" className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
-                    <SelectItem value="anthropic">
-                      {PROVIDER_LABEL.anthropic}
-                    </SelectItem>
+                    {OPENAI_CHAT_MODELS.map((m) => (
+                      <SelectItem key={m.id} value={m.id}>
+                        {m.label}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
-              </div>
-
-              <div className="space-y-2">
-                <Label htmlFor="ai-model">{t('model')}</Label>
-                {provider === 'openai' ? (
-                  <Select
-                    value={model}
-                    onValueChange={(v) => setModel(v ?? '')}
-                    disabled={disabled}
-                  >
-                    <SelectTrigger id="ai-model">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {OPENAI_CHAT_MODELS.map((m) => (
-                        <SelectItem key={m.id} value={m.id}>
-                          {m.label}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                ) : (
-                  <Input
-                    id="ai-model"
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
-                    disabled={disabled}
-                  />
-                )}
-              </div>
+              ) : (
+                <Input
+                  id="ai-model"
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
+                  disabled={disabled}
+                />
+              )}
             </div>
 
             <div className="space-y-2">
@@ -410,7 +408,7 @@ export function AiConfig() {
                 onValueChange={(v) => setEmbeddingsModel(v ?? DEFAULT_EMBEDDINGS_MODEL)}
                 disabled={disabled}
               >
-                <SelectTrigger id="ai-embeddings-model">
+                <SelectTrigger id="ai-embeddings-model" className="w-full">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
