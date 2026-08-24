@@ -234,7 +234,7 @@ export default function JoinPage() {
     const copy = FAIL_COPY[peek.reason];
     return (
       <Card className="w-full max-w-md border-border bg-card">
-        <CardHeader className="items-center text-center">
+        <CardHeader className="items-center justify-items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10">
             <MailX className="h-6 w-6 text-red-400" />
           </div>
@@ -292,7 +292,7 @@ export default function JoinPage() {
 
   // ----- Peek OK -----
   const inviteHeader = (
-    <CardHeader className="items-center text-center">
+    <CardHeader className="items-center justify-items-center text-center">
       <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
         <UsersRound className="h-6 w-6 text-primary" />
       </div>
