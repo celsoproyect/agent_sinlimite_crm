@@ -1,13 +1,29 @@
-import { AiError, type AiUsage, type ChatMessage, type ProviderResult } from '../types'
+import {
+  AiError,
+  type AiUsage,
+  type BookingOutcome,
+  type ChatMessage,
+  type ProviderResult,
+  type ResolvedAttachment,
+} from '../types'
 import { MAX_OUTPUT_TOKENS } from '../defaults'
 import {
   excerptsToToolResult,
   mergeConsecutive,
   normalizeUsage,
+  parseBookAppointment,
   providerHttpError,
+  runAttachmentSearch,
+  runAvailabilityCheck,
   toNetworkError,
+  BOOK_APPOINTMENT_TOOL_NAME,
+  CHECK_AVAILABILITY_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
+  SEND_ATTACHMENT_TOOL_NAME,
   MAX_TOOL_ROUNDS,
+  type AttachmentSearchTool,
+  type BookingSearchTool,
+  type KnowledgeSearchTool,
   type ProviderArgs,
 } from './shared'
 
@@ -22,6 +38,7 @@ interface AnthropicContentBlock {
   input?: unknown
   tool_use_id?: string
   content?: string
+  source?: { type: 'url'; url: string } | { type: 'base64'; media_type: string; data: string }
 }
 
 interface AnthropicMessage {
@@ -32,6 +49,31 @@ interface AnthropicMessage {
 interface AnthropicResponse {
   content?: AnthropicContentBlock[]
   usage?: { input_tokens?: number; output_tokens?: number }
+}
+
+/** Translate our provider-neutral content into Anthropic's block shape.
+ *  An `image` part's `url` is either a real https URL (public bucket) or
+ *  a `data:<mime>;base64,<bytes>` URI (resolved proxy pointer, see
+ *  context.ts) — Anthropic wants those as two different source types. */
+function toAnthropicContent(content: ChatMessage['content']): string | AnthropicContentBlock[] {
+  if (typeof content === 'string') return content
+  const blocks: AnthropicContentBlock[] = []
+  for (const part of content) {
+    if (part.type === 'text') {
+      blocks.push({ type: 'text', text: part.text })
+    } else if (part.type === 'document_text') {
+      blocks.push({ type: 'text', text: `[documento: ${part.title}]\n${part.text}` })
+    } else if (part.type === 'image') {
+      const dataUri = /^data:([^;]+);base64,([\s\S]*)$/.exec(part.url)
+      blocks.push({
+        type: 'image',
+        source: dataUri
+          ? { type: 'base64', media_type: dataUri[1], data: dataUri[2] }
+          : { type: 'url', url: part.url },
+      })
+    }
+  }
+  return blocks.length > 0 ? blocks : [{ type: 'text', text: '' }]
 }
 
 /**
@@ -52,9 +94,10 @@ function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
   return merged
 }
 
-function buildTools(knowledgeBaseNames: string[]) {
-  return [
-    {
+function buildTools(knowledgeBaseNames: string[] | null, attachmentsEnabled: boolean, bookingEnabled: boolean) {
+  const tools: { name: string; description: string; input_schema: Record<string, unknown> }[] = []
+  if (knowledgeBaseNames) {
+    tools.push({
       name: KNOWLEDGE_SEARCH_TOOL_NAME,
       description:
         'Search one specific knowledge-base collection for excerpts relevant to a query. Only use this when the excerpts already given in the system prompt do not cover what you need.',
@@ -70,8 +113,52 @@ function buildTools(knowledgeBaseNames: string[]) {
         },
         required: ['query'],
       },
-    },
-  ]
+    })
+  }
+  if (attachmentsEnabled) {
+    tools.push({
+      name: SEND_ATTACHMENT_TOOL_NAME,
+      description:
+        "Look up a product image or document in the business's attachment catalog by name/description, to send to the customer.",
+      input_schema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'What to look for (product name, or document name/topic).' },
+        },
+        required: ['query'],
+      },
+    })
+  }
+  if (bookingEnabled) {
+    tools.push({
+      name: CHECK_AVAILABILITY_TOOL_NAME,
+      description:
+        'Look up open appointment slots for a given calendar date, to offer the customer a real time to book.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          date: { type: 'string', description: 'The date to check, as YYYY-MM-DD.' },
+        },
+        required: ['date'],
+      },
+    })
+    tools.push({
+      name: BOOK_APPOINTMENT_TOOL_NAME,
+      description:
+        'Confirm a real appointment booking once the customer has clearly accepted a specific offered time. Only call this after check_availability offered the slot and the customer confirmed it.',
+      input_schema: {
+        type: 'object',
+        properties: {
+          startsAt: { type: 'string', description: 'ISO 8601 start timestamp, exactly one of the offered slots.' },
+          endsAt: { type: 'string', description: 'ISO 8601 end timestamp for that same slot.' },
+          service: { type: 'string', description: 'What the appointment is for.' },
+          notes: { type: 'string', description: 'Optional extra notes from the customer.' },
+        },
+        required: ['startsAt', 'endsAt', 'service'],
+      },
+    })
+  }
+  return tools
 }
 
 function sumUsage(a: AiUsage | null, b: AiUsage | null): AiUsage | null {
@@ -86,25 +173,34 @@ function sumUsage(a: AiUsage | null, b: AiUsage | null): AiUsage | null {
 
 /**
  * Call Anthropic's Messages endpoint with the caller's own key.
- * Returns the raw assistant text + token usage (handoff parsing happens
- * in `generateReply`).
+ * Returns the raw assistant text + token usage + any resolved attachments
+ * (handoff parsing happens in `generateReply`).
  *
- * When `tool` is present, exposes `search_knowledge_base` as an
- * Anthropic tool and runs an internal loop: up to `MAX_TOOL_ROUNDS`
- * rounds where the model may emit `tool_use` blocks, then one final
- * round with tools omitted so a text reply is guaranteed. Usage is
- * summed across every round before returning.
+ * When `tools.knowledge`/`tools.attachments` are present, exposes the
+ * corresponding Anthropic tool(s) and runs an internal loop: up to
+ * `MAX_TOOL_ROUNDS` rounds where the model may emit `tool_use` blocks
+ * (a round can carry several), then one final round with tools omitted
+ * so a text reply is guaranteed. Usage is summed across every round.
  */
 export async function generateAnthropic(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs, tool } = args
-  const tools = tool ? buildTools(tool.knowledgeBases.map((kb) => kb.name)) : undefined
+  const { apiKey, model, systemPrompt, messages, timeoutMs, tools: toolArgs } = args
+  const knowledgeTool = toolArgs?.knowledge
+  const attachmentTool = toolArgs?.attachments
+  const bookingTool = toolArgs?.booking
+  const tools = buildTools(
+    knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
+    !!attachmentTool,
+    !!bookingTool,
+  )
 
   const conversation: AnthropicMessage[] = normalizeForAnthropic(messages).map((m) => ({
     role: m.role,
-    content: m.content,
+    content: toAnthropicContent(m.content),
   }))
 
   let usage: AiUsage | null = null
+  const attachments: ResolvedAttachment[] = []
+  const booking: BookingOutcome = {}
 
   async function callAnthropic(withTools: boolean): Promise<AnthropicResponse> {
     let res: Response
@@ -121,7 +217,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
           system: systemPrompt,
           max_tokens: MAX_OUTPUT_TOKENS,
           messages: conversation,
-          ...(withTools && tools ? { tools } : {}),
+          ...(withTools && tools.length > 0 ? { tools } : {}),
         }),
         signal: AbortSignal.timeout(timeoutMs),
       })
@@ -150,26 +246,14 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
     const blocks = data.content ?? []
     const toolUses = allowTools ? blocks.filter((b) => b.type === 'tool_use') : []
 
-    if (tool && toolUses.length > 0) {
+    if (toolUses.length > 0) {
       conversation.push({ role: 'assistant', content: blocks })
       const resultBlocks: AnthropicContentBlock[] = []
       for (const toolUse of toolUses) {
-        const input = toolUse.input as { query?: string; knowledge_base?: string } | undefined
-        const query = typeof input?.query === 'string' ? input.query : ''
-        const knowledgeBaseName =
-          typeof input?.knowledge_base === 'string' ? input.knowledge_base : undefined
-        let excerpts: Awaited<ReturnType<typeof tool.execute>> = []
-        if (query) {
-          try {
-            excerpts = await tool.execute({ query, knowledgeBaseName })
-          } catch {
-            excerpts = []
-          }
-        }
         resultBlocks.push({
           type: 'tool_result',
           tool_use_id: toolUse.id,
-          content: excerptsToToolResult(excerpts),
+          content: await runAnthropicTool(toolUse, knowledgeTool, attachmentTool, bookingTool, attachments, booking),
         })
       }
       conversation.push({ role: 'user', content: resultBlocks })
@@ -187,6 +271,62 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         code: 'empty_response',
       })
     }
-    return { text, usage }
+    return { text, usage, attachments, booking: booking.offer || booking.appointment ? booking : undefined }
   }
+}
+
+async function runAnthropicTool(
+  toolUse: AnthropicContentBlock,
+  knowledgeTool: KnowledgeSearchTool | undefined,
+  attachmentTool: AttachmentSearchTool | undefined,
+  bookingTool: BookingSearchTool | undefined,
+  attachments: ResolvedAttachment[],
+  booking: BookingOutcome,
+): Promise<string> {
+  if (toolUse.name === KNOWLEDGE_SEARCH_TOOL_NAME && knowledgeTool) {
+    const input = toolUse.input as { query?: string; knowledge_base?: string } | undefined
+    const query = typeof input?.query === 'string' ? input.query : ''
+    const knowledgeBaseName = typeof input?.knowledge_base === 'string' ? input.knowledge_base : undefined
+    if (!query) return excerptsToToolResult([])
+    try {
+      return excerptsToToolResult(await knowledgeTool.execute({ query, knowledgeBaseName }))
+    } catch {
+      return excerptsToToolResult([])
+    }
+  }
+
+  if (toolUse.name === SEND_ATTACHMENT_TOOL_NAME && attachmentTool) {
+    const input = toolUse.input as { query?: string } | undefined
+    const query = typeof input?.query === 'string' ? input.query : ''
+    if (!query) return JSON.stringify({ found: false })
+    try {
+      const { resultJson, attachment } = await runAttachmentSearch(attachmentTool, query)
+      if (attachment) attachments.push(attachment)
+      return resultJson
+    } catch {
+      return JSON.stringify({ found: false })
+    }
+  }
+
+  if (toolUse.name === CHECK_AVAILABILITY_TOOL_NAME && bookingTool) {
+    const input = toolUse.input as { date?: string } | undefined
+    const date = typeof input?.date === 'string' ? input.date : ''
+    if (!date) return JSON.stringify({ available: false })
+    try {
+      const { resultJson, offer } = await runAvailabilityCheck(bookingTool, date)
+      if (offer.length > 0) booking.offer = offer
+      return resultJson
+    } catch {
+      return JSON.stringify({ available: false })
+    }
+  }
+
+  if (toolUse.name === BOOK_APPOINTMENT_TOOL_NAME && bookingTool) {
+    const result = parseBookAppointment(toolUse.input)
+    if ('error' in result) return JSON.stringify({ confirmed: false, error: result.error })
+    booking.appointment = result.appointment
+    return JSON.stringify({ confirmed: true })
+  }
+
+  return JSON.stringify({ error: 'unknown tool' })
 }

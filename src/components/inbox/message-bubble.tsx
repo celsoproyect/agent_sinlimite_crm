@@ -1,7 +1,12 @@
 "use client";
 
 import { cn } from "@/lib/utils";
-import type { Message, MessageReaction } from "@/types";
+import type {
+  Message,
+  MessageReaction,
+  ProductCardMetadata,
+  SystemEventMetadata,
+} from "@/types";
 import {
   Clock,
   Check,
@@ -11,6 +16,7 @@ import {
   LayoutTemplate,
   CornerDownLeft,
   Sparkles,
+  Info,
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
@@ -81,14 +87,26 @@ function MessageContent({
         </p>
       );
 
-    case "image":
+    case "image": {
+      const productCard =
+        message.metadata?.kind === "product_card"
+          ? (message.metadata as ProductCardMetadata)
+          : null;
+      const media = message.media_url ? (
+        <MediaImageBubble message={message} onOpen={openMedia} t={t} />
+      ) : (
+        <MediaUnavailable label={t("photo")} t={t} />
+      );
+      if (productCard) {
+        return (
+          <ProductCard product={productCard} isAgent={isAgent} t={t}>
+            {media}
+          </ProductCard>
+        );
+      }
       return (
         <div>
-          {message.media_url ? (
-            <MediaImageBubble message={message} onOpen={openMedia} t={t} />
-          ) : (
-            <MediaUnavailable label={t("photo")} t={t} />
-          )}
+          {media}
           {message.content_text && (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm">
               {message.content_text}
@@ -96,6 +114,7 @@ function MessageContent({
           )}
         </div>
       );
+    }
 
     case "video":
       return (
@@ -124,11 +143,25 @@ function MessageContent({
         </div>
       );
 
-    case "document":
-      if (!message.media_url) {
-        return <MediaUnavailable label={message.content_text || t("document")} t={t} />;
+    case "document": {
+      const media = !message.media_url ? (
+        <MediaUnavailable label={message.content_text || t("document")} t={t} />
+      ) : (
+        <MediaDocumentBubble message={message} t={t} />
+      );
+      const productCard =
+        message.metadata?.kind === "product_card"
+          ? (message.metadata as ProductCardMetadata)
+          : null;
+      if (productCard) {
+        return (
+          <ProductCard product={productCard} isAgent={isAgent} t={t}>
+            {media}
+          </ProductCard>
+        );
       }
-      return <MediaDocumentBubble message={message} t={t} />;
+      return media;
+    }
 
     case "template":
       // Templates are almost always outbound, where the bubble fill IS
@@ -215,6 +248,86 @@ function MessageContent({
   }
 }
 
+/**
+ * Wraps a media bubble (image/document) with name/price/description read
+ * from `message.metadata` when it's a `product_card` (kind === 'product_card').
+ * Reuses the existing media renderer instead of a bespoke card component.
+ */
+function ProductCard({
+  product,
+  isAgent,
+  t,
+  children,
+}: {
+  product: ProductCardMetadata;
+  isAgent: boolean;
+  t: ReturnType<typeof useTranslations>;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="w-fit max-w-60">
+      {children}
+      <div className="mt-1.5">
+        <p className="break-words text-sm font-semibold">{product.name}</p>
+        {typeof product.price === "number" && (
+          <p
+            className={cn(
+              "text-xs font-medium",
+              isAgent ? "text-primary-foreground/85" : "text-muted-foreground",
+            )}
+          >
+            {t("productCardPrice", {
+              price: product.price,
+              currency: product.currency ?? "",
+            })}
+          </p>
+        )}
+        {product.description && (
+          <p className="mt-0.5 whitespace-pre-wrap break-words text-xs opacity-85">
+            {product.description}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Inline, non-bubble thread annotation for `content_type: 'system_event'`
+ * rows (e.g. "Checked availability", "Booking created"). Renders centered
+ * and chrome-free — deliberately skips the bubble wrapper `<MessageBubble>`
+ * otherwise always applies, so it reads as a system note rather than a
+ * chat turn.
+ */
+function SystemEventRow({
+  message,
+  t,
+}: {
+  message: Message;
+  t: ReturnType<typeof useTranslations>;
+}) {
+  const metadata =
+    message.metadata?.kind === "availability_check" ||
+    message.metadata?.kind === "booking_created"
+      ? (message.metadata as SystemEventMetadata)
+      : null;
+
+  const label =
+    message.content_text ||
+    (metadata?.kind === "booking_created"
+      ? t("systemEventBookingCreated")
+      : t("systemEventAvailabilityCheck"));
+
+  return (
+    <div className="flex justify-center py-1">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
+        <Info className="h-3 w-3 shrink-0" />
+        {label}
+      </span>
+    </div>
+  );
+}
+
 export function MessageBubble({
   message,
   reply,
@@ -224,6 +337,10 @@ export function MessageBubble({
   onOpenMedia,
 }: MessageBubbleProps) {
   const t = useTranslations("Inbox.bubble");
+
+  if (message.content_type === "system_event") {
+    return <SystemEventRow message={message} t={t} />;
+  }
 
   const isAgent = message.sender_type === "agent" || message.sender_type === "bot";
   const time = format(new Date(message.created_at), "HH:mm");

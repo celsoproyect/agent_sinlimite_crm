@@ -2,12 +2,16 @@ import { supabaseAdmin } from './admin-client'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
+import { hasAttachments, searchAttachments } from './attachments'
+import { bookingEnabled, checkAvailability, insertAiBooking } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import { engineSendText } from '@/lib/flows/meta-send'
+import { formatLocalHHMM } from './providers/shared'
+import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@/lib/flows/meta-send'
+import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 interface DispatchArgs {
@@ -79,7 +83,10 @@ export async function dispatchInboundToAiReply(
     // below (this read can race a concurrent inbound).
     if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
 
-    const messages = await buildConversationContext(db, conversationId)
+    const messages = await buildConversationContext(db, conversationId, {
+      accountId,
+      embeddingsApiKey: config.embeddingsApiKey,
+    })
     if (messages.length === 0) return
 
     // Account-wide throttle on the shared BYO key. The per-conversation
@@ -99,9 +106,11 @@ export async function dispatchInboundToAiReply(
     }
 
     // Ground the reply in the account's knowledge base (best-effort).
-    const [knowledge, knowledgeBases] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentsEnabled, bookingAvailable] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
+      hasAttachments(db, accountId),
+      bookingEnabled(db, accountId),
     ])
 
     const systemPrompt = buildSystemPrompt({
@@ -110,9 +119,11 @@ export async function dispatchInboundToAiReply(
       knowledge,
       knowledgeBases,
       toolAvailable: true,
+      attachmentsAvailable: attachmentsEnabled,
+      bookingAvailable,
     })
 
-    const { text, handoff, usage } = await generateReply({
+    const { text, handoff, usage, attachments, booking } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -121,6 +132,12 @@ export async function dispatchInboundToAiReply(
         knowledgeBaseName
           ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
           : Promise.resolve([]),
+      searchAttachments: attachmentsEnabled
+        ? ({ query }) => searchAttachments(db, accountId, query)
+        : undefined,
+      checkAvailability: bookingAvailable
+        ? ({ date }) => checkAvailability(db, accountId, date)
+        : undefined,
     })
 
     // Record token spend on the account's BYO key. Fire-and-forget so it
@@ -184,14 +201,78 @@ export async function dispatchInboundToAiReply(
     }
     if (claimed !== true) return // lost the per-conversation cap race
 
-    await engineSendText({
-      accountId,
-      userId: configOwnerUserId,
-      conversationId,
-      contactId,
-      text,
-      aiGenerated: true,
-    })
+    // When the model offered real slots via check_availability, fold the
+    // reply text into the interactive message body so the offer and the
+    // tappable buttons land as one WhatsApp message, in the customer's own
+    // language (the AI already wrote `text` in that language). Fall back
+    // to a plain text send if the interactive send fails for any reason
+    // (e.g. the model's reply exceeds WhatsApp's body length) so the
+    // customer isn't left without a reply.
+    const offer = booking?.offer
+    let sentInteractive = false
+    if (offer && offer.length > 0) {
+      const buttons: InteractiveButton[] = offer
+        .slice(0, 3)
+        .map((slot, i) => ({ id: `booking_slot_${i}`, title: formatLocalHHMM(slot.startsAt) }))
+      try {
+        await engineSendInteractiveButtons({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          bodyText: text,
+          buttons,
+        })
+        sentInteractive = true
+      } catch (err) {
+        console.error('[ai auto-reply] booking offer send failed, falling back to text:', err)
+      }
+    }
+    if (!sentInteractive) {
+      await engineSendText({
+        accountId,
+        userId: configOwnerUserId,
+        conversationId,
+        contactId,
+        text,
+        aiGenerated: true,
+      })
+    }
+
+    // Dispatch any attachment(s) the model selected via send_attachment,
+    // after the text — best-effort: a failed media send shouldn't undo
+    // the text reply that already landed.
+    for (const attachment of attachments) {
+      try {
+        await engineSendMedia({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          kind: attachment.kind,
+          link: attachment.mediaUrl,
+          filename: attachment.filename,
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] attachment send failed:', err)
+      }
+    }
+
+    // Persist an appointment confirmed via book_appointment — best-effort,
+    // same rationale as the attachment dispatch above: the customer-facing
+    // text already landed, so a failure here must not surface to them.
+    if (booking?.appointment) {
+      try {
+        await insertAiBooking(db, {
+          accountId,
+          contactId,
+          conversationId,
+          appointment: booking.appointment,
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] booking insert failed:', err)
+      }
+    }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
   }

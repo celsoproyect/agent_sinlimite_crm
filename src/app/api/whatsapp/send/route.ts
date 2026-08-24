@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { canOverrideLock } from '@/lib/auth/roles'
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -32,7 +33,7 @@ export async function POST(request: Request) {
     // still delivered a real WhatsApp message to the customer and merely
     // failed to record it (surfacing as "sent to Meta but failed to save
     // to DB"). RLS can't un-send that, so the role check belongs here.
-    const { supabase, accountId, userId } = await requireRole('agent')
+    const { supabase, accountId, userId, role } = await requireRole('agent')
 
     // Per-user rate limit. Bucket key is scoped to this route so
     // `/broadcast` has an independent budget.
@@ -145,6 +146,31 @@ export async function POST(request: Request) {
       return NextResponse.json(
         { error: 'Conversation not found' },
         { status: 404 }
+      )
+    }
+
+    // Real conversation lock (migration 046). The DB-side trigger only
+    // guards *reassigning* `assigned_agent_id` — it says nothing about
+    // sending messages — so blocking a non-holder from writing into a
+    // claimed conversation has to happen here, the one send path with an
+    // agent identity in scope (the public /api/v1/messages core has none).
+    const { data: lockRow } = await supabase
+      .from('conversations')
+      .select('assigned_agent_id')
+      .eq('id', conversationId)
+      .single()
+
+    if (
+      lockRow?.assigned_agent_id &&
+      lockRow.assigned_agent_id !== userId &&
+      !canOverrideLock(role)
+    ) {
+      return NextResponse.json(
+        {
+          error: 'This conversation is claimed by another agent.',
+          code: 'conversation_locked',
+        },
+        { status: 409 }
       )
     }
 

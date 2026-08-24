@@ -27,6 +27,7 @@ import {
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
 import { AiFaqCard } from './ai-faq';
+import { AiAttachmentsCard } from './ai-attachments';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
 import { OPENAI_CHAT_MODELS, OPENAI_EMBEDDING_MODELS, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models';
 import type { AiProvider } from '@/lib/ai/types';
@@ -542,6 +543,8 @@ export function AiConfig() {
         />
 
         <AiFaqCard accountId={accountId} canEdit={canEdit} />
+
+        <AiAttachmentsCard accountId={accountId} canEdit={canEdit} />
 
         <div className="flex items-center justify-between">
           {configured ? (

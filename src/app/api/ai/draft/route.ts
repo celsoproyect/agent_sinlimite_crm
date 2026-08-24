@@ -4,6 +4,8 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadAiConfig } from '@/lib/ai/config'
 import { buildConversationContext } from '@/lib/ai/context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
+import { hasAttachments, searchAttachments } from '@/lib/ai/attachments'
+import { bookingEnabled, checkAvailability } from '@/lib/ai/booking'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
@@ -76,7 +78,10 @@ export async function POST(request: Request) {
       )
     }
 
-    const messages = await buildConversationContext(supabase, conversationId)
+    const messages = await buildConversationContext(supabase, conversationId, {
+      accountId,
+      embeddingsApiKey: config.embeddingsApiKey,
+    })
     // Nothing to draft from — a brand-new thread with no customer text
     // would otherwise produce a nonsensical reply-to-nothing.
     if (messages.length === 0) {
@@ -91,9 +96,11 @@ export async function POST(request: Request) {
 
     // Ground the draft in the account's knowledge base (best-effort —
     // returns [] when there's no KB or retrieval fails).
-    const [knowledge, knowledgeBases] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentsEnabled, bookingAvailable] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(supabase, accountId),
+      hasAttachments(supabase, accountId),
+      bookingEnabled(supabase, accountId),
     ])
 
     const systemPrompt = buildSystemPrompt({
@@ -102,9 +109,16 @@ export async function POST(request: Request) {
       knowledge,
       knowledgeBases,
       toolAvailable: true,
+      attachmentsAvailable: attachmentsEnabled,
+      bookingAvailable,
     })
 
-    const { text, usage } = await generateReply({
+    // Note: check_availability is read-only (no DB write) so it's safe to
+    // offer here for preview — only book_appointment's *result* would be a
+    // real write, and this route only returns `booking` in the JSON below,
+    // it never dispatches it (no engineSendInteractiveButtons, no insert
+    // into `bookings`).
+    const { text, usage, attachments, booking } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -113,6 +127,12 @@ export async function POST(request: Request) {
         knowledgeBaseName
           ? retrieveKnowledgeFromKb(supabase, accountId, config, query, knowledgeBaseName)
           : Promise.resolve([]),
+      searchAttachments: attachmentsEnabled
+        ? ({ query }) => searchAttachments(supabase, accountId, query)
+        : undefined,
+      checkAvailability: bookingAvailable
+        ? ({ date }) => checkAvailability(supabase, accountId, date)
+        : undefined,
     })
 
     // Record spend on the account's BYO key. Best-effort + via the
@@ -135,7 +155,7 @@ export async function POST(request: Request) {
       console.error('[ai/draft] usage log skipped:', logErr)
     }
 
-    return NextResponse.json({ draft: text })
+    return NextResponse.json({ draft: text, attachments, booking })
   } catch (err) {
     if (err instanceof AiError) {
       return NextResponse.json(

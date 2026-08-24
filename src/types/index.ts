@@ -163,6 +163,9 @@ export interface Conversation {
   contact_id: string;
   status: ConversationStatus;
   assigned_agent_id?: string;
+  /** When `assigned_agent_id` was last set — "claimed at", for the lock
+   *  banner. Null/undefined when unassigned. Migration 046. */
+  locked_at?: string | null;
   last_message_text?: string;
   last_message_at?: string;
   unread_count: number;
@@ -215,7 +218,13 @@ export type ContentType =
   | 'location'
   | 'template'
   /** Customer tapped a reply button or list row on a message we sent. */
-  | 'interactive';
+  | 'interactive'
+  /**
+   * Inline, non-bubble thread annotation — an AI action like "checked
+   * availability" or "booked an appointment". Never a real chat turn:
+   * no `sender_id`, always `sender_type: 'bot'`. Migration 046.
+   */
+  | 'system_event';
 export type MessageStatus = 'sending' | 'sent' | 'delivered' | 'read' | 'failed';
 
 export interface Message {
@@ -258,7 +267,33 @@ export interface Message {
    * badge in the inbox. Migration 033.
    */
   ai_generated?: boolean;
+  /**
+   * Generic structured detail, distinct from `interactive_payload`
+   * (which stays scoped to outbound button/list messages). Two shapes
+   * today: a `system_event` annotation's detail, and a rich
+   * product/attachment card riding on an `image`/`document` message.
+   * Migration 046.
+   */
+  metadata?: MessageMetadata | null;
 }
+
+/** Detail for a `content_type: 'system_event'` inline annotation. */
+export interface SystemEventMetadata {
+  kind: 'availability_check' | 'booking_created';
+  [key: string]: unknown;
+}
+
+/** Rides an `image`/`document` message to render it as a product card
+ *  instead of a plain media bubble. */
+export interface ProductCardMetadata {
+  kind: 'product_card';
+  name: string;
+  price?: number;
+  currency?: string;
+  description?: string;
+}
+
+export type MessageMetadata = SystemEventMetadata | ProductCardMetadata;
 
 export type ReactionActor = 'customer' | 'agent';
 
@@ -389,6 +424,38 @@ export interface Deal {
   contact?: Contact;
   stage?: PipelineStage;
   assignee?: Profile;
+}
+
+export type BookingStatus = 'confirmed' | 'cancelled' | 'completed';
+
+export interface Booking {
+  id: string;
+  account_id: string;
+  contact_id: string;
+  conversation_id?: string | null;
+  service: string;
+  starts_at: string;
+  ends_at: string;
+  status: BookingStatus;
+  /** Null when the AI booking tool created it rather than a human agent. */
+  created_by?: string | null;
+  notes?: string | null;
+  created_at: string;
+  updated_at: string;
+  contact?: Contact;
+}
+
+/** Per-account business-hours/slot config — `accounts.booking_settings`
+ *  (migration 046). Empty object means "not configured yet". */
+export interface BookingSettings {
+  slotMinutes?: number;
+  bufferMinutes?: number;
+  hours?: Partial<
+    Record<
+      'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday',
+      { open: string; close: string } | null
+    >
+  >;
 }
 
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';

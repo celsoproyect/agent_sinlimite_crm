@@ -5,6 +5,7 @@ import {
   canDeleteAccount,
   canEditSettings,
   canManageMembers,
+  canOverrideLock,
   canSendMessages,
   canTransferOwnership,
   canViewOnly,
@@ -112,6 +113,13 @@ describe("capability predicates", () => {
     expect(canViewOnly("admin")).toBe(false);
     expect(canViewOnly("agent")).toBe(false);
     expect(canViewOnly("viewer")).toBe(true);
+  });
+
+  it("canOverrideLock: admin+ only", () => {
+    expect(canOverrideLock("owner")).toBe(true);
+    expect(canOverrideLock("admin")).toBe(true);
+    expect(canOverrideLock("agent")).toBe(false);
+    expect(canOverrideLock("viewer")).toBe(false);
   });
 
   it("canDeleteAccount: owner only", () => {

@@ -12,6 +12,7 @@ import type { Conversation, ConversationStatus, Tag } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
+import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import {
   DropdownMenu,
@@ -45,6 +46,9 @@ const STATUS_COLORS: Record<ConversationStatus, string> = {
 
 
 type InboxFilter = ConversationStatus | "all" | "unread";
+// "Mi equipo" is deliberately just "assigned to me" — the account model has
+// no team/department concept (single-owner accounts), see migration 017.
+type OwnershipFilter = "mine" | "unassigned" | "all";
 
 export function ConversationList({
   activeConversationId,
@@ -54,7 +58,8 @@ export function ConversationList({
   resyncToken = 0,
 }: ConversationListProps) {
   const t = useTranslations("Inbox.conversationList");
-  
+  const { user } = useAuth();
+
   const FILTER_OPTIONS: { label: string; value: InboxFilter }[] = useMemo(() => [
     { label: t("filterAll"), value: "all" },
     { label: t("filterUnread"), value: "unread" },
@@ -63,8 +68,15 @@ export function ConversationList({
     { label: t("filterClosed"), value: "closed" },
   ], [t]);
 
+  const OWNERSHIP_OPTIONS: { label: string; value: OwnershipFilter }[] = useMemo(() => [
+    { label: t("ownershipMine"), value: "mine" },
+    { label: t("ownershipUnassigned"), value: "unassigned" },
+    { label: t("ownershipAll"), value: "all" },
+  ], [t]);
+
   const [search, setSearch] = useState("");
   const [filter, setFilter] = useState<InboxFilter>("all");
+  const [ownership, setOwnership] = useState<OwnershipFilter>("all");
   const [loading, setLoading] = useState(true);
   // Contact-based filters (issue #272). Tags use OR logic (a conversation
   // matches if its contact carries any selected tag), consistent with
@@ -167,6 +179,14 @@ export function ConversationList({
       result = result.filter((c) => c.status === filter);
     }
 
+    // Ownership tabs (AND'd with the status filter above). "mine" means
+    // "assigned to me" — there is no team/department concept to expand it.
+    if (ownership === "mine") {
+      result = result.filter((c) => c.assigned_agent_id === user?.id);
+    } else if (ownership === "unassigned") {
+      result = result.filter((c) => !c.assigned_agent_id);
+    }
+
     // Contact-based filters (tags via OR logic, exact company match).
     if (selectedTagIds.length > 0 || selectedCompany !== null) {
       result = result.filter((c) =>
@@ -188,7 +208,7 @@ export function ConversationList({
     }
 
     return result;
-  }, [conversations, filter, search, selectedTagIds, selectedCompany]);
+  }, [conversations, filter, ownership, user?.id, search, selectedTagIds, selectedCompany]);
 
   const toggleTag = useCallback((id: string) => {
     setSelectedTagIds((prev) =>
@@ -234,6 +254,23 @@ export function ConversationList({
             placeholder={t("searchPlaceholder")}
             className="border-border bg-muted pl-9 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50"
           />
+        </div>
+
+        <div className="flex items-center gap-1 rounded-md bg-muted p-0.5 text-xs">
+          {OWNERSHIP_OPTIONS.map((opt) => (
+            <button
+              key={opt.value}
+              onClick={() => setOwnership(opt.value)}
+              className={cn(
+                "flex-1 rounded px-2 py-1 font-medium transition-colors",
+                ownership === opt.value
+                  ? "bg-card text-foreground shadow-sm"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {opt.label}
+            </button>
+          ))}
         </div>
 
         <div className="flex flex-wrap items-center gap-1">

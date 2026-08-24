@@ -1,23 +1,38 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import { cn } from "@/lib/utils";
-import type { Contact, Deal, ContactNote, Tag } from "@/types";
+import type {
+  Contact,
+  Deal,
+  ContactNote,
+  Tag,
+  CustomField,
+  ContactCustomValue,
+  Booking,
+} from "@/types";
 import {
   Phone,
   Mail,
   Copy,
   Check,
-  User,
   Tag as TagIcon,
   DollarSign,
   StickyNote,
   Plus,
+  CalendarClock,
+  ClipboardList,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { format } from "date-fns";
 import { useTranslations } from "next-intl";
 
@@ -34,6 +49,9 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   const [deals, setDeals] = useState<Deal[]>([]);
   const [notes, setNotes] = useState<ContactNote[]>([]);
   const [tags, setTags] = useState<(Tag & { contact_tag_id: string })[]>([]);
+  const [nextBooking, setNextBooking] = useState<Booking | null>(null);
+  const [customFields, setCustomFields] = useState<CustomField[]>([]);
+  const [customValues, setCustomValues] = useState<ContactCustomValue[]>([]);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
@@ -42,23 +60,39 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
 
     const supabase = createClient();
 
-    // Fetch deals, notes, and tags in parallel
-    const [dealsRes, notesRes, tagsRes] = await Promise.all([
-      supabase
-        .from("deals")
-        .select("*, stage:pipeline_stages(*)")
-        .eq("contact_id", contact.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contact_notes")
-        .select("*")
-        .eq("contact_id", contact.id)
-        .order("created_at", { ascending: false }),
-      supabase
-        .from("contact_tags")
-        .select("id, tag_id, tags(*)")
-        .eq("contact_id", contact.id),
-    ]);
+    const [dealsRes, notesRes, tagsRes, bookingRes, customFieldsRes, customValuesRes] =
+      await Promise.all([
+        supabase
+          .from("deals")
+          .select("*, stage:pipeline_stages(*)")
+          .eq("contact_id", contact.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("contact_notes")
+          .select("*")
+          .eq("contact_id", contact.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("contact_tags")
+          .select("id, tag_id, tags(*)")
+          .eq("contact_id", contact.id),
+        supabase
+          .from("bookings")
+          .select("*")
+          .eq("contact_id", contact.id)
+          .eq("status", "confirmed")
+          .gte("starts_at", new Date().toISOString())
+          .order("starts_at", { ascending: true })
+          .limit(1)
+          .maybeSingle(),
+        accountId
+          ? supabase.from("custom_fields").select("*").eq("account_id", accountId)
+          : Promise.resolve({ data: [] as CustomField[] }),
+        supabase
+          .from("contact_custom_values")
+          .select("*")
+          .eq("contact_id", contact.id),
+      ]);
 
     if (dealsRes.data) setDeals(dealsRes.data);
     if (notesRes.data) setNotes(notesRes.data);
@@ -71,7 +105,10 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
         }));
       setTags(mapped);
     }
-  }, [contact]);
+    setNextBooking(bookingRes.data ?? null);
+    if (customFieldsRes.data) setCustomFields(customFieldsRes.data);
+    if (customValuesRes.data) setCustomValues(customValuesRes.data);
+  }, [contact, accountId]);
 
   // Load on contact change. setContactData/setTags run inside async
   // Supabase callbacks, not synchronously in the effect body.
@@ -79,6 +116,71 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchContactData();
   }, [fetchContactData]);
+
+  // Full account tag list for the "+" add-tag picker — loaded once per
+  // account, independent of which contact is open (mirrors the same
+  // account-scoped fetch `ConversationList` already does for its filter).
+  const [accountTags, setAccountTags] = useState<Tag[]>([]);
+  useEffect(() => {
+    if (!accountId) return;
+    const supabase = createClient();
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.from("tags").select("*").order("name");
+      if (!cancelled && data) setAccountTags(data as Tag[]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [accountId]);
+
+  const availableTags = useMemo(() => {
+    const appliedIds = new Set(tags.map((t) => t.id));
+    return accountTags.filter((t) => !appliedIds.has(t.id));
+  }, [accountTags, tags]);
+
+  const handleAddTag = useCallback(
+    async (tagId: string) => {
+      if (!contact) return;
+      const supabase = createClient();
+      const { data, error } = await supabase
+        .from("contact_tags")
+        .insert({ contact_id: contact.id, tag_id: tagId })
+        .select("id, tag_id, tags(*)")
+        .single();
+      if (!error && data?.tags) {
+        setTags((prev) => [
+          ...prev,
+          { ...(data.tags as unknown as Tag), contact_tag_id: data.id as string },
+        ]);
+      }
+    },
+    [contact],
+  );
+
+  const handleCustomValueChange = useCallback(
+    async (fieldId: string, value: string) => {
+      if (!contact) return;
+      setCustomValues((prev) => {
+        const existing = prev.find((v) => v.custom_field_id === fieldId);
+        if (existing) {
+          return prev.map((v) =>
+            v.custom_field_id === fieldId ? { ...v, value } : v,
+          );
+        }
+        return [...prev, { id: "", contact_id: contact.id, custom_field_id: fieldId, value }];
+      });
+
+      const supabase = createClient();
+      await supabase
+        .from("contact_custom_values")
+        .upsert(
+          { contact_id: contact.id, custom_field_id: fieldId, value },
+          { onConflict: "contact_id,custom_field_id" },
+        );
+    },
+    [contact],
+  );
 
   const handleCopyPhone = useCallback(async () => {
     if (!contact?.phone) return;
@@ -183,9 +285,38 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
 
           {/* Tags */}
           <div>
-            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
-              <TagIcon className="h-3 w-3" />
-              {tSidebar("tags")}
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                <TagIcon className="h-3 w-3" />
+                {tSidebar("tags")}
+              </div>
+              {availableTags.length > 0 && (
+                <DropdownMenu>
+                  <DropdownMenuTrigger
+                    aria-label={tSidebar("addTag")}
+                    className="rounded-full p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                  >
+                    <Plus className="h-3 w-3" />
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="max-h-64 w-48 border-border bg-popover">
+                    {availableTags.map((tag) => (
+                      <DropdownMenuItem
+                        key={tag.id}
+                        onClick={() => handleAddTag(tag.id)}
+                        className="text-sm text-popover-foreground"
+                      >
+                        <span className="flex items-center gap-2">
+                          <span
+                            className="h-2 w-2 shrink-0 rounded-full"
+                            style={{ backgroundColor: tag.color }}
+                          />
+                          <span className="truncate">{tag.name}</span>
+                        </span>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              )}
             </div>
             <div className="mt-2 flex flex-wrap gap-1">
               {tags.length === 0 ? (
@@ -210,43 +341,104 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
           {/* Divider */}
           <div className="my-4 border-t border-border" />
 
-          {/* Active Deals */}
+          {/* Lead status — a single primary deal card (most recent open
+              deal, falling back to the most recent deal overall) instead
+              of the full deal list a solo-agent account has no use for. */}
           <div>
             <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <DollarSign className="h-3 w-3" />
               {tSidebar("deals")}
             </div>
-            <div className="mt-2 space-y-2">
-              {deals.length === 0 ? (
-                <p className="px-1 text-xs text-muted-foreground">{tSidebar("noDeals")}</p>
-              ) : (
-                deals.map((deal) => (
-                  <div
-                    key={deal.id}
-                    className="rounded-lg bg-muted px-3 py-2"
-                  >
+            <div className="mt-2">
+              {(() => {
+                const primaryDeal = deals.find((d) => d.status === "open") ?? deals[0];
+                if (!primaryDeal) {
+                  return <p className="px-1 text-xs text-muted-foreground">{tSidebar("noDeals")}</p>;
+                }
+                return (
+                  <div className="rounded-lg bg-muted px-3 py-2">
                     <p className="text-sm font-medium text-foreground">
-                      {deal.title}
+                      {primaryDeal.title}
                     </p>
                     <div className="mt-1 flex items-center justify-between text-xs text-muted-foreground">
                       <span>
-                        {deal.currency ?? "$"}
-                        {deal.value.toLocaleString()}
+                        {primaryDeal.currency ?? "$"}
+                        {primaryDeal.value.toLocaleString()}
                       </span>
-                      {deal.stage && (
+                      {primaryDeal.stage && (
                         <span
                           className="rounded-full px-1.5 py-0.5 text-[10px]"
                           style={{
-                            backgroundColor: `${deal.stage.color}20`,
-                            color: deal.stage.color,
+                            backgroundColor: `${primaryDeal.stage.color}20`,
+                            color: primaryDeal.stage.color,
                           }}
                         >
-                          {deal.stage.name}
+                          {primaryDeal.stage.name}
                         </span>
                       )}
                     </div>
                   </div>
-                ))
+                );
+              })()}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="my-4 border-t border-border" />
+
+          {/* Next booking */}
+          <div>
+            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <CalendarClock className="h-3 w-3" />
+              {tSidebar("nextBooking")}
+            </div>
+            <div className="mt-2">
+              {nextBooking ? (
+                <div className="rounded-lg bg-muted px-3 py-2">
+                  <p className="text-sm font-medium text-foreground">
+                    {nextBooking.service || tSidebar("nextBooking")}
+                  </p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {format(new Date(nextBooking.starts_at), "MMM d, yyyy HH:mm")}
+                  </p>
+                </div>
+              ) : (
+                <p className="px-1 text-xs text-muted-foreground">{tSidebar("noUpcomingBooking")}</p>
+              )}
+            </div>
+          </div>
+
+          {/* Divider */}
+          <div className="my-4 border-t border-border" />
+
+          {/* Captured data — key/value block over custom_fields, edited
+              inline directly against contact_custom_values. */}
+          <div>
+            <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+              <ClipboardList className="h-3 w-3" />
+              {tSidebar("capturedData")}
+            </div>
+            <div className="mt-2 space-y-2">
+              {customFields.length === 0 ? (
+                <p className="px-1 text-xs text-muted-foreground">{tSidebar("noCapturedData")}</p>
+              ) : (
+                customFields.map((field) => {
+                  const current = customValues.find((v) => v.custom_field_id === field.id)?.value ?? "";
+                  return (
+                    <div key={field.id} className="px-1">
+                      <label className="text-[10px] text-muted-foreground">{field.field_name}</label>
+                      <input
+                        defaultValue={current}
+                        onBlur={(e) => {
+                          if (e.target.value !== current) {
+                            handleCustomValueChange(field.id, e.target.value);
+                          }
+                        }}
+                        className="mt-0.5 w-full rounded-md border border-border bg-muted px-2 py-1 text-xs text-foreground outline-none focus:border-primary/50"
+                      />
+                    </div>
+                  );
+                })
               )}
             </div>
           </div>

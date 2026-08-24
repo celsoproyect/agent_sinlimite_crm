@@ -45,6 +45,7 @@ describe('parseGeneration', () => {
       text: 'Hello there',
       handoff: false,
       usage: null,
+      attachments: [],
     })
   })
 
@@ -53,11 +54,13 @@ describe('parseGeneration', () => {
       text: '',
       handoff: true,
       usage: null,
+      attachments: [],
     })
     expect(parseGeneration('Let me get a human [[HANDOFF]]')).toEqual({
       text: 'Let me get a human',
       handoff: true,
       usage: null,
+      attachments: [],
     })
   })
 
@@ -67,6 +70,7 @@ describe('parseGeneration', () => {
       text: 'Hi',
       handoff: false,
       usage,
+      attachments: [],
     })
   })
 })
@@ -91,6 +95,7 @@ describe('generateReply — OpenAI', () => {
       text: 'Sure — happy to help!',
       handoff: false,
       usage: { promptTokens: 42, completionTokens: 8, totalTokens: 50 },
+      attachments: [],
     })
     const [url, opts] = fetchMock.mock.calls[0]
     expect(url).toContain('api.openai.com')
@@ -150,6 +155,7 @@ describe('generateReply — Anthropic', () => {
       text: 'Hi there!',
       handoff: false,
       usage: { promptTokens: 30, completionTokens: 6, totalTokens: 36 },
+      attachments: [],
     })
     const [url, opts] = fetchMock.mock.calls[0]
     expect(url).toContain('api.anthropic.com')
@@ -340,5 +346,536 @@ describe('generateReply — Anthropic', () => {
     const body = JSON.parse(fetchMock.mock.calls[0][1].body)
     expect(body.messages[0].role).toBe('user')
     expect(body.messages).toHaveLength(1)
+  })
+})
+
+describe('generateReply — image content translation', () => {
+  it('sends an image_url block for a vision-capable OpenAI model', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ choices: [{ message: { content: 'I see a red shoe.' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'openai', model: 'gpt-4o' }),
+      systemPrompt: 'sys',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'What is this?' },
+            { type: 'image', url: 'https://example.com/shoe.jpg' },
+          ],
+        },
+      ],
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    const userMsg = body.messages.find((m: { role: string }) => m.role === 'user')
+    expect(userMsg.content).toEqual([
+      { type: 'text', text: 'What is this?' },
+      { type: 'image_url', image_url: { url: 'https://example.com/shoe.jpg' } },
+    ])
+  })
+
+  it('degrades an image to a text placeholder for a vision-unsupported OpenAI model', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'openai', model: 'o1-mini' }),
+      systemPrompt: 'sys',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'What is this?' },
+            { type: 'image', url: 'https://example.com/shoe.jpg' },
+          ],
+        },
+      ],
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    const userMsg = body.messages.find((m: { role: string }) => m.role === 'user')
+    expect(userMsg.content).toEqual([
+      { type: 'text', text: 'What is this?' },
+      { type: 'text', text: '[el cliente envió una imagen — este modelo no puede verla]' },
+    ])
+  })
+
+  it('sends an Anthropic image block with a url source for a public URL', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ content: [{ type: 'text', text: 'I see a red shoe.' }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [
+        {
+          role: 'user',
+          content: [
+            { type: 'text', text: 'What is this?' },
+            { type: 'image', url: 'https://example.com/shoe.jpg' },
+          ],
+        },
+      ],
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.messages[0].content).toEqual([
+      { type: 'text', text: 'What is this?' },
+      { type: 'image', source: { type: 'url', url: 'https://example.com/shoe.jpg' } },
+    ])
+  })
+
+  it('sends an Anthropic image block with a base64 source for a data URI', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ content: [{ type: 'text', text: 'ok' }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [
+        {
+          role: 'user',
+          content: [{ type: 'image', url: 'data:image/png;base64,AAAA' }],
+        },
+      ],
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    expect(body.messages[0].content).toEqual([
+      { type: 'image', source: { type: 'base64', media_type: 'image/png', data: 'AAAA' } },
+    ])
+  })
+})
+
+describe('generateReply — send_attachment tool loop', () => {
+  it('resolves a catalog match and returns it in attachments (OpenAI)', async () => {
+    const searchAttachments = vi.fn().mockResolvedValue([
+      { name: 'Blue T-Shirt', kind: 'image', mediaUrl: 'https://example.com/shirt.jpg', filename: 'shirt.jpg' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'send_attachment',
+                      arguments: JSON.stringify({ query: 'blue shirt' }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: 'Here you go!' } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Show me the blue shirt' }],
+      searchAttachments,
+    })
+
+    expect(res.text).toBe('Here you go!')
+    expect(res.attachments).toEqual([
+      { name: 'Blue T-Shirt', kind: 'image', mediaUrl: 'https://example.com/shirt.jpg', filename: 'shirt.jpg' },
+    ])
+    expect(searchAttachments).toHaveBeenCalledWith({ query: 'blue shirt' })
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
+    expect(JSON.parse(toolMsg.content)).toEqual({ found: true, name: 'Blue T-Shirt', kind: 'image' })
+  })
+
+  it('resolves both a knowledge search and a send_attachment call in the same round (OpenAI)', async () => {
+    const searchKnowledgeBase = vi.fn().mockResolvedValue([
+      { content: 'Ships in 3 days.', kbName: 'Shipping', title: 'Shipping FAQ' },
+    ])
+    const searchAttachments = vi.fn().mockResolvedValue([
+      { name: 'Catalog PDF', kind: 'document', mediaUrl: 'https://example.com/cat.pdf', filename: 'cat.pdf' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'search_knowledge_base',
+                      arguments: JSON.stringify({ query: 'shipping time' }),
+                    },
+                  },
+                  {
+                    id: 'call_2',
+                    type: 'function',
+                    function: {
+                      name: 'send_attachment',
+                      arguments: JSON.stringify({ query: 'catalog' }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: 'Ships in 3 days, catalog attached!' } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'When does it ship, and send me the catalog' }],
+      knowledgeBases: [{ name: 'Shipping', description: 'Shipping policies' }],
+      searchKnowledgeBase,
+      searchAttachments,
+    })
+
+    expect(res.text).toBe('Ships in 3 days, catalog attached!')
+    expect(res.attachments).toEqual([
+      { name: 'Catalog PDF', kind: 'document', mediaUrl: 'https://example.com/cat.pdf', filename: 'cat.pdf' },
+    ])
+    expect(searchKnowledgeBase).toHaveBeenCalledWith({ query: 'shipping time', knowledgeBaseName: undefined })
+    expect(searchAttachments).toHaveBeenCalledWith({ query: 'catalog' })
+  })
+
+  it('resolves a catalog match and returns it in attachments (Anthropic)', async () => {
+    const searchAttachments = vi.fn().mockResolvedValue([
+      { name: 'Blue T-Shirt', kind: 'image', mediaUrl: 'https://example.com/shirt.jpg', filename: 'shirt.jpg' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'send_attachment',
+              input: { query: 'blue shirt' },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ content: [{ type: 'text', text: 'Here you go!' }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Show me the blue shirt' }],
+      searchAttachments,
+    })
+
+    expect(res.text).toBe('Here you go!')
+    expect(res.attachments).toEqual([
+      { name: 'Blue T-Shirt', kind: 'image', mediaUrl: 'https://example.com/shirt.jpg', filename: 'shirt.jpg' },
+    ])
+    expect(searchAttachments).toHaveBeenCalledWith({ query: 'blue shirt' })
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolResultMsg = secondBody.messages.find(
+      (m: { role: string; content: unknown }) =>
+        m.role === 'user' && Array.isArray(m.content) && m.content[0]?.type === 'tool_result',
+    )
+    expect(JSON.parse(toolResultMsg.content[0].content)).toEqual({
+      found: true,
+      name: 'Blue T-Shirt',
+      kind: 'image',
+    })
+  })
+
+  it('returns no attachments when the catalog has no match', async () => {
+    const searchAttachments = vi.fn().mockResolvedValue([])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: { name: 'send_attachment', arguments: JSON.stringify({ query: 'unicorn plush' }) },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: "Sorry, we don't have that." } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Send me a unicorn plush' }],
+      searchAttachments,
+    })
+
+    expect(res.attachments).toEqual([])
+  })
+})
+
+describe('generateReply — booking tool loop', () => {
+  it('resolves an offered slot and returns it in booking.offer (OpenAI)', async () => {
+    const checkAvailability = vi.fn().mockResolvedValue([
+      { startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'check_availability',
+                      arguments: JSON.stringify({ date: '2026-08-24' }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: 'We have 2pm open, want that?' } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Can I book something Monday?' }],
+      checkAvailability,
+    })
+
+    expect(res.text).toBe('We have 2pm open, want that?')
+    expect(res.booking).toEqual({
+      offer: [{ startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' }],
+    })
+    expect(checkAvailability).toHaveBeenCalledWith({ date: '2026-08-24' })
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
+    expect(JSON.parse(toolMsg.content)).toEqual({
+      available: true,
+      slots: [{ startsAt: '2026-08-24T14:00:00.000Z', time: expect.any(String) }],
+    })
+  })
+
+  it('confirms a booking and returns it in booking.appointment (OpenAI)', async () => {
+    const checkAvailability = vi.fn()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'book_appointment',
+                      arguments: JSON.stringify({
+                        startsAt: '2026-08-24T14:00:00.000Z',
+                        endsAt: '2026-08-24T14:30:00.000Z',
+                        service: 'Haircut',
+                      }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: 'Booked for 2pm!' } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Yes, 2pm works' }],
+      checkAvailability,
+    })
+
+    expect(res.text).toBe('Booked for 2pm!')
+    expect(res.booking).toEqual({
+      appointment: {
+        startsAt: '2026-08-24T14:00:00.000Z',
+        endsAt: '2026-08-24T14:30:00.000Z',
+        service: 'Haircut',
+        notes: undefined,
+      },
+    })
+    expect(checkAvailability).not.toHaveBeenCalled()
+
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
+    expect(JSON.parse(toolMsg.content)).toEqual({ confirmed: true })
+  })
+
+  it('rejects an incomplete book_appointment call and does not set booking.appointment (OpenAI)', async () => {
+    const checkAvailability = vi.fn()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'book_appointment',
+                      arguments: JSON.stringify({ startsAt: '2026-08-24T14:00:00.000Z' }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(
+        okResponse({ choices: [{ message: { content: 'Sorry, let me check that again.' } }] }),
+      )
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Book it' }],
+      checkAvailability,
+    })
+
+    expect(res.booking).toBeUndefined()
+  })
+
+  it('resolves an offered slot and returns it in booking.offer (Anthropic)', async () => {
+    const checkAvailability = vi.fn().mockResolvedValue([
+      { startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' },
+    ])
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'check_availability',
+              input: { date: '2026-08-24' },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ content: [{ type: 'text', text: 'We have 2pm open!' } ] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Can I book something Monday?' }],
+      checkAvailability,
+    })
+
+    expect(res.text).toBe('We have 2pm open!')
+    expect(res.booking).toEqual({
+      offer: [{ startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' }],
+    })
+    expect(checkAvailability).toHaveBeenCalledWith({ date: '2026-08-24' })
+  })
+
+  it('confirms a booking and returns it in booking.appointment (Anthropic)', async () => {
+    const checkAvailability = vi.fn()
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [
+            {
+              type: 'tool_use',
+              id: 'toolu_1',
+              name: 'book_appointment',
+              input: {
+                startsAt: '2026-08-24T14:00:00.000Z',
+                endsAt: '2026-08-24T14:30:00.000Z',
+                service: 'Haircut',
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ content: [{ type: 'text', text: 'Booked for 2pm!' }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Yes, 2pm works' }],
+      checkAvailability,
+    })
+
+    expect(res.text).toBe('Booked for 2pm!')
+    expect(res.booking).toEqual({
+      appointment: {
+        startsAt: '2026-08-24T14:00:00.000Z',
+        endsAt: '2026-08-24T14:30:00.000Z',
+        service: 'Haircut',
+        notes: undefined,
+      },
+    })
   })
 })

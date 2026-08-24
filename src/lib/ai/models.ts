@@ -17,6 +17,10 @@
 export interface OpenAiChatModel {
   id: string
   label: string
+  /** Whether the model accepts image content blocks. Text-only models
+   *  (o1-mini) get a text placeholder substituted in for any image
+   *  instead of a failed request — see providers/openai.ts. */
+  supportsVision: boolean
 }
 
 export interface OpenAiEmbeddingModel {
@@ -31,23 +35,36 @@ export interface OpenAiEmbeddingModel {
 }
 
 export const OPENAI_CHAT_MODELS: OpenAiChatModel[] = [
-  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (balanced, default)' },
-  { id: 'gpt-5.4', label: 'GPT-5.4 (most capable)' },
-  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)' },
-  { id: 'gpt-5', label: 'GPT-5' },
-  { id: 'gpt-5-mini', label: 'GPT-5 Mini' },
-  { id: 'gpt-5-nano', label: 'GPT-5 Nano' },
-  { id: 'o4-mini', label: 'o4-mini (reasoning)' },
-  { id: 'o3', label: 'o3 (reasoning)' },
-  { id: 'o3-mini', label: 'o3-mini (reasoning)' },
-  { id: 'o1', label: 'o1 (reasoning)' },
-  { id: 'o1-mini', label: 'o1-mini (reasoning)' },
-  { id: 'gpt-4.1', label: 'GPT-4.1' },
-  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini' },
-  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano' },
-  { id: 'gpt-4o', label: 'GPT-4o' },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini' },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (balanced, default)', supportsVision: true },
+  { id: 'gpt-5.4', label: 'GPT-5.4 (most capable)', supportsVision: true },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)', supportsVision: true },
+  { id: 'gpt-5', label: 'GPT-5', supportsVision: true },
+  { id: 'gpt-5-mini', label: 'GPT-5 Mini', supportsVision: true },
+  { id: 'gpt-5-nano', label: 'GPT-5 Nano', supportsVision: true },
+  { id: 'o4-mini', label: 'o4-mini (reasoning)', supportsVision: true },
+  { id: 'o3', label: 'o3 (reasoning)', supportsVision: true },
+  { id: 'o3-mini', label: 'o3-mini (reasoning)', supportsVision: false },
+  { id: 'o1', label: 'o1 (reasoning)', supportsVision: true },
+  { id: 'o1-mini', label: 'o1-mini (reasoning)', supportsVision: false },
+  { id: 'gpt-4.1', label: 'GPT-4.1', supportsVision: true },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', supportsVision: true },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', supportsVision: true },
+  { id: 'gpt-4o', label: 'GPT-4o', supportsVision: true },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', supportsVision: true },
 ]
+
+export function findChatModel(id: string): OpenAiChatModel | undefined {
+  return OPENAI_CHAT_MODELS.find((m) => m.id === id)
+}
+
+/** Anthropic keeps a free-text model input (see ai-config.tsx), so there's
+ *  no picklist to check — every current Claude model supports vision. */
+export function modelSupportsVision(provider: AiProviderLike, model: string): boolean {
+  if (provider === 'anthropic') return true
+  return findChatModel(model)?.supportsVision ?? false
+}
+
+type AiProviderLike = 'openai' | 'anthropic'
 
 export const OPENAI_EMBEDDING_MODELS: OpenAiEmbeddingModel[] = [
   {

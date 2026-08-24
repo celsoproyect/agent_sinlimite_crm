@@ -64,12 +64,20 @@ export function buildSystemPrompt(args: {
    *  (see providers/shared.ts) — adds the instruction on when/how to use
    *  it. False/omitted for callers that don't support tool-calling. */
   toolAvailable?: boolean
+  /** True when the caller wired up the `send_attachment` tool — adds the
+   *  instruction on when/how to use it. */
+  attachmentsAvailable?: boolean
+  /** True when the caller wired up the `check_availability`/
+   *  `book_appointment` tools — adds the instruction on when/how to use
+   *  them. */
+  bookingAvailable?: boolean
 }): string {
-  const { userPrompt, mode, knowledge, knowledgeBases, toolAvailable } = args
+  const { userPrompt, mode, knowledge, knowledgeBases, toolAvailable, attachmentsAvailable, bookingAvailable } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
       'You are shown the recent WhatsApp conversation between the business (assistant) and a customer (user). ' +
       'Write the next reply the business should send to the customer.',
+    `The current date and time is ${new Date().toISOString()}. Use this to resolve relative dates the customer mentions (e.g. "tomorrow", "next Thursday").`,
     'Guidelines: reply in the same language the customer is writing in; keep it concise and friendly, suitable for WhatsApp; ' +
       'never invent facts, prices, order numbers, availability, or promises that are not supported by the conversation or the business context below; ' +
       'output only the message text — no quotes, no "Reply:" label, no preamble.',
@@ -118,6 +126,25 @@ export function buildSystemPrompt(args: {
         'Call the tool only when you need something more specific that those excerpts likely don\'t cover — e.g. the customer asks about a topic clearly tied to one particular collection, or you need to look something up ' +
         "in a collection that wasn't already searched. Don't call it if the excerpts already answer the question, and don't call it more than once or twice per reply. " +
         'As with the excerpts above, never mention the tool, a document name, or a source in your reply to the customer.',
+    )
+  }
+
+  if (attachmentsAvailable) {
+    parts.push(
+      'You also have a send_attachment tool that looks up a product image or document by name/description in the business\'s attachment catalog. ' +
+        "Call it only when the customer explicitly asks to see a product photo or asks for a specific document that plausibly exists in the catalog. " +
+        "If the tool doesn't find a match, say so naturally instead of pretending you sent something — never claim you attached a file the tool didn't confirm. " +
+        'Never mention the tool itself in your reply.',
+    )
+  }
+
+  if (bookingAvailable) {
+    parts.push(
+      'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
+        'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) to get real open slots, then offer those slots to the customer in your reply, in your own words — real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
+        "Wait for the customer's next message to see which slot they picked — they may reply with the button text or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
+        'Once they have clearly confirmed one specific slot, call book_appointment with that exact slot and a short description of the service. ' +
+        "Never tell the customer their appointment is booked unless book_appointment actually confirmed it — if it fails, apologize and suggest checking availability again. Don't call book_appointment speculatively or for a slot the customer didn't confirm.",
     )
   }
 

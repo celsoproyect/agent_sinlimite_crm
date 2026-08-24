@@ -17,6 +17,7 @@
   "Sidebar": {
     "dashboard": "Dashboard",
     "inbox": "Messages",
+    "agenda": "Agenda",
     "notifications": "Notifications",
     "contacts": "Contacts",
     "pipelines": "Pipelines",
@@ -138,6 +139,9 @@
     },
     "conversationList": {
       "searchPlaceholder": "Search conversations...",
+      "ownershipMine": "My team",
+      "ownershipUnassigned": "Unassigned",
+      "ownershipAll": "All",
       "filterAll": "All",
       "filterUnread": "Unread",
       "filterOpen": "Open",
@@ -228,7 +232,10 @@
       "downloadFailed": "Couldn't download the attachment",
       "viewImage": "View image",
       "expandVideo": "Expand video",
-      "imageAlt": "Shared image"
+      "imageAlt": "Shared image",
+      "systemEventAvailabilityCheck": "Checked availability",
+      "systemEventBookingCreated": "Booking created",
+      "productCardPrice": "{price} {currency}"
     },
     "mediaViewer": {
       "counter": "{index} of {total}",
@@ -283,10 +290,16 @@
       "contactInfo": "Contact info",
       "tags": "Tags",
       "notes": "Notes",
-      "deals": "Deals",
+      "deals": "Lead status",
       "noTags": "No tags",
-      "noDeals": "No deals",
-      "addNotePlaceholder": "Add a note..."
+      "noDeals": "No active deal",
+      "addNotePlaceholder": "Add a note...",
+      "addTag": "Add tag",
+      "noMoreTags": "No more tags to add",
+      "nextBooking": "Next booking",
+      "noUpcomingBooking": "No upcoming booking",
+      "capturedData": "Captured data",
+      "noCapturedData": "No custom fields defined"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -297,6 +310,15 @@
       "resumed": "AI resumed.",
       "updateError": "Couldn’t update the AI assistant.",
       "networkError": "Couldn’t reach the server."
+    },
+    "lockBanner": {
+      "claim": "Claim conversation",
+      "yours": "Yours",
+      "release": "Release",
+      "claimedBy": "Claimed by {name}",
+      "claimError": "Couldn’t claim this conversation.",
+      "releaseError": "Couldn’t release this conversation.",
+      "lockedError": "This conversation is claimed by another agent."
     }
   },
   "Contacts": {
@@ -498,6 +520,65 @@
       "toastRenameFailed": "Could not rename field.",
       "toastDeleteFailed": "Could not delete field.",
       "toastDeleted": "Deleted \"{name}\"."
+    }
+  },
+  "Agenda": {
+    "page": {
+      "title": "Agenda",
+      "newBooking": "New booking",
+      "today": "Today",
+      "settings": "Business hours",
+      "prevWeek": "Previous week",
+      "nextWeek": "Next week"
+    },
+    "todayPanel": {
+      "title": "Today",
+      "noBookings": "No bookings today"
+    },
+    "form": {
+      "newBooking": "New booking",
+      "editBooking": "Edit booking",
+      "contact": "Contact",
+      "selectContact": "Select a contact",
+      "service": "Service",
+      "servicePlaceholder": "e.g. Haircut, Consultation",
+      "date": "Date",
+      "startTime": "Start time",
+      "endTime": "End time",
+      "notes": "Notes",
+      "notesPlaceholder": "Optional notes",
+      "save": "Save",
+      "saving": "Saving...",
+      "cancel": "Cancel",
+      "delete": "Delete",
+      "deleting": "Deleting...",
+      "confirmDelete": "Delete this booking?",
+      "required": "Contact, date and time are required",
+      "endBeforeStart": "End time must be after start time",
+      "toastCreated": "Booking created",
+      "toastUpdated": "Booking updated",
+      "toastDeleted": "Booking deleted",
+      "toastFailedSave": "Couldn't save the booking",
+      "toastFailedDelete": "Couldn't delete the booking"
+    },
+    "businessHours": {
+      "title": "Business hours",
+      "slotMinutes": "Slot length (minutes)",
+      "bufferMinutes": "Buffer between bookings (minutes)",
+      "closed": "Closed",
+      "open": "Open",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saving": "Saving...",
+      "toastSaved": "Business hours saved",
+      "toastFailedSave": "Couldn't save business hours",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday",
+      "sunday": "Sunday"
     }
   },
   "Pipelines": {
@@ -1786,6 +1867,35 @@
       "saveFailed": "Failed to save.",
       "removeSuccess": "FAQ removed.",
       "removeFailed": "Failed to remove."
+    },
+    "aiAttachments": {
+      "title": "Attachment catalog",
+      "description": "Product images or documents the assistant can send when a customer explicitly asks for one — matched by name/description, sent only in live auto-reply, never in Draft or the Playground.",
+      "loading": "Loading…",
+      "loadFailed": "Failed to load attachments",
+      "noAttachments": "No attachments yet.",
+      "addAttachment": "Add attachment",
+      "editAttachment": "Edit",
+      "deleteAttachment": "Delete",
+      "editAttachmentFormTitle": "Edit attachment",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. Blue hoodie — front view",
+      "descriptionLabel": "Description",
+      "descriptionPlaceholder": "e.g. Product photo of the blue hoodie, shown when a customer asks to see it.",
+      "descriptionHint": "The assistant matches this against what the customer asks for, so be specific.",
+      "fileLabel": "File",
+      "chooseFile": "Choose file",
+      "fileRequired": "Choose a file to upload.",
+      "fileTooLarge": "File is too large (max 16 MB).",
+      "nameDescriptionRequired": "Name and description are required.",
+      "cancel": "Cancel",
+      "saveAttachment": "Save",
+      "saveSuccessNew": "Attachment added.",
+      "saveSuccessUpdate": "Attachment updated.",
+      "saveFailed": "Failed to save.",
+      "removeSuccess": "Attachment removed.",
+      "removeFailed": "Failed to remove.",
+      "deleteConfirm": "Delete \"{name}\"?"
     }
   },
   "SuperAdmin": {

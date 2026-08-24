@@ -2,13 +2,15 @@ import {
   AiError,
   type AiConfig,
   type AiUsage,
+  type BookingOutcome,
   type ChatMessage,
   type GenerateResult,
+  type ResolvedAttachment,
 } from './types'
 import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
-import type { KnowledgeSearchTool } from './providers/shared'
+import type { AttachmentSearchTool, BookingSearchTool, KnowledgeSearchTool } from './providers/shared'
 import type { KnowledgeBaseSummary } from './knowledge'
 
 export interface GenerateArgs {
@@ -24,6 +26,12 @@ export interface GenerateArgs {
   /** Runs a targeted KB search for the model's tool call (normally a
    *  thin wrapper around `retrieveKnowledgeFromKb`). */
   searchKnowledgeBase?: KnowledgeSearchTool['execute']
+  /** Runs a catalog lookup for the model's `send_attachment` tool call.
+   *  Omit to run without the tool. */
+  searchAttachments?: AttachmentSearchTool['execute']
+  /** Runs the availability lookup for the model's `check_availability`
+   *  tool call, enabling both booking tools. Omit to run without them. */
+  checkAvailability?: BookingSearchTool['execute']
 }
 
 /**
@@ -32,22 +40,27 @@ export interface GenerateArgs {
  * of the raw text. Throws `AiError` on any provider/network failure.
  */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
-  const { config, systemPrompt, messages, knowledgeBases, searchKnowledgeBase } = args
+  const { config, systemPrompt, messages, knowledgeBases, searchKnowledgeBase, searchAttachments, checkAvailability } =
+    args
   const timeoutMs = aiRequestTimeoutMs()
-  const tool: KnowledgeSearchTool | undefined =
+  const knowledge: KnowledgeSearchTool | undefined =
     knowledgeBases && knowledgeBases.length > 0 && searchKnowledgeBase
       ? { knowledgeBases, execute: searchKnowledgeBase }
       : undefined
+  const attachments: AttachmentSearchTool | undefined = searchAttachments
+    ? { execute: searchAttachments }
+    : undefined
+  const booking: BookingSearchTool | undefined = checkAvailability ? { execute: checkAvailability } : undefined
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
     systemPrompt,
     messages,
     timeoutMs,
-    tool,
+    tools: knowledge || attachments || booking ? { knowledge, attachments, booking } : undefined,
   }
 
-  let result: { text: string; usage: AiUsage | null }
+  let result: { text: string; usage: AiUsage | null; attachments: ResolvedAttachment[]; booking?: BookingOutcome }
   switch (config.provider) {
     case 'openai':
       result = await generateOpenAi(providerArgs)
@@ -62,21 +75,23 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       })
   }
 
-  return parseGeneration(result.text, result.usage)
+  return parseGeneration(result.text, result.usage, result.attachments, result.booking)
 }
 
 /**
- * Split the raw model output into `{ text, handoff, usage }`. The
- * sentinel can appear alone or trailing a partial reply; either way we
- * treat the turn as a handoff and strip the marker from any remaining
- * text. `usage` is passed straight through (null when the provider
- * didn't report it).
+ * Split the raw model output into `{ text, handoff, usage, attachments,
+ * booking }`. The sentinel can appear alone or trailing a partial reply;
+ * either way we treat the turn as a handoff and strip the marker from any
+ * remaining text. `usage`/`attachments`/`booking` are passed straight
+ * through.
  */
 export function parseGeneration(
   raw: string,
   usage: AiUsage | null = null,
+  attachments: ResolvedAttachment[] = [],
+  booking?: BookingOutcome,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
   const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage }
+  return { text, handoff, usage, attachments, booking }
 }

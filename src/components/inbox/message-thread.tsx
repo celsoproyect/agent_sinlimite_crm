@@ -51,6 +51,7 @@ import {
 import { deleteAccountMedia } from "@/lib/storage/upload-media";
 import { TemplatePicker } from "./template-picker";
 import { AiThreadBanner } from "./ai-thread-banner";
+import { ConversationLockBanner } from "./conversation-lock-banner";
 import { buildReplyPreview } from "./reply-quote";
 import { renderTemplateBody } from "@/lib/whatsapp/template-body";
 import { toast } from "sonner";
@@ -168,7 +169,7 @@ export function MessageThread({
   const tTimer = useTranslations("Inbox.sessionTimer");
   const tQuote = useTranslations("Inbox.replyQuote");
 
-  const { user } = useAuth();
+  const { user, canOverrideLock } = useAuth();
   const { getPresence, getRow, now } = usePresence();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -846,12 +847,21 @@ export function MessageThread({
       const supabase = createClient();
       const { error } = await supabase
         .from("conversations")
-        .update({ assigned_agent_id: agentId })
+        .update({
+          assigned_agent_id: agentId,
+          locked_at: agentId ? new Date().toISOString() : null,
+        })
         .eq("id", conversation.id);
 
       if (error) {
         console.error("Failed to update assignment:", error);
-        toast.error("Failed to update assignment");
+        // `enforce_conversation_lock` (migration 046) rejects stealing an
+        // active claim — surface that distinctly from a generic failure.
+        toast.error(
+          error.message?.includes("conversation_locked")
+            ? "This conversation is claimed by another agent."
+            : "Failed to update assignment",
+        );
         return;
       }
 
@@ -1155,6 +1165,17 @@ export function MessageThread({
           </div>
         )}
       </div>
+
+      {/* Real ownership banner — claim/release, backed by the DB-side
+          lock trigger (migration 046). */}
+      <ConversationLockBanner
+        conversationId={conversation.id}
+        assignedAgentId={assignedAgentId}
+        assignedAgentName={currentAssignee?.full_name}
+        currentUserId={user?.id}
+        canOverrideLock={canOverrideLock}
+        onChange={(agentId) => onAssignChange(conversation.id, agentId)}
+      />
 
       {/* AI auto-reply banner — take over an active bot, or resume it
           after a handoff. Renders nothing unless the account has

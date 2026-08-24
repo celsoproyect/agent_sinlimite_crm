@@ -34,10 +34,79 @@ export interface AiConfig {
   embeddingsModel: string
 }
 
+/**
+ * One piece of a multimodal message. Provider-agnostic — each adapter
+ * (openai.ts/anthropic.ts) translates these into its own native content
+ * block shape when building the request body.
+ */
+export type ContentPart =
+  | { type: 'text'; text: string }
+  | { type: 'image'; url: string }
+  | { type: 'document_text'; title: string; text: string }
+
 /** A single conversation turn in the shape both providers accept. */
 export interface ChatMessage {
   role: 'user' | 'assistant'
-  content: string
+  content: string | ContentPart[]
+}
+
+/** An attachment resolved by the `send_attachment` tool, ready to be
+ *  dispatched via `engineSendMedia` after generation finishes. */
+export interface ResolvedAttachment {
+  name: string
+  kind: 'image' | 'document'
+  mediaUrl: string
+  filename: string
+}
+
+/** One open appointment slot, as computed by `check_availability` and
+ *  (up to 3, WhatsApp's button cap) offered to the model to present. */
+export interface TimeSlot {
+  startsAt: string
+  endsAt: string
+}
+
+/** A confirmed appointment the model built via `book_appointment`, ready
+ *  for auto-reply to insert into `bookings` after generation finishes —
+ *  no DB write happens inside the provider adapters themselves. */
+export interface BookingAppointment {
+  startsAt: string
+  endsAt: string
+  service: string
+  notes?: string
+}
+
+/** What the model did with the booking tools this turn, if anything. */
+export interface BookingOutcome {
+  /** Slots offered via `check_availability`, to be sent as WhatsApp
+   *  reply buttons. */
+  offer?: TimeSlot[]
+  /** An appointment confirmed via `book_appointment`. */
+  appointment?: BookingAppointment
+}
+
+/**
+ * Flatten a `ChatMessage.content` down to plain text, for call sites that
+ * only need a string (knowledge-base query text, the handoff summary
+ * quote). Non-text parts become a short bracketed marker rather than
+ * being dropped silently, so e.g. an image-only customer turn still shows
+ * up as *something* in a handoff note.
+ */
+export function contentToText(content: string | ContentPart[]): string {
+  if (typeof content === 'string') return content
+  return content
+    .map((part) => {
+      switch (part.type) {
+        case 'text':
+          return part.text
+        case 'image':
+          return '[imagen]'
+        case 'document_text':
+          return `[documento: ${part.title}]`
+      }
+    })
+    .join(' ')
+    .trim()
 }
 
 /**
@@ -55,6 +124,12 @@ export interface AiUsage {
 export interface ProviderResult {
   text: string
   usage: AiUsage | null
+  /** Attachments the model selected via `send_attachment`, resolved but
+   *  not yet sent — only auto-reply dispatches these. */
+  attachments: ResolvedAttachment[]
+  /** Set only when the booking tools were offered and the model used
+   *  one of them this turn — only auto-reply dispatches these. */
+  booking?: BookingOutcome
 }
 
 /** Outcome of a generation call. */
@@ -65,6 +140,12 @@ export interface GenerateResult {
   handoff: boolean
   /** Provider token usage for this call, or null when unavailable. */
   usage: AiUsage | null
+  /** Attachments the model selected via `send_attachment`, resolved but
+   *  not yet sent — only auto-reply dispatches these. */
+  attachments: ResolvedAttachment[]
+  /** Set only when the booking tools were offered and the model used
+   *  one of them this turn — only auto-reply dispatches these. */
+  booking?: BookingOutcome
 }
 
 /**

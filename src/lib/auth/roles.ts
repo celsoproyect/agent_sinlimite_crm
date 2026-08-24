@@ -98,6 +98,16 @@ export function canViewOnly(role: AccountRole): boolean {
   return role === "viewer";
 }
 
+/**
+ * Owner / admin: reassign or release a conversation another agent has
+ * claimed (`conversations.assigned_agent_id`). Mirrors the DB-side
+ * `enforce_conversation_lock()` trigger (migration 046) so the API layer
+ * and the database agree on who may steal a lock.
+ */
+export function canOverrideLock(role: AccountRole): boolean {
+  return hasMinRole(role, "admin");
+}
+
 /** Owner only: irreversible destructive operations. */
 export function canDeleteAccount(role: AccountRole): boolean {
   return role === "owner";

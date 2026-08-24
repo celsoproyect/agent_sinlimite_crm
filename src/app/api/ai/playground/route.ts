@@ -3,6 +3,8 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadAiConfig } from '@/lib/ai/config'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
+import { hasAttachments, searchAttachments } from '@/lib/ai/attachments'
+import { bookingEnabled, checkAvailability } from '@/lib/ai/booking'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
@@ -35,15 +37,15 @@ export async function POST(request: Request) {
     }
 
     const messages: ChatMessage[] = rawMessages
-      .filter(
-        (m: unknown): m is ChatMessage =>
-          !!m &&
-          typeof m === 'object' &&
-          ((m as ChatMessage).role === 'user' ||
-            (m as ChatMessage).role === 'assistant') &&
-          typeof (m as ChatMessage).content === 'string' &&
-          (m as ChatMessage).content.trim().length > 0,
-      )
+      .filter((m: unknown): m is ChatMessage => {
+        if (!m || typeof m !== 'object') return false
+        const { role, content } = m as ChatMessage
+        return (
+          (role === 'user' || role === 'assistant') &&
+          typeof content === 'string' &&
+          content.trim().length > 0
+        )
+      })
       .slice(-MAX_TURNS)
 
     if (messages.length === 0) {
@@ -72,9 +74,11 @@ export async function POST(request: Request) {
       )
     }
 
-    const [knowledge, knowledgeBases] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentsEnabled, bookingAvailable] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(supabase, accountId),
+      hasAttachments(supabase, accountId),
+      bookingEnabled(supabase, accountId),
     ])
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
@@ -82,9 +86,14 @@ export async function POST(request: Request) {
       knowledge,
       knowledgeBases,
       toolAvailable: true,
+      attachmentsAvailable: attachmentsEnabled,
+      bookingAvailable,
     })
 
-    const { text, handoff } = await generateReply({
+    // Same as draft: check_availability is read-only, safe to offer for
+    // preview here. This route never dispatches `booking` — no interactive
+    // buttons are sent and nothing is inserted into `bookings`.
+    const { text, handoff, attachments, booking } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -93,8 +102,14 @@ export async function POST(request: Request) {
         knowledgeBaseName
           ? retrieveKnowledgeFromKb(supabase, accountId, config, query, knowledgeBaseName)
           : Promise.resolve([]),
+      searchAttachments: attachmentsEnabled
+        ? ({ query }) => searchAttachments(supabase, accountId, query)
+        : undefined,
+      checkAvailability: bookingAvailable
+        ? ({ date }) => checkAvailability(supabase, accountId, date)
+        : undefined,
     })
-    return NextResponse.json({ reply: text, handoff })
+    return NextResponse.json({ reply: text, handoff, attachments, booking })
   } catch (err) {
     if (err instanceof AiError) {
       return NextResponse.json(

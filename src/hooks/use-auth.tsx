@@ -16,6 +16,7 @@ import { DEFAULT_CURRENCY } from "@/lib/currency";
 import {
   canEditSettings as canEditSettingsFor,
   canManageMembers as canManageMembersFor,
+  canOverrideLock as canOverrideLockFor,
   canSendMessages as canSendMessagesFor,
   isAccountRole,
   type AccountRole,
@@ -132,6 +133,8 @@ interface AuthContextValue {
   canEditSettings: boolean;
   /** True if the caller can send messages and edit operational data (agent+). */
   canSendMessages: boolean;
+  /** True if the caller can steal/release another agent's conversation lock (admin+). */
+  canOverrideLock: boolean;
   /** Platform-level super admin — see migration 040. Independent of accountRole. */
   isSuperAdmin: boolean;
 }
@@ -416,6 +419,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       canManageMembers: role ? canManageMembersFor(role) : false,
       canEditSettings: role ? canEditSettingsFor(role) : false,
       canSendMessages: role ? canSendMessagesFor(role) : false,
+      canOverrideLock: role ? canOverrideLockFor(role) : false,
       isSuperAdmin: profile?.is_super_admin === true,
     };
   }, [profile?.account_role, profile?.account_id, profile?.is_super_admin]);
@@ -488,6 +492,7 @@ export function useAuth(): AuthContextValue {
       canManageMembers: false,
       canEditSettings: false,
       canSendMessages: false,
+      canOverrideLock: false,
       isSuperAdmin: false,
     };
   }

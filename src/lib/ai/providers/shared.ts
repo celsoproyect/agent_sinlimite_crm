@@ -1,4 +1,12 @@
-import { AiError, type AiUsage, type ChatMessage } from '../types'
+import {
+  AiError,
+  type AiUsage,
+  type BookingAppointment,
+  type ChatMessage,
+  type ContentPart,
+  type ResolvedAttachment,
+  type TimeSlot,
+} from '../types'
 import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
 
 // ============================================================
@@ -16,6 +24,41 @@ export interface KnowledgeSearchTool {
 }
 
 export const KNOWLEDGE_SEARCH_TOOL_NAME = 'search_knowledge_base'
+
+/** One catalog match for `send_attachment` — a name/description hit in
+ *  `ai_attachments`. */
+export interface AttachmentMatch {
+  name: string
+  kind: 'image' | 'document'
+  mediaUrl: string
+  filename: string
+}
+
+/** The `send_attachment` function/tool both adapters expose to the model.
+ *  Running it during the tool-call loop never sends anything by
+ *  itself — it only resolves a catalog match, which the adapter
+ *  accumulates into `ProviderResult.attachments` for the caller
+ *  (auto-reply) to dispatch after generation finishes. */
+export interface AttachmentSearchTool {
+  execute: (args: { query: string }) => Promise<AttachmentMatch[]>
+}
+
+export const SEND_ATTACHMENT_TOOL_NAME = 'send_attachment'
+
+/** The `check_availability`/`book_appointment` function/tools both
+ *  adapters expose to the model when the account has business hours
+ *  configured. `execute` computes open slots for one calendar date
+ *  (supplied by generate.ts, backed by `checkAvailability` in
+ *  lib/ai/booking.ts) — running it inside the tool-call loop never
+ *  writes anything; the adapter only accumulates offered slots /
+ *  confirmed appointments into `ProviderResult.booking` for the caller
+ *  (auto-reply) to dispatch after generation finishes. */
+export interface BookingSearchTool {
+  execute: (args: { date: string }) => Promise<TimeSlot[]>
+}
+
+export const CHECK_AVAILABILITY_TOOL_NAME = 'check_availability'
+export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
 
 /** Tool-call rounds allowed before the adapter forces a final,
  *  tool-free round to guarantee text comes back. */
@@ -38,9 +81,14 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
-  /** When present, the adapter exposes `search_knowledge_base` to the
-   *  model and runs its own internal multi-round tool-call loop. */
-  tool?: KnowledgeSearchTool
+  /** When either is present, the adapter exposes the corresponding
+   *  function tool to the model and runs its own internal multi-round
+   *  tool-call loop (both tools can be offered in the same round). */
+  tools?: {
+    knowledge?: KnowledgeSearchTool
+    attachments?: AttachmentSearchTool
+    booking?: BookingSearchTool
+  }
 }
 
 /**
@@ -121,9 +169,14 @@ export async function providerHttpError(
   })
 }
 
+function toContentParts(content: ChatMessage['content']): ContentPart[] {
+  return typeof content === 'string' ? [{ type: 'text', text: content }] : content
+}
+
 /**
- * Collapse consecutive same-role turns into one (joined with blank
- * lines). Anthropic requires strictly alternating roles; merging is
+ * Collapse consecutive same-role turns into one (joined with blank lines
+ * for plain text; concatenated as content-part arrays once either side is
+ * multimodal). Anthropic requires strictly alternating roles; merging is
  * also harmless for OpenAI and keeps the transcript compact.
  */
 export function mergeConsecutive(messages: ChatMessage[]): ChatMessage[] {
@@ -131,10 +184,100 @@ export function mergeConsecutive(messages: ChatMessage[]): ChatMessage[] {
   for (const m of messages) {
     const last = out[out.length - 1]
     if (last && last.role === m.role) {
-      last.content = `${last.content}\n\n${m.content}`
+      if (typeof last.content === 'string' && typeof m.content === 'string') {
+        last.content = `${last.content}\n\n${m.content}`
+      } else {
+        last.content = [...toContentParts(last.content), ...toContentParts(m.content)]
+      }
     } else {
       out.push({ role: m.role, content: m.content })
     }
   }
   return out
+}
+
+/** Run the model's `send_attachment` query against the catalog and shape
+ *  both the tool-result JSON (what the model sees) and the resolved
+ *  attachment (what the caller may later dispatch), for the first match
+ *  only — one attachment per call keeps the deferred-send list sane. */
+export async function runAttachmentSearch(
+  tool: AttachmentSearchTool,
+  query: string,
+): Promise<{ resultJson: string; attachment: ResolvedAttachment | null }> {
+  const matches = await tool.execute({ query })
+  const match = matches[0]
+  if (!match) {
+    return { resultJson: JSON.stringify({ found: false }), attachment: null }
+  }
+  return {
+    resultJson: JSON.stringify({ found: true, name: match.name, kind: match.kind }),
+    attachment: { name: match.name, kind: match.kind, mediaUrl: match.mediaUrl, filename: match.filename },
+  }
+}
+
+/** Format an ISO timestamp as local wall-clock `HH:mm` — matches how
+ *  `checkAvailability` (lib/ai/booking.ts) parses business hours as local
+ *  time, so this must use local getters, not `toISOString()` (UTC), or
+ *  the displayed time drifts from the account's configured hours whenever
+ *  the server isn't running in UTC. */
+export function formatLocalHHMM(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
+/** Serialize offered slots for the `check_availability` tool result — the
+ *  model sees plain HH:mm times (it already knows the requested date) so
+ *  it can describe them back to the customer in its own words. */
+export function offerToToolResult(slots: TimeSlot[]): string {
+  if (slots.length === 0) {
+    return JSON.stringify({ available: false, note: 'No open slots that day.' })
+  }
+  return JSON.stringify({
+    available: true,
+    slots: slots.map((s) => ({
+      startsAt: s.startsAt,
+      time: formatLocalHHMM(s.startsAt),
+    })),
+  })
+}
+
+/** Run `check_availability`: resolve slots for the requested date via the
+ *  caller-supplied executor and shape the tool-result JSON the model
+ *  sees. Never writes anything — the resolved offer is only accumulated
+ *  by the adapter for auto-reply to dispatch as WhatsApp buttons. */
+export async function runAvailabilityCheck(
+  tool: BookingSearchTool,
+  date: string,
+): Promise<{ resultJson: string; offer: TimeSlot[] }> {
+  const slots = await tool.execute({ date })
+  return { resultJson: offerToToolResult(slots), offer: slots }
+}
+
+/** Validate + normalize the model's `book_appointment` tool-call
+ *  arguments into a `BookingAppointment`, or return an error string (sent
+ *  back to the model as the tool result, e.g. "startsAt is required") when
+ *  the args are incomplete or malformed. */
+export function parseBookAppointment(
+  rawArgs: unknown,
+): { appointment: BookingAppointment } | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const startsAt = typeof args.startsAt === 'string' ? args.startsAt : ''
+  const endsAt = typeof args.endsAt === 'string' ? args.endsAt : ''
+  const service = typeof args.service === 'string' ? args.service.trim() : ''
+  const notes = typeof args.notes === 'string' && args.notes.trim() ? args.notes.trim() : undefined
+
+  if (!startsAt || Number.isNaN(new Date(startsAt).getTime())) {
+    return { error: 'startsAt is required and must be a valid ISO timestamp.' }
+  }
+  if (!endsAt || Number.isNaN(new Date(endsAt).getTime())) {
+    return { error: 'endsAt is required and must be a valid ISO timestamp.' }
+  }
+  if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+    return { error: 'endsAt must be after startsAt.' }
+  }
+  if (!service) {
+    return { error: 'service is required.' }
+  }
+
+  return { appointment: { startsAt, endsAt, service, notes } }
 }

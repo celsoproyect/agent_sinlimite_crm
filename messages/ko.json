@@ -17,6 +17,7 @@
   "Sidebar": {
     "dashboard": "대시보드",
     "inbox": "메시지",
+    "agenda": "일정",
     "notifications": "알림",
     "contacts": "연락처",
     "pipelines": "파이프라인",
@@ -138,6 +139,9 @@
     },
     "conversationList": {
       "searchPlaceholder": "대화 검색...",
+      "ownershipMine": "내 팀",
+      "ownershipUnassigned": "미배정",
+      "ownershipAll": "전체",
       "filterAll": "전체",
       "filterUnread": "읽지 않음",
       "filterOpen": "열림",
@@ -228,7 +232,10 @@
       "downloadFailed": "첨부파일을 다운로드할 수 없습니다",
       "viewImage": "이미지 보기",
       "expandVideo": "동영상 확대",
-      "imageAlt": "공유된 이미지"
+      "imageAlt": "공유된 이미지",
+      "systemEventAvailabilityCheck": "예약 가능 여부 확인함",
+      "systemEventBookingCreated": "예약이 생성됨",
+      "productCardPrice": "{price} {currency}"
     },
     "mediaViewer": {
       "counter": "{total}개 중 {index}번째",
@@ -283,10 +290,16 @@
       "contactInfo": "연락처 정보",
       "tags": "태그",
       "notes": "메모",
-      "deals": "딜",
+      "deals": "리드 상태",
       "noTags": "태그 없음",
-      "noDeals": "딜 없음",
-      "addNotePlaceholder": "메모 추가..."
+      "noDeals": "진행 중인 딜 없음",
+      "addNotePlaceholder": "메모 추가...",
+      "addTag": "태그 추가",
+      "noMoreTags": "추가할 태그가 없습니다",
+      "nextBooking": "다음 예약",
+      "noUpcomingBooking": "예정된 예약 없음",
+      "capturedData": "수집된 데이터",
+      "noCapturedData": "정의된 커스텀 필드 없음"
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",
@@ -297,6 +310,15 @@
       "resumed": "AI가 재개되었습니다.",
       "updateError": "AI 어시스턴트를 업데이트하지 못했습니다.",
       "networkError": "서버에 연결할 수 없습니다."
+    },
+    "lockBanner": {
+      "claim": "대화 가져가기",
+      "yours": "내 대화",
+      "release": "놓아주기",
+      "claimedBy": "{name}님이 처리 중",
+      "claimError": "이 대화를 가져올 수 없습니다.",
+      "releaseError": "이 대화를 놓아줄 수 없습니다.",
+      "lockedError": "다른 상담원이 이 대화를 처리 중입니다."
     }
   },
   "Contacts": {
@@ -498,6 +520,65 @@
       "toastRenameFailed": "필드 이름을 변경할 수 없습니다.",
       "toastDeleteFailed": "필드를 삭제할 수 없습니다.",
       "toastDeleted": "\"{name}\"을(를) 삭제했습니다."
+    }
+  },
+  "Agenda": {
+    "page": {
+      "title": "일정",
+      "newBooking": "새 예약",
+      "today": "오늘",
+      "settings": "영업시간",
+      "prevWeek": "이전 주",
+      "nextWeek": "다음 주"
+    },
+    "todayPanel": {
+      "title": "오늘",
+      "noBookings": "오늘 예약 없음"
+    },
+    "form": {
+      "newBooking": "새 예약",
+      "editBooking": "예약 수정",
+      "contact": "연락처",
+      "selectContact": "연락처 선택",
+      "service": "서비스",
+      "servicePlaceholder": "예: 헤어컷, 상담",
+      "date": "날짜",
+      "startTime": "시작 시간",
+      "endTime": "종료 시간",
+      "notes": "메모",
+      "notesPlaceholder": "선택 사항",
+      "save": "저장",
+      "saving": "저장 중...",
+      "cancel": "취소",
+      "delete": "삭제",
+      "deleting": "삭제 중...",
+      "confirmDelete": "이 예약을 삭제하시겠습니까?",
+      "required": "연락처, 날짜, 시간은 필수입니다",
+      "endBeforeStart": "종료 시간은 시작 시간보다 늦어야 합니다",
+      "toastCreated": "예약이 생성되었습니다",
+      "toastUpdated": "예약이 수정되었습니다",
+      "toastDeleted": "예약이 삭제되었습니다",
+      "toastFailedSave": "예약을 저장할 수 없습니다",
+      "toastFailedDelete": "예약을 삭제할 수 없습니다"
+    },
+    "businessHours": {
+      "title": "영업시간",
+      "slotMinutes": "슬롯 길이 (분)",
+      "bufferMinutes": "예약 간 버퍼 (분)",
+      "closed": "휴무",
+      "open": "영업",
+      "cancel": "취소",
+      "save": "저장",
+      "saving": "저장 중...",
+      "toastSaved": "영업시간이 저장되었습니다",
+      "toastFailedSave": "영업시간을 저장할 수 없습니다",
+      "monday": "월요일",
+      "tuesday": "화요일",
+      "wednesday": "수요일",
+      "thursday": "목요일",
+      "friday": "금요일",
+      "saturday": "토요일",
+      "sunday": "일요일"
     }
   },
   "Pipelines": {
@@ -1786,6 +1867,35 @@
       "saveFailed": "저장하지 못했습니다.",
       "removeSuccess": "FAQ가 제거되었습니다.",
       "removeFailed": "제거하지 못했습니다."
+    },
+    "aiAttachments": {
+      "title": "첨부파일 카탈로그",
+      "description": "고객이 명시적으로 요청할 때 어시스턴트가 보낼 수 있는 제품 이미지 또는 문서입니다. 이름/설명으로 매칭되며, 실제 자동 응답에서만 전송되고 초안이나 플레이그라운드에서는 전송되지 않습니다.",
+      "loading": "불러오는 중…",
+      "loadFailed": "첨부파일을 불러오지 못했습니다",
+      "noAttachments": "아직 첨부파일이 없습니다.",
+      "addAttachment": "첨부파일 추가",
+      "editAttachment": "수정",
+      "deleteAttachment": "삭제",
+      "editAttachmentFormTitle": "첨부파일 수정",
+      "nameLabel": "이름",
+      "namePlaceholder": "예: 파란색 후드티 — 정면",
+      "descriptionLabel": "설명",
+      "descriptionPlaceholder": "예: 고객이 보여달라고 요청할 때 전송되는 파란색 후드티 제품 사진.",
+      "descriptionHint": "어시스턴트가 고객의 요청과 이 설명을 매칭하므로 구체적으로 작성하세요.",
+      "fileLabel": "파일",
+      "chooseFile": "파일 선택",
+      "fileRequired": "업로드할 파일을 선택하세요.",
+      "fileTooLarge": "파일이 너무 큽니다 (최대 16MB).",
+      "nameDescriptionRequired": "이름과 설명은 필수입니다.",
+      "cancel": "취소",
+      "saveAttachment": "저장",
+      "saveSuccessNew": "첨부파일이 추가되었습니다.",
+      "saveSuccessUpdate": "첨부파일이 업데이트되었습니다.",
+      "saveFailed": "저장하지 못했습니다.",
+      "removeSuccess": "첨부파일이 제거되었습니다.",
+      "removeFailed": "제거하지 못했습니다.",
+      "deleteConfirm": "\"{name}\"을(를) 삭제하시겠습니까?"
     }
   },
   "SuperAdmin": {
