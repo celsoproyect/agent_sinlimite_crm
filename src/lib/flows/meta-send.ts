@@ -8,6 +8,7 @@ import {
   type MediaKind,
 } from '@/lib/whatsapp/meta-api'
 import type { InteractiveMessagePayload } from '@/lib/whatsapp/interactive'
+import type { MessageMetadata } from '@/types'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import {
   sanitizePhoneForMeta,
@@ -161,6 +162,12 @@ interface SendMediaEngineArgs {
   caption?: string
   /** Document-only; ignored by Meta for image/video. */
   filename?: string
+  /** Structured detail riding the persisted message row — e.g. a
+   *  `product_card` (name/price/currency/description) so the inbox
+   *  thread renders a rich card instead of a bare media bubble. Never
+   *  sent to Meta; the caption above is what the customer actually sees
+   *  on WhatsApp. */
+  metadata?: MessageMetadata
 }
 
 /**
@@ -250,6 +257,7 @@ export async function engineSendMedia(
     content_text: args.caption ?? null,
     message_id: waMessageId,
     status: 'sent',
+    metadata: args.metadata ?? null,
   })
   if (msgErr) {
     throw new Error(`sent to Meta but DB insert failed: ${msgErr.message}`)

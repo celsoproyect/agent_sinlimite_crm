@@ -1,8 +1,9 @@
 // ============================================================
 // GET /api/super-admin/accounts
 //
-// Lists every account on the platform (id + name), for the account
-// picker in the super-admin Users panel. Super admin only — a
+// Lists every account on the platform (id + name + enabled_modules),
+// for the account picker in the super-admin Users panel and the
+// Modules panel's per-account toggle list. Super admin only — a
 // client's own admin/owner has no reason to see other tenants'
 // account names.
 // ============================================================
@@ -18,7 +19,7 @@ export async function GET() {
 
     const { data, error } = await supabaseAdmin()
       .from('accounts')
-      .select('id, name')
+      .select('id, name, enabled_modules')
       .order('name', { ascending: true })
 
     if (error) {

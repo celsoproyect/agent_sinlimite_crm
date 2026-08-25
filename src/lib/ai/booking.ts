@@ -43,7 +43,7 @@ async function loadBookingSettings(
  * Whether the account has configured at least one open business-hours
  * day — cheap gate for `bookingAvailable` in the system prompt and for
  * skipping the `check_availability`/`book_appointment` tools entirely
- * when no owner has set up hours yet. Mirrors `hasAttachments`.
+ * when no owner has set up hours yet. Mirrors `getAttachmentRoster`'s gating.
  */
 export async function bookingEnabled(db: SupabaseClient, accountId: string): Promise<boolean> {
   try {

@@ -43,6 +43,7 @@ import {
 import { AUTOMATION_TEMPLATES, type TemplateSlug } from "@/lib/automations/templates"
 import { triggerMeta, formatRelative } from "@/lib/automations/trigger-meta"
 import { cn } from "@/lib/utils"
+import { useModuleGate } from "@/hooks/use-module-gate"
 
 const TEMPLATE_ORDER: TemplateSlug[] = [
   "welcome_message",
@@ -61,6 +62,7 @@ const TEMPLATE_ICON: Record<TemplateSlug, typeof Zap> = {
 export default function AutomationsPage() {
   const router = useRouter()
   const canCreate = useCan("send-messages")
+  const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("automations")
   const t = useTranslations("Automations.list")
   const [automations, setAutomations] = useState<Automation[] | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -135,6 +137,14 @@ export default function AutomationsPage() {
 
   async function startFromTemplate(slug: TemplateSlug) {
     router.push(`/automations/new?template=${slug}`)
+  }
+
+  if (moduleGateLoading || !moduleReady) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    )
   }
 
   if (error) {

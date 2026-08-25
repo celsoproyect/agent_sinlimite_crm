@@ -41,6 +41,7 @@ yarn-error.log*
 
 # supabase CLI local cache (linked project ref, pooler URL, etc.)
 /supabase/.temp/
+/supabase/.branches/
 
 # typescript
 *.tsbuildinfo

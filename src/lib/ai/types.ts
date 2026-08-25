@@ -57,6 +57,9 @@ export interface ResolvedAttachment {
   kind: 'image' | 'document'
   mediaUrl: string
   filename: string
+  description?: string
+  price?: number
+  currency?: string
 }
 
 /** One open appointment slot, as computed by `check_availability` and

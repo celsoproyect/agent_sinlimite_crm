@@ -2,7 +2,7 @@ import { supabaseAdmin } from './admin-client'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
-import { hasAttachments, searchAttachments } from './attachments'
+import { getAttachmentRoster, searchAttachments } from './attachments'
 import { bookingEnabled, checkAvailability, insertAiBooking } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
@@ -12,6 +12,7 @@ import { latestUserMessage } from './query'
 import { formatLocalHHMM } from './providers/shared'
 import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@/lib/flows/meta-send'
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
+import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 
 interface DispatchArgs {
@@ -106,12 +107,13 @@ export async function dispatchInboundToAiReply(
     }
 
     // Ground the reply in the account's knowledge base (best-effort).
-    const [knowledge, knowledgeBases, attachmentsEnabled, bookingAvailable] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
-      hasAttachments(db, accountId),
+      getAttachmentRoster(db, accountId),
       bookingEnabled(db, accountId),
     ])
+    const attachmentsEnabled = attachmentRoster.length > 0
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
@@ -120,6 +122,7 @@ export async function dispatchInboundToAiReply(
       knowledgeBases,
       toolAvailable: true,
       attachmentsAvailable: attachmentsEnabled,
+      attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
     })
 
@@ -241,9 +244,31 @@ export async function dispatchInboundToAiReply(
 
     // Dispatch any attachment(s) the model selected via send_attachment,
     // after the text — best-effort: a failed media send shouldn't undo
-    // the text reply that already landed.
+    // the text reply that already landed. When the catalog entry has a
+    // price, send it as a full product card (caption on the WhatsApp
+    // media itself, plus structured metadata so the inbox thread renders
+    // the enriched card) instead of a bare image/file.
     for (const attachment of attachments) {
       try {
+        const isProduct = attachment.price != null
+        const caption = isProduct
+          ? [
+              attachment.name,
+              attachment.description,
+              `${attachment.currency ?? ''} ${attachment.price}`.trim(),
+            ]
+              .filter(Boolean)
+              .join('\n')
+          : attachment.name
+        const metadata: ProductCardMetadata | undefined = isProduct
+          ? {
+              kind: 'product_card',
+              name: attachment.name,
+              price: attachment.price,
+              currency: attachment.currency,
+              description: attachment.description,
+            }
+          : undefined
         await engineSendMedia({
           accountId,
           userId: configOwnerUserId,
@@ -252,6 +277,8 @@ export async function dispatchInboundToAiReply(
           kind: attachment.kind,
           link: attachment.mediaUrl,
           filename: attachment.filename,
+          caption,
+          metadata,
         })
       } catch (err) {
         console.error('[ai auto-reply] attachment send failed:', err)

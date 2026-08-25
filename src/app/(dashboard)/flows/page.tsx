@@ -33,6 +33,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+import { useModuleGate } from "@/hooks/use-module-gate";
 
 /**
  * Flows list page.
@@ -85,6 +86,7 @@ const TEMPLATE_ICONS = {
 export default function FlowsPage() {
   const router = useRouter();
   const canCreate = useCan("send-messages");
+  const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("flows");
   const t = useTranslations("Flows.list");
   const [flows, setFlows] = useState<FlowRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -189,6 +191,14 @@ export default function FlowsPage() {
       console.error(err);
       toast.error(t("deleteError"));
     }
+  }
+
+  if (moduleGateLoading || !moduleReady) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+      </div>
+    );
   }
 
   if (loading) {

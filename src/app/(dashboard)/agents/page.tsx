@@ -1,12 +1,13 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Bot, Sparkles, BarChart3 } from 'lucide-react';
+import { Bot, Loader2, Sparkles, BarChart3 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiPlayground } from '@/components/agents/ai-playground';
 import { AiUsageCard } from '@/components/agents/ai-usage';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
+import { useModuleGate } from '@/hooks/use-module-gate';
 
 // Provider/API-key setup (formerly a "Setup" tab here) moved to
 // /super-admin — the config a reseller sets up once per client
@@ -17,6 +18,15 @@ export default function AgentsPage() {
   const router = useRouter();
   const { accountRole, isSuperAdmin } = useAuth();
   const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
+  const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agents");
+
+  if (moduleGateLoading || !moduleReady) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div>

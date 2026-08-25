@@ -14,9 +14,11 @@ import {
   Calendar,
   Crown,
   GitBranch,
+  Image as ImageIcon,
   LayoutDashboard,
   LogOut,
   MessageSquare,
+  PlugZap,
   Radio,
   Settings,
   Shield,
@@ -30,6 +32,7 @@ import {
   Zap,
 } from "lucide-react";
 import type { AccountRole } from "@/lib/auth/roles";
+import { isModuleEnabled, isModuleKey } from "@/lib/modules";
 
 // Per-role chip metadata used in the sidebar's account strip + the
 // Members tab roster. Keeping this near both consumers in a single
@@ -103,6 +106,8 @@ const navItems: NavItem[] = [
   { href: "/automations", labelKey: "automations", icon: Zap },
   { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
   { href: "/agents", labelKey: "aiAgents", icon: Bot },
+  { href: "/catalog", labelKey: "catalog", icon: ImageIcon },
+  { href: "/channels", labelKey: "channels", icon: PlugZap },
 ];
 
 const bottomNavItems = [
@@ -143,6 +148,16 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
     !profileLoading &&
     !!account?.name &&
     account.name !== profile?.full_name;
+
+  // Skip items disabled for this account (migration 048). Non-module
+  // entries (dashboard) always pass through. While the account is
+  // still loading, `account` is null so every item shows — avoids a
+  // hide-then-show flicker once the real flags arrive.
+  const visibleNavItems = navItems.filter((item) => {
+    const key = item.href.slice(1);
+    if (!isModuleKey(key)) return true;
+    return isModuleEnabled(account?.enabled_modules, key);
+  });
 
   // Close the drawer when route changes — users opened it to navigate,
   // so once they pick a destination the drawer should get out of the way.
@@ -227,7 +242,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
           <ul className="flex flex-col gap-1">
-            {navItems.map((item) => {
+            {visibleNavItems.map((item) => {
               const isActive =
                 pathname === item.href ||
                 (item.href !== "/dashboard" && pathname.startsWith(item.href));

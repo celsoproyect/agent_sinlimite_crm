@@ -38,6 +38,14 @@ export async function POST(request: Request) {
     const mediaUrl = typeof body?.mediaUrl === 'string' ? body.mediaUrl.trim() : ''
     const filename = typeof body?.filename === 'string' ? body.filename.trim() : ''
     const mimeType = typeof body?.mimeType === 'string' ? body.mimeType.trim() : ''
+    // Optional: a catalog entry can be a plain file (no price) or a
+    // priced product/service — the send_attachment dispatch (auto-reply.ts)
+    // only builds a full product card when price is set.
+    const price =
+      typeof body?.price === 'number' && Number.isFinite(body.price) && body.price >= 0
+        ? body.price
+        : null
+    const currency = typeof body?.currency === 'string' ? body.currency.trim() || null : null
     if (!name || !description || !kind || !mediaUrl || !filename || !mimeType) {
       return NextResponse.json(
         { error: 'name, description, kind, mediaUrl, filename and mimeType are required' },
@@ -56,8 +64,10 @@ export async function POST(request: Request) {
         media_url: mediaUrl,
         filename,
         mime_type: mimeType,
+        price,
+        currency,
       })
-      .select('id, name, description, kind, media_url, filename, mime_type, updated_at')
+      .select('id, name, description, kind, media_url, filename, mime_type, price, currency, updated_at')
       .single()
     if (error || !data) {
       console.error('[ai/attachments POST] insert error:', error)
@@ -72,6 +82,8 @@ export async function POST(request: Request) {
         mediaUrl: data.media_url,
         filename: data.filename,
         mimeType: data.mime_type,
+        price: data.price ?? undefined,
+        currency: data.currency ?? undefined,
         updatedAt: data.updated_at,
       },
     })

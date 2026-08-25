@@ -156,7 +156,7 @@ export async function POST(request: Request) {
     // agent identity in scope (the public /api/v1/messages core has none).
     const { data: lockRow } = await supabase
       .from('conversations')
-      .select('assigned_agent_id')
+      .select('assigned_agent_id, channel')
       .eq('id', conversationId)
       .single()
 
@@ -169,6 +169,21 @@ export async function POST(request: Request) {
         {
           error: 'This conversation is claimed by another agent.',
           code: 'conversation_locked',
+        },
+        { status: 409 }
+      )
+    }
+
+    // Web-widget conversations (migration 049) have no WhatsApp phone
+    // number behind them — `sendMessageToConversation` would fail trying
+    // to call Meta against the synthetic contact. There's no agent-reply
+    // channel back to the widget yet (v1 limitation), so surface a clear
+    // error here instead of a confusing downstream Meta API failure.
+    if (lockRow?.channel === 'web') {
+      return NextResponse.json(
+        {
+          error: 'This conversation came from the web widget and cannot be replied to yet.',
+          code: 'web_channel_unsupported',
         },
         { status: 409 }
       )

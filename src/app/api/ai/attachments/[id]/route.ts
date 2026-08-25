@@ -19,7 +19,26 @@ export async function PATCH(request: Request, { params }: Params) {
     const name = typeof body?.name === 'string' ? body.name.trim() : undefined
     const description =
       typeof body?.description === 'string' ? body.description.trim() : undefined
-    if (name === undefined && description === undefined) {
+    // price/currency are nullable — `null` clears them (a product going
+    // back to a plain catalog file), `undefined` leaves them untouched.
+    const price =
+      body?.price === null
+        ? null
+        : typeof body?.price === 'number' && Number.isFinite(body.price) && body.price >= 0
+          ? body.price
+          : undefined
+    const currency =
+      body?.currency === null
+        ? null
+        : typeof body?.currency === 'string'
+          ? body.currency.trim() || null
+          : undefined
+    if (
+      name === undefined &&
+      description === undefined &&
+      price === undefined &&
+      currency === undefined
+    ) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
     if (name !== undefined && !name) {
@@ -29,16 +48,18 @@ export async function PATCH(request: Request, { params }: Params) {
       return NextResponse.json({ error: 'description cannot be empty' }, { status: 400 })
     }
 
-    const update: Record<string, string> = {}
+    const update: Record<string, string | number | null> = {}
     if (name !== undefined) update.name = name
     if (description !== undefined) update.description = description
+    if (price !== undefined) update.price = price
+    if (currency !== undefined) update.currency = currency
 
     const { data: updated, error } = await supabase
       .from('ai_attachments')
       .update(update)
       .eq('account_id', accountId)
       .eq('id', id)
-      .select('id, name, description, kind, media_url, filename, mime_type, updated_at')
+      .select('id, name, description, kind, media_url, filename, mime_type, price, currency, updated_at')
       .maybeSingle()
     if (error) {
       console.error('[ai/attachments/[id] PATCH] error:', error)
@@ -54,6 +75,8 @@ export async function PATCH(request: Request, { params }: Params) {
         mediaUrl: updated.media_url,
         filename: updated.filename,
         mimeType: updated.mime_type,
+        price: updated.price ?? undefined,
+        currency: updated.currency ?? undefined,
         updatedAt: updated.updated_at,
       },
     })

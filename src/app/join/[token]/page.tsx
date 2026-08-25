@@ -244,46 +244,27 @@ export default function JoinPage() {
           </CardDescription>
         </CardHeader>
         <CardContent className="flex flex-col gap-2">
-          {/* For server_error the failure is transient — the network
-              flapped or the peek endpoint hiccupped. Try-again is
-              the right primary action; the "create account" /
-              "sign in" links stay as secondary options. Other
-              failure reasons (not_found / used / expired) are
-              terminal for this token, so no retry — just the
-              signup/sign-in escape hatches. */}
+          {/* Signup is invite-only (no more "create a new account
+              instead" escape hatch — that button used to point at the
+              open /signup route, which is now gated on this very same
+              token and would just dead-end). For server_error the
+              failure is transient, so Try again is the right primary
+              action. Other reasons (not_found / used / expired) are
+              terminal for this token — Sign in is the only next step
+              for someone who already has an account. */}
           {peek.reason === 'server_error' ? (
-            <>
-              <Button
-                onClick={loadPeekAndAuth}
-                className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
-              >
-                Try again
-              </Button>
-              <Link href="/signup">
-                <Button
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  Create a new account instead
-                </Button>
-              </Link>
-            </>
+            <Button
+              onClick={loadPeekAndAuth}
+              className="w-full bg-primary text-primary-foreground hover:bg-primary/90"
+            >
+              Try again
+            </Button>
           ) : (
-            <>
-              <Link href="/signup">
-                <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
-                  Create a new account instead
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button
-                  variant="outline"
-                  className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
-                >
-                  Sign in
-                </Button>
-              </Link>
-            </>
+            <Link href="/login">
+              <Button className="w-full bg-primary text-primary-foreground hover:bg-primary/90">
+                Sign in
+              </Button>
+            </Link>
           )}
         </CardContent>
       </Card>

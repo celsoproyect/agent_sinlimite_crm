@@ -173,6 +173,20 @@ export const RATE_LIMITS = {
    *  capping a stampede; excess inbounds simply don't get an auto-reply
    *  (they still land in the inbox for a human). */
   aiAutoReplyAccount: { limit: 30, windowMs: 60_000 },
+  /** Web widget inbound message, per visitor (widget key + IP). Public
+   *  and unauthenticated by nature (the key lives in the client's page
+   *  source), so this is the first line of defense against a single
+   *  abusive visitor/script hammering one site's chat; `aiAutoReplyAccount`
+   *  still caps total spend on the account's key regardless of how many
+   *  distinct visitors/IPs a scripted attack spreads across. 20/min is
+   *  far above a real person typing. */
+  widgetMessage: { limit: 20, windowMs: 60_000 },
+  /** Lead-form connector submission, per key + IP. Public and
+   *  unauthenticated by nature (the key lives in the client's site
+   *  config), and submissions are naturally infrequent — a real
+   *  visitor submits once. 10/min is generous for a form with a
+   *  flaky "double-click submit" while bounding a scripted flood. */
+  leadFormSubmit: { limit: 10, windowMs: 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

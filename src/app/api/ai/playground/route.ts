@@ -3,7 +3,7 @@ import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadAiConfig } from '@/lib/ai/config'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
-import { hasAttachments, searchAttachments } from '@/lib/ai/attachments'
+import { getAttachmentRoster, searchAttachments } from '@/lib/ai/attachments'
 import { bookingEnabled, checkAvailability } from '@/lib/ai/booking'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
@@ -74,12 +74,13 @@ export async function POST(request: Request) {
       )
     }
 
-    const [knowledge, knowledgeBases, attachmentsEnabled, bookingAvailable] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(supabase, accountId),
-      hasAttachments(supabase, accountId),
+      getAttachmentRoster(supabase, accountId),
       bookingEnabled(supabase, accountId),
     ])
+    const attachmentsEnabled = attachmentRoster.length > 0
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
@@ -87,6 +88,7 @@ export async function POST(request: Request) {
       knowledgeBases,
       toolAvailable: true,
       attachmentsAvailable: attachmentsEnabled,
+      attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
     })
 

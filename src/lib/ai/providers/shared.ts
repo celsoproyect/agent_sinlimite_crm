@@ -32,6 +32,9 @@ export interface AttachmentMatch {
   kind: 'image' | 'document'
   mediaUrl: string
   filename: string
+  description?: string
+  price?: number
+  currency?: string
 }
 
 /** The `send_attachment` function/tool both adapters expose to the model.
@@ -209,9 +212,27 @@ export async function runAttachmentSearch(
   if (!match) {
     return { resultJson: JSON.stringify({ found: false }), attachment: null }
   }
+  // Include description/price/currency in what the model sees so it can
+  // mention them in its own reply — never inventing a price beyond what
+  // the catalog (via this tool) actually confirmed.
   return {
-    resultJson: JSON.stringify({ found: true, name: match.name, kind: match.kind }),
-    attachment: { name: match.name, kind: match.kind, mediaUrl: match.mediaUrl, filename: match.filename },
+    resultJson: JSON.stringify({
+      found: true,
+      name: match.name,
+      kind: match.kind,
+      description: match.description,
+      price: match.price,
+      currency: match.currency,
+    }),
+    attachment: {
+      name: match.name,
+      kind: match.kind,
+      mediaUrl: match.mediaUrl,
+      filename: match.filename,
+      description: match.description,
+      price: match.price,
+      currency: match.currency,
+    },
   }
 }
 

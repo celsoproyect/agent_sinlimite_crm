@@ -13,6 +13,7 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import type { User } from "@supabase/supabase-js";
 import { DEFAULT_CURRENCY } from "@/lib/currency";
+import type { EnabledModules } from "@/lib/modules";
 import {
   canEditSettings as canEditSettingsFor,
   canManageMembers as canManageMembersFor,
@@ -46,6 +47,9 @@ interface AccountSummary {
   /** Default deal currency (ISO-4217). NOT NULL DEFAULT 'USD' in the
    *  DB (migration 021); narrowed to DEFAULT_CURRENCY when absent. */
   default_currency: string;
+  /** Per-account sidebar module toggles (migration 048). Missing
+   *  key = enabled — see src/lib/modules.ts. */
+  enabled_modules: EnabledModules;
 }
 
 /**
@@ -245,9 +249,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (data.account_id) {
           const { data: account, error: accountErr } = await supabase
             .from("accounts")
-            // default_currency added in migration 021; narrowed to the
-            // USD fallback below for older schemas where it reads null.
-            .select("id, name, default_currency")
+            // default_currency added in migration 021; enabled_modules
+            // in migration 048 — both narrowed below for older schemas
+            // where they read null.
+            .select("id, name, default_currency, enabled_modules")
             .eq("id", data.account_id)
             .maybeSingle();
           if (accountErr) {
@@ -262,6 +267,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               id: account.id,
               name: account.name,
               default_currency: account.default_currency ?? DEFAULT_CURRENCY,
+              enabled_modules:
+                (account.enabled_modules as EnabledModules | null) ?? {},
             };
           }
         }

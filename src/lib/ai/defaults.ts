@@ -67,12 +67,26 @@ export function buildSystemPrompt(args: {
   /** True when the caller wired up the `send_attachment` tool — adds the
    *  instruction on when/how to use it. */
   attachmentsAvailable?: boolean
+  /** Names of the account's product/service catalog entries (from
+   *  `ai_attachments`), listed up front — same idea as `knowledgeBases` —
+   *  so the model can name what's available without a tool call, e.g. to
+   *  ask the customer which one they want to see. */
+  attachmentNames?: string[]
   /** True when the caller wired up the `check_availability`/
    *  `book_appointment` tools — adds the instruction on when/how to use
    *  them. */
   bookingAvailable?: boolean
 }): string {
-  const { userPrompt, mode, knowledge, knowledgeBases, toolAvailable, attachmentsAvailable, bookingAvailable } = args
+  const {
+    userPrompt,
+    mode,
+    knowledge,
+    knowledgeBases,
+    toolAvailable,
+    attachmentsAvailable,
+    attachmentNames,
+    bookingAvailable,
+  } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
       'You are shown the recent WhatsApp conversation between the business (assistant) and a customer (user). ' +
@@ -130,9 +144,18 @@ export function buildSystemPrompt(args: {
   }
 
   if (attachmentsAvailable) {
+    if (attachmentNames && attachmentNames.length > 0) {
+      parts.push(
+        'The business\'s product/service catalog currently has these items: ' +
+          `${attachmentNames.join(', ')}. ` +
+          'When the customer asks generally about "what do you offer" / "what services/products do you have" (not naming a specific one), ' +
+          "list these names in your reply and ask which one they'd like to see — do not call send_attachment yet, and do not describe details (price, etc.) for items the customer hasn't picked.",
+      )
+    }
     parts.push(
-      'You also have a send_attachment tool that looks up a product image or document by name/description in the business\'s attachment catalog. ' +
-        "Call it only when the customer explicitly asks to see a product photo or asks for a specific document that plausibly exists in the catalog. " +
+      'You also have a send_attachment tool that looks up one specific product/service by name/description in the catalog above and returns its full details (description, price, currency) plus its image/document. ' +
+        "Call it once the customer has named or clearly picked a specific item — either they asked for it directly, or they answered your \"which one?\" question. " +
+        "The image and its details are sent to the customer automatically alongside your reply, so in your reply just briefly describe the item using only what the tool confirmed (never invent or guess a price or detail it didn't return) — don't repeat the raw image/file in text. " +
         "If the tool doesn't find a match, say so naturally instead of pretending you sent something — never claim you attached a file the tool didn't confirm. " +
         'Never mention the tool itself in your reply.',
     )

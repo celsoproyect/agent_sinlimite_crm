@@ -2,7 +2,15 @@
 
 import { Suspense, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { ShieldCheck, Palette, Building2, Bot, Loader2, UsersRound } from 'lucide-react';
+import {
+  ShieldCheck,
+  Palette,
+  Building2,
+  Bot,
+  Loader2,
+  UsersRound,
+  ToggleLeft,
+} from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
@@ -11,15 +19,17 @@ import { AiConfig } from '@/components/settings/ai-config';
 import { BrandingPanel } from '@/components/super-admin/branding-panel';
 import { AccountNamePanel } from '@/components/super-admin/account-name-panel';
 import { UsersPanel } from '@/components/super-admin/users-panel';
+import { ModulesPanel } from '@/components/super-admin/modules-panel';
 
-type TabId = 'branding' | 'account' | 'agent' | 'users';
+type TabId = 'branding' | 'account' | 'agent' | 'users' | 'modules';
 
 function isTabId(value: string | null): value is TabId {
   return (
     value === 'branding' ||
     value === 'account' ||
     value === 'agent' ||
-    value === 'users'
+    value === 'users' ||
+    value === 'modules'
   );
 }
 
@@ -95,6 +105,9 @@ function SuperAdminPageInner() {
           <TabsTrigger value="users">
             <UsersRound className="mr-1.5 h-4 w-4" /> {t('tabUsers')}
           </TabsTrigger>
+          <TabsTrigger value="modules">
+            <ToggleLeft className="mr-1.5 h-4 w-4" /> {t('tabModules')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="branding" className="mt-4">
@@ -108,6 +121,9 @@ function SuperAdminPageInner() {
         </TabsContent>
         <TabsContent value="users" className="mt-4">
           <UsersPanel />
+        </TabsContent>
+        <TabsContent value="modules" className="mt-4">
+          <ModulesPanel />
         </TabsContent>
       </Tabs>
     </div>

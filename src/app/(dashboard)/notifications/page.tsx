@@ -10,6 +10,7 @@ import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { useModuleGate } from "@/hooks/use-module-gate";
 
 // Icon per notification type. Only one type exists today
 // (conversation_assigned) but this keeps future types a one-line add.
@@ -20,6 +21,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
 export default function NotificationsPage() {
   const router = useRouter();
   const { accountId } = useAuth();
+  const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("notifications");
   const [notifications, setNotifications] = useState<Notification[] | null>(
     null,
   );
@@ -141,6 +143,14 @@ export default function NotificationsPage() {
       load();
     }
   }, [unreadIds.length, load]);
+
+  if (moduleGateLoading || !moduleReady) {
+    return (
+      <div className="flex h-64 items-center justify-center">
+        <Loader2 className="h-6 w-6 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   if (error) {
     return (

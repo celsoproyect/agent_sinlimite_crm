@@ -8,14 +8,16 @@ import { TodayPanel } from "@/components/agenda/today-panel";
 import { BookingFormDialog } from "@/components/agenda/booking-form-dialog";
 import { BusinessHoursSettings } from "@/components/agenda/business-hours-settings";
 import { GatedButton } from "@/components/ui/gated-button";
-import { Calendar, ChevronLeft, ChevronRight, Plus, Settings } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Settings } from "lucide-react";
 import { useCan } from "@/hooks/use-can";
 import { useTranslations } from "next-intl";
+import { useModuleGate } from "@/hooks/use-module-gate";
 
 export default function AgendaPage() {
   const t = useTranslations("Agenda.page");
   const canCreateBookings = useCan("send-messages");
   const canEditSettings = useCan("edit-settings");
+  const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agenda");
 
   const [weekStart, setWeekStart] = useState(() => new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -81,6 +83,14 @@ export default function AgendaPage() {
   const from = startOfWeek(weekStart, { weekStartsOn: 1 });
   const to = endOfWeek(weekStart, { weekStartsOn: 1 });
   const rangeLabel = `${format(from, "MMM d")} – ${format(to, "MMM d, yyyy")}`;
+
+  if (moduleGateLoading || !moduleReady) {
+    return (
+      <div className="flex items-center justify-center py-16 text-muted-foreground">
+        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
