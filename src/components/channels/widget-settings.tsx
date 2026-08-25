@@ -191,5 +191,5 @@ export function WidgetSettings() {
 
 function snippetFor(widgetKey: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `<script src="${origin}/widget.js" data-widget-key="${widgetKey}" data-logo-url="https://your-site.com/logo.png" async></script>`;
+  return `<script src="${origin}/widget.js" data-widget-key="${widgetKey}" data-logo-url="https://your-site.com/logo.png" data-agent-name="Josefina" async></script>`;
 }

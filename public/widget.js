@@ -4,7 +4,9 @@
  *   <script src="https://YOUR-DEPLOYMENT/widget.js" data-widget-key="..." async></script>
  *
  * Optional `data-logo-url="..."` swaps the default 💬 bubble icon and
- * header icon for a client's own logo image.
+ * header icon for a client's own logo image. Optional `data-agent-name="..."`
+ * turns the round icon-only bubble into an oval pill with "Chat with
+ * {name}" text next to the icon.
  *
  * Self-contained, no build step, no dependency on the app's own React
  * bundle (this script runs on someone else's site, in whatever
@@ -26,6 +28,7 @@
     return;
   }
   var logoUrl = thisScript.getAttribute('data-logo-url');
+  var agentName = thisScript.getAttribute('data-agent-name');
   var apiBase = new URL(thisScript.src).origin;
   var storageKey = 'wacrm_widget_visitor_' + widgetKey;
 
@@ -33,6 +36,7 @@
   var STRINGS = {
     en: {
       title: 'Chat with us',
+      talkWith: 'Chat with',
       placeholder: 'Type a message…',
       send: 'Send',
       greeting: "Hi! How can we help you today?",
@@ -41,6 +45,7 @@
     },
     es: {
       title: 'Chatea con nosotros',
+      talkWith: 'Habla con',
       placeholder: 'Escribe un mensaje…',
       send: 'Enviar',
       greeting: '¡Hola! ¿En qué podemos ayudarte?',
@@ -49,6 +54,7 @@
     },
     ko: {
       title: '채팅 상담',
+      talkWith: '상담사',
       placeholder: '메시지를 입력하세요…',
       send: '보내기',
       greeting: '안녕하세요! 무엇을 도와드릴까요?',
@@ -73,13 +79,17 @@
   style.textContent =
     '#wacrm-widget-root{position:fixed;bottom:20px;right:20px;z-index:2147483000;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}' +
     '#wacrm-widget-root *{box-sizing:border-box}' +
-    '#wacrm-widget-bubble{width:56px;height:56px;border-radius:50%;background:#111b21;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;padding:0}' +
-    '#wacrm-widget-bubble img{width:100%;height:100%;object-fit:cover;border-radius:50%}' +
+    '#wacrm-widget-bubble{height:56px;border-radius:28px;background:#111b21;color:#fff;border:none;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.25);display:flex;align-items:center;justify-content:center;font-size:26px;overflow:hidden;padding:8px}' +
+    '#wacrm-widget-bubble.wacrm-bubble-pill{width:auto;justify-content:flex-start;gap:10px;padding:6px 18px 6px 6px}' +
+    '#wacrm-widget-bubble:not(.wacrm-bubble-pill){width:56px}' +
+    '#wacrm-widget-bubble-icon{width:40px;height:40px;flex-shrink:0;display:flex;align-items:center;justify-content:center}' +
+    '#wacrm-widget-bubble-icon img{width:100%;height:100%;object-fit:contain}' +
+    '#wacrm-widget-bubble-label{font-size:14px;font-weight:600;white-space:nowrap}' +
     '#wacrm-widget-panel{display:none;flex-direction:column;position:fixed;bottom:88px;right:20px;width:340px;max-width:calc(100vw - 32px);height:460px;max-height:calc(100vh - 120px);background:#fff;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,.3);overflow:hidden}' +
     '#wacrm-widget-panel.open{display:flex}' +
     '#wacrm-widget-header{background:#111b21;color:#fff;padding:14px 16px;font-size:15px;font-weight:600;display:flex;justify-content:space-between;align-items:center;gap:8px}' +
     '#wacrm-widget-header-title{display:flex;align-items:center;gap:8px}' +
-    '#wacrm-widget-header img{width:24px;height:24px;border-radius:50%;object-fit:cover;flex-shrink:0}' +
+    '#wacrm-widget-header img{width:24px;height:auto;flex-shrink:0}' +
     '#wacrm-widget-close{background:none;border:none;color:#fff;font-size:18px;cursor:pointer;line-height:1;opacity:.8}' +
     '#wacrm-widget-messages{flex:1;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:8px;background:#f0f2f5}' +
     '.wacrm-msg{max-width:80%;padding:8px 12px;border-radius:10px;font-size:13.5px;line-height:1.4;white-space:pre-wrap;word-break:break-word}' +
@@ -91,9 +101,12 @@
     '#wacrm-widget-send:disabled{opacity:.5;cursor:default}';
   document.head.appendChild(style);
 
-  var bubbleContent = logoUrl
-    ? '<img src="' + logoUrl + '" alt="" />'
-    : '💬';
+  var bubbleIcon = logoUrl ? '<img src="' + logoUrl + '" alt="" />' : '💬';
+  var bubbleLabel = agentName ? t.talkWith + ' ' + agentName : null;
+  var bubbleContent =
+    '<span id="wacrm-widget-bubble-icon">' + bubbleIcon + '</span>' +
+    (bubbleLabel ? '<span id="wacrm-widget-bubble-label">' + bubbleLabel + '</span>' : '');
+  var bubbleAriaLabel = bubbleLabel || t.title;
   var headerTitle = logoUrl
     ? '<img src="' + logoUrl + '" alt="" /><span>' + t.title + '</span>'
     : '<span>' + t.title + '</span>';
@@ -101,7 +114,13 @@
   var root = document.createElement('div');
   root.id = 'wacrm-widget-root';
   root.innerHTML =
-    '<button id="wacrm-widget-bubble" aria-label="' + t.title + '">' + bubbleContent + '</button>' +
+    '<button id="wacrm-widget-bubble" class="' +
+    (bubbleLabel ? 'wacrm-bubble-pill' : '') +
+    '" aria-label="' +
+    bubbleAriaLabel +
+    '">' +
+    bubbleContent +
+    '</button>' +
     '<div id="wacrm-widget-panel">' +
     '<div id="wacrm-widget-header"><div id="wacrm-widget-header-title">' + headerTitle + '</div><button id="wacrm-widget-close" aria-label="close">✕</button></div>' +
     '<div id="wacrm-widget-messages"></div>' +
