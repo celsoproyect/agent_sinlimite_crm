@@ -37,6 +37,7 @@ ALTER TABLE ai_configs
 -- ============================================================
 
 DROP FUNCTION IF EXISTS public.match_ai_knowledge_fts(uuid, text, integer);
+DROP FUNCTION IF EXISTS public.match_ai_knowledge_fts(uuid, text, integer, uuid);
 CREATE FUNCTION public.match_ai_knowledge_fts(
   p_account_id         uuid,
   p_query              text,
@@ -60,6 +61,7 @@ RETURNS TABLE (id uuid, content text, rank real, kb_name text, doc_title text) A
 $$ LANGUAGE sql STABLE SECURITY INVOKER SET search_path = public;
 
 DROP FUNCTION IF EXISTS public.match_ai_knowledge_semantic(uuid, text, integer);
+DROP FUNCTION IF EXISTS public.match_ai_knowledge_semantic(uuid, text, integer, uuid);
 CREATE FUNCTION public.match_ai_knowledge_semantic(
   p_account_id         uuid,
   p_query_embedding    text,
