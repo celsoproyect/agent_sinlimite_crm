@@ -10,9 +10,10 @@
 // baseline navigation, not optional features, so they never appear
 // in the super-admin toggle UI and are never gated on a page.
 //
-// Keys must match the sidebar's `navItems` hrefs (src/components/
-// layout/sidebar.tsx), minus the leading slash — the sidebar filter
-// and each page's `useModuleGate` call both key off this list.
+// Keys must match the sidebar's `navSections[].items` hrefs
+// (src/components/layout/sidebar.tsx), minus the leading slash — the
+// sidebar filter and each page's `useModuleGate` call both key off this
+// list.
 // ============================================================
 
 export const MODULE_KEYS = [

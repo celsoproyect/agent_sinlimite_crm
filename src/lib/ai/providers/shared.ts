@@ -63,6 +63,14 @@ export interface BookingSearchTool {
 export const CHECK_AVAILABILITY_TOOL_NAME = 'check_availability'
 export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
 
+/** The `set_customer_name` function/tool both adapters expose to the model
+ *  when the contact's name isn't on file yet. Running it during the
+ *  tool-call loop never writes to the DB by itself — it only validates the
+ *  name, which the adapter accumulates into `ProviderResult.customerName`
+ *  for the caller (auto-reply/widget-reply) to persist onto the contact
+ *  after generation finishes. */
+export const CAPTURE_NAME_TOOL_NAME = 'set_customer_name'
+
 /** Tool-call rounds allowed before the adapter forces a final,
  *  tool-free round to guarantee text comes back. */
 export const MAX_TOOL_ROUNDS = 2
@@ -91,6 +99,9 @@ export interface ProviderArgs {
     knowledge?: KnowledgeSearchTool
     attachments?: AttachmentSearchTool
     booking?: BookingSearchTool
+    /** True to expose `set_customer_name` — no executor needed, the
+     *  adapter just validates and accumulates what the model reports. */
+    nameCapture?: boolean
   }
 }
 
@@ -301,4 +312,17 @@ export function parseBookAppointment(
   }
 
   return { appointment: { startsAt, endsAt, service, notes } }
+}
+
+/** Validate + normalize the model's `set_customer_name` tool-call
+ *  arguments, or return an error string (sent back to the model as the
+ *  tool result) when the name is missing or absurdly long. */
+export function parseCustomerName(
+  rawArgs: unknown,
+): { name: string } | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const name = typeof args.name === 'string' ? args.name.trim() : ''
+  if (!name) return { error: 'name is required.' }
+  if (name.length > 100) return { error: 'name must be 100 characters or fewer.' }
+  return { name }
 }

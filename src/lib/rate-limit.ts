@@ -187,6 +187,13 @@ export const RATE_LIMITS = {
    *  visitor submits once. 10/min is generous for a form with a
    *  flaky "double-click submit" while bounding a scripted flood. */
   leadFormSubmit: { limit: 10, windowMs: 60_000 },
+  /** Telegram admin-assistant inbound message, per account. The
+   *  webhook is authenticated (secret token + verified chat_id, see
+   *  the webhook route), but it's still a single owner typing —
+   *  20/min is far above a real conversation while bounding a stuck
+   *  Telegram retry loop or a compromised bot token from burning
+   *  through the account's BYO provider key. */
+  telegramAdminChat: { limit: 20, windowMs: 60_000 },
 } as const;
 
 /** Test-only helper. Clears the in-memory state so unit tests don't

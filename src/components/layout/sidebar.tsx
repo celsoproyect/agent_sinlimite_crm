@@ -95,19 +95,38 @@ interface NavItem {
   beta?: boolean;
 }
 
-const navItems: NavItem[] = [
-  { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
-  { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
-  { href: "/agenda", labelKey: "agenda", icon: Calendar },
-  { href: "/notifications", labelKey: "notifications", icon: Bell },
-  { href: "/contacts", labelKey: "contacts", icon: Users },
-  { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
-  { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
-  { href: "/automations", labelKey: "automations", icon: Zap },
-  { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
-  { href: "/agents", labelKey: "aiAgents", icon: Bot },
-  { href: "/catalog", labelKey: "catalog", icon: ImageIcon },
-  { href: "/channels", labelKey: "channels", icon: PlugZap },
+interface NavSection {
+  labelKey: string;
+  items: NavItem[];
+}
+
+// Two labeled groups instead of one flat list — day-to-day messaging/CRM
+// work vs. the AI/automation surfaces. Filtering by `isModuleEnabled` still
+// happens per-item after flattening (see `visibleNavItems` below), so a
+// section can end up shorter (or empty) per account without extra logic here.
+const navSections: NavSection[] = [
+  {
+    labelKey: "sectionOperations",
+    items: [
+      { href: "/dashboard", labelKey: "dashboard", icon: LayoutDashboard },
+      { href: "/inbox", labelKey: "inbox", icon: MessageSquare },
+      { href: "/agenda", labelKey: "agenda", icon: Calendar },
+      { href: "/notifications", labelKey: "notifications", icon: Bell },
+      { href: "/contacts", labelKey: "contacts", icon: Users },
+      { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
+      { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
+    ],
+  },
+  {
+    labelKey: "sectionIntelligence",
+    items: [
+      { href: "/automations", labelKey: "automations", icon: Zap },
+      { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
+      { href: "/agents", labelKey: "aiAgents", icon: Bot },
+      { href: "/catalog", labelKey: "catalog", icon: ImageIcon },
+      { href: "/channels", labelKey: "channels", icon: PlugZap },
+    ],
+  },
 ];
 
 const bottomNavItems = [
@@ -152,12 +171,18 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   // Skip items disabled for this account (migration 048). Non-module
   // entries (dashboard) always pass through. While the account is
   // still loading, `account` is null so every item shows — avoids a
-  // hide-then-show flicker once the real flags arrive.
-  const visibleNavItems = navItems.filter((item) => {
-    const key = item.href.slice(1);
-    if (!isModuleKey(key)) return true;
-    return isModuleEnabled(account?.enabled_modules, key);
-  });
+  // hide-then-show flicker once the real flags arrive. Sections with
+  // zero surviving items are dropped so no empty group label renders.
+  const visibleNavSections = navSections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        const key = item.href.slice(1);
+        if (!isModuleKey(key)) return true;
+        return isModuleEnabled(account?.enabled_modules, key);
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
 
   // Close the drawer when route changes — users opened it to navigate,
   // so once they pick a destination the drawer should get out of the way.
@@ -241,66 +266,76 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
 
         {/* Main navigation */}
         <nav className="flex-1 overflow-y-auto px-3 py-4">
-          <ul className="flex flex-col gap-1">
-            {visibleNavItems.map((item) => {
-              const isActive =
-                pathname === item.href ||
-                (item.href !== "/dashboard" && pathname.startsWith(item.href));
+          {visibleNavSections.map((section, sectionIndex) => (
+            <div
+              key={section.labelKey}
+              className={cn(sectionIndex > 0 && "mt-5")}
+            >
+              <p className="mb-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                {t(section.labelKey)}
+              </p>
+              <ul className="flex flex-col gap-1">
+                {section.items.map((item) => {
+                  const isActive =
+                    pathname === item.href ||
+                    (item.href !== "/dashboard" && pathname.startsWith(item.href));
 
-              const showUnreadDot =
-                item.href === "/inbox" && totalUnread > 0 && !isActive;
+                  const showUnreadDot =
+                    item.href === "/inbox" && totalUnread > 0 && !isActive;
 
-              // Unlike the inbox dot, the notifications count stays visible
-              // even while the page is active — it reflects unread state
-              // (cleared by marking notifications read), not "currently
-              // viewing this section".
-              const showNotificationBadge =
-                item.href === "/notifications" && unreadNotifications > 0;
+                  // Unlike the inbox dot, the notifications count stays visible
+                  // even while the page is active — it reflects unread state
+                  // (cleared by marking notifications read), not "currently
+                  // viewing this section".
+                  const showNotificationBadge =
+                    item.href === "/notifications" && unreadNotifications > 0;
 
-              return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={cn(
-                      // Taller on mobile so fingers can hit the row reliably (≥44px).
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
-                      isActive
-                        ? "bg-primary/10 text-primary"
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground",
-                    )}
-                  >
-                    <item.icon className="h-4 w-4" />
-                    <span className="flex-1">{t(item.labelKey as string)}</span>
-                    {item.beta && (
-                      <span
-                        aria-label={t("beta")}
-                        className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-300"
+                  return (
+                    <li key={item.href}>
+                      <Link
+                        href={item.href}
+                        className={cn(
+                          // Taller on mobile so fingers can hit the row reliably (≥44px).
+                          "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2.5",
+                          isActive
+                            ? "bg-primary/10 text-primary"
+                            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+                        )}
                       >
-                        {t("beta")}
-                      </span>
-                    )}
-                    {showUnreadDot && (
-                      <span
-                        aria-label={t("unreadConversations", { count: totalUnread })}
-                        className="relative flex h-2 w-2"
-                      >
-                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
-                        <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
-                      </span>
-                    )}
-                    {showNotificationBadge && (
-                      <span
-                        aria-label={t("unreadNotifications", { count: unreadNotifications })}
-                        className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
-                      >
-                        {unreadNotifications > 9 ? "9+" : unreadNotifications}
-                      </span>
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+                        <item.icon className="h-[1.15rem] w-[1.15rem]" />
+                        <span className="flex-1">{t(item.labelKey as string)}</span>
+                        {item.beta && (
+                          <span
+                            aria-label={t("beta")}
+                            className="rounded-full border border-amber-500/40 bg-amber-500/10 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-amber-300"
+                          >
+                            {t("beta")}
+                          </span>
+                        )}
+                        {showUnreadDot && (
+                          <span
+                            aria-label={t("unreadConversations", { count: totalUnread })}
+                            className="relative flex h-2 w-2"
+                          >
+                            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-primary opacity-75" />
+                            <span className="relative inline-flex h-2 w-2 rounded-full bg-primary" />
+                          </span>
+                        )}
+                        {showNotificationBadge && (
+                          <span
+                            aria-label={t("unreadNotifications", { count: unreadNotifications })}
+                            className="flex h-5 min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-primary-foreground"
+                          >
+                            {unreadNotifications > 9 ? "9+" : unreadNotifications}
+                          </span>
+                        )}
+                      </Link>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          ))}
 
           <div className="my-4 border-t border-border" />
 
@@ -315,13 +350,13 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                   <Link
                     href={item.href}
                     className={cn(
-                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2",
+                      "flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors lg:py-2.5",
                       isActive
                         ? "bg-primary/10 text-primary"
                         : "text-muted-foreground hover:bg-muted hover:text-foreground",
                     )}
                   >
-                    <item.icon className="h-4 w-4" />
+                    <item.icon className="h-[1.15rem] w-[1.15rem]" />
                     {t(item.labelKey as string)}
                   </Link>
                 </li>

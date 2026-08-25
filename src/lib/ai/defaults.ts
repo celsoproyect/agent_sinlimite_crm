@@ -76,6 +76,9 @@ export function buildSystemPrompt(args: {
    *  `book_appointment` tools — adds the instruction on when/how to use
    *  them. */
   bookingAvailable?: boolean
+  /** True when the contact has no real name on file yet — adds the
+   *  instruction to ask for it and call `set_customer_name` once given. */
+  needsCustomerName?: boolean
 }): string {
   const {
     userPrompt,
@@ -86,6 +89,7 @@ export function buildSystemPrompt(args: {
     attachmentsAvailable,
     attachmentNames,
     bookingAvailable,
+    needsCustomerName,
   } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
@@ -168,6 +172,13 @@ export function buildSystemPrompt(args: {
         "Wait for the customer's next message to see which slot they picked — they may reply with the button text or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
         'Once they have clearly confirmed one specific slot, call book_appointment with that exact slot and a short description of the service. ' +
         "Never tell the customer their appointment is booked unless book_appointment actually confirmed it — if it fails, apologize and suggest checking availability again. Don't call book_appointment speculatively or for a slot the customer didn't confirm.",
+    )
+  }
+
+  if (needsCustomerName) {
+    parts.push(
+      "You don't have this customer's name on file yet. Ask for it in a natural, friendly way, in the customer's own language — right after greeting them, or woven into your first reply if they've already asked something (answer their question first, don't block on the name). " +
+        'Once they tell you their name, call set_customer_name with exactly what they gave you — call it at most once per conversation, and never ask again after that, even if they ignore the question or give a business name instead of a personal one.',
     )
   }
 

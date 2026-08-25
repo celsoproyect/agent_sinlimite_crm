@@ -12,11 +12,13 @@ import {
   mergeConsecutive,
   normalizeUsage,
   parseBookAppointment,
+  parseCustomerName,
   providerHttpError,
   runAttachmentSearch,
   runAvailabilityCheck,
   toNetworkError,
   BOOK_APPOINTMENT_TOOL_NAME,
+  CAPTURE_NAME_TOOL_NAME,
   CHECK_AVAILABILITY_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
@@ -94,7 +96,12 @@ function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
   return merged
 }
 
-function buildTools(knowledgeBaseNames: string[] | null, attachmentsEnabled: boolean, bookingEnabled: boolean) {
+function buildTools(
+  knowledgeBaseNames: string[] | null,
+  attachmentsEnabled: boolean,
+  bookingEnabled: boolean,
+  nameCaptureEnabled: boolean,
+) {
   const tools: { name: string; description: string; input_schema: Record<string, unknown> }[] = []
   if (knowledgeBaseNames) {
     tools.push({
@@ -158,6 +165,20 @@ function buildTools(knowledgeBaseNames: string[] | null, attachmentsEnabled: boo
       },
     })
   }
+  if (nameCaptureEnabled) {
+    tools.push({
+      name: CAPTURE_NAME_TOOL_NAME,
+      description:
+        "Record the customer's name once they've told it to you in the conversation, so the CRM can label this conversation with it. Call this exactly once, right after they state their name.",
+      input_schema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: "The customer's name or preferred name, exactly as they gave it." },
+        },
+        required: ['name'],
+      },
+    })
+  }
   return tools
 }
 
@@ -187,10 +208,12 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   const knowledgeTool = toolArgs?.knowledge
   const attachmentTool = toolArgs?.attachments
   const bookingTool = toolArgs?.booking
+  const nameCaptureEnabled = !!toolArgs?.nameCapture
   const tools = buildTools(
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
     !!bookingTool,
+    nameCaptureEnabled,
   )
 
   const conversation: AnthropicMessage[] = normalizeForAnthropic(messages).map((m) => ({
@@ -201,6 +224,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   let usage: AiUsage | null = null
   const attachments: ResolvedAttachment[] = []
   const booking: BookingOutcome = {}
+  const nameCapture: { name?: string } = {}
 
   async function callAnthropic(withTools: boolean): Promise<AnthropicResponse> {
     let res: Response
@@ -253,7 +277,16 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         resultBlocks.push({
           type: 'tool_result',
           tool_use_id: toolUse.id,
-          content: await runAnthropicTool(toolUse, knowledgeTool, attachmentTool, bookingTool, attachments, booking),
+          content: await runAnthropicTool(
+            toolUse,
+            knowledgeTool,
+            attachmentTool,
+            bookingTool,
+            nameCaptureEnabled,
+            attachments,
+            booking,
+            nameCapture,
+          ),
         })
       }
       conversation.push({ role: 'user', content: resultBlocks })
@@ -271,7 +304,13 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
         code: 'empty_response',
       })
     }
-    return { text, usage, attachments, booking: booking.offer || booking.appointment ? booking : undefined }
+    return {
+      text,
+      usage,
+      attachments,
+      booking: booking.offer || booking.appointment ? booking : undefined,
+      customerName: nameCapture.name,
+    }
   }
 }
 
@@ -280,8 +319,10 @@ async function runAnthropicTool(
   knowledgeTool: KnowledgeSearchTool | undefined,
   attachmentTool: AttachmentSearchTool | undefined,
   bookingTool: BookingSearchTool | undefined,
+  nameCaptureEnabled: boolean,
   attachments: ResolvedAttachment[],
   booking: BookingOutcome,
+  nameCapture: { name?: string },
 ): Promise<string> {
   if (toolUse.name === KNOWLEDGE_SEARCH_TOOL_NAME && knowledgeTool) {
     const input = toolUse.input as { query?: string; knowledge_base?: string } | undefined
@@ -326,6 +367,13 @@ async function runAnthropicTool(
     if ('error' in result) return JSON.stringify({ confirmed: false, error: result.error })
     booking.appointment = result.appointment
     return JSON.stringify({ confirmed: true })
+  }
+
+  if (toolUse.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {
+    const result = parseCustomerName(toolUse.input)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    nameCapture.name = result.name
+    return JSON.stringify({ recorded: true })
   }
 
   return JSON.stringify({ error: 'unknown tool' })

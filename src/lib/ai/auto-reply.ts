@@ -14,6 +14,7 @@ import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
 
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
@@ -90,6 +91,18 @@ export async function dispatchInboundToAiReply(
     })
     if (messages.length === 0) return
 
+    // A name is "on file" once it's a real, non-placeholder value — on
+    // WhatsApp the contact is created with `name || phone` (see the
+    // webhook's findOrCreateContact), so the phone-as-name fallback is the
+    // signal that Meta never sent a profile name and nobody's captured one
+    // since. Best-effort: any read failure just skips the ask.
+    const { data: contactRow } = await db
+      .from('contacts')
+      .select('name, phone')
+      .eq('id', contactId)
+      .maybeSingle()
+    const needsCustomerName = !!contactRow && (!contactRow.name || contactRow.name === contactRow.phone)
+
     // Account-wide throttle on the shared BYO key. The per-conversation
     // cap bounds one thread; this bounds a burst across many threads (a
     // marketing blast landing 200 replies at once) so we never run the
@@ -124,9 +137,10 @@ export async function dispatchInboundToAiReply(
       attachmentsAvailable: attachmentsEnabled,
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
+      needsCustomerName,
     })
 
-    const { text, handoff, usage, attachments, booking } = await generateReply({
+    const { text, handoff, usage, attachments, booking, customerName } = await generateReply({
       config,
       systemPrompt,
       messages,
@@ -141,7 +155,22 @@ export async function dispatchInboundToAiReply(
       checkAvailability: bookingAvailable
         ? ({ date }) => checkAvailability(db, accountId, date)
         : undefined,
+      captureCustomerName: needsCustomerName,
     })
+
+    // Persist a captured name right away, regardless of handoff — the
+    // conversation should show the real name in the inbox even if the
+    // model then bails to a human. Best-effort: never blocks the reply.
+    if (customerName) {
+      try {
+        await db
+          .from('contacts')
+          .update({ name: customerName, updated_at: new Date().toISOString() })
+          .eq('id', contactId)
+      } catch (err) {
+        console.error('[ai auto-reply] contact name update failed:', err)
+      }
+    }
 
     // Record token spend on the account's BYO key. Fire-and-forget so it
     // never adds latency to the customer-facing send: `logAiUsage`
@@ -179,6 +208,11 @@ export async function dispatchInboundToAiReply(
         update.assigned_agent_id = config.handoffAgentId
       }
       await db.from('conversations').update(update).eq('id', conversationId)
+      void notifyOwnerOfHandoff(db, accountId, {
+        contactName: contactRow?.name || contactRow?.phone || 'Un cliente',
+        summary,
+        conversationId,
+      })
       return
     }
 

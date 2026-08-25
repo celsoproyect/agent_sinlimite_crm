@@ -35,6 +35,7 @@ interface TelegramRow {
   telegram_notify_enabled: boolean;
   telegram_bot_token: string | null;
   telegram_chat_id: string | null;
+  telegram_admin_chat_enabled: boolean;
 }
 
 export function TelegramSettings() {
@@ -49,6 +50,7 @@ export function TelegramSettings() {
   const [detecting, setDetecting] = useState(false);
   const [testing, setTesting] = useState(false);
   const [chatName, setChatName] = useState<string | null>(null);
+  const [togglingAssistant, setTogglingAssistant] = useState(false);
 
   useEffect(() => {
     if (!accountId) return;
@@ -57,7 +59,7 @@ export function TelegramSettings() {
       setLoading(true);
       const { data, error } = await supabase
         .from('accounts')
-        .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id')
+        .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id, telegram_admin_chat_enabled')
         .eq('id', accountId)
         .single();
       if (cancelled) return;
@@ -84,7 +86,7 @@ export function TelegramSettings() {
       .from('accounts')
       .update({ telegram_bot_token: tokenInput.trim() || null, telegram_chat_id: null })
       .eq('id', accountId)
-      .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id')
+      .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id, telegram_admin_chat_enabled')
       .single();
     setSaving(false);
     if (error || !data) {
@@ -159,6 +161,26 @@ export function TelegramSettings() {
       toast.error(t('testFailed'));
     } finally {
       setTesting(false);
+    }
+  }
+
+  async function handleToggleAssistant(next: boolean) {
+    if (!row) return;
+    setTogglingAssistant(true);
+    try {
+      const res = await fetch('/api/telegram/admin-chat', { method: next ? 'POST' : 'DELETE' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || (next ? t('assistantEnableFailed') : t('assistantDisableFailed')));
+        return;
+      }
+      setRow((prev) => (prev ? { ...prev, telegram_admin_chat_enabled: next } : prev));
+      toast.success(next ? t('assistantEnabled') : t('assistantDisabled'));
+    } catch (err) {
+      console.error('[TelegramSettings] toggle assistant error:', err);
+      toast.error(next ? t('assistantEnableFailed') : t('assistantDisableFailed'));
+    } finally {
+      setTogglingAssistant(false);
     }
   }
 
@@ -252,6 +274,25 @@ export function TelegramSettings() {
               checked={row.telegram_notify_enabled}
               disabled={!canEditSettings || saving}
               onCheckedChange={handleToggle}
+            />
+          </CardContent>
+        </Card>
+      )}
+
+      {hasToken && hasChat && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-foreground">{t('assistantTitle')}</CardTitle>
+            <CardDescription className="text-muted-foreground">{t('assistantDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-between gap-4">
+            <span className="text-sm text-foreground">
+              {row.telegram_admin_chat_enabled ? t('statusOn') : t('statusOff')}
+            </span>
+            <Switch
+              checked={row.telegram_admin_chat_enabled}
+              disabled={!canEditSettings || togglingAssistant}
+              onCheckedChange={handleToggleAssistant}
             />
           </CardContent>
         </Card>

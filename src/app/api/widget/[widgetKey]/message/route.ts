@@ -116,7 +116,13 @@ export async function POST(
     })
     if (bumpErr) console.error('[widget message] bump_conversation_on_inbound failed:', bumpErr)
 
-    const reply = await generateWidgetReply({ db, accountId: account.id, conversationId })
+    const reply = await generateWidgetReply({
+      db,
+      accountId: account.id,
+      conversationId,
+      contactId: contact.id,
+      contactName: contact.name,
+    })
 
     return json({
       visitorId: visitorPhone,

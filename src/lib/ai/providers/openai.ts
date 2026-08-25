@@ -13,11 +13,13 @@ import {
   mergeConsecutive,
   normalizeUsage,
   parseBookAppointment,
+  parseCustomerName,
   providerHttpError,
   runAttachmentSearch,
   runAvailabilityCheck,
   toNetworkError,
   BOOK_APPOINTMENT_TOOL_NAME,
+  CAPTURE_NAME_TOOL_NAME,
   CHECK_AVAILABILITY_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
@@ -56,7 +58,12 @@ interface OpenAiResponse {
   }
 }
 
-function buildTools(knowledgeBaseNames: string[] | null, attachmentsEnabled: boolean, bookingEnabled: boolean) {
+function buildTools(
+  knowledgeBaseNames: string[] | null,
+  attachmentsEnabled: boolean,
+  bookingEnabled: boolean,
+  nameCaptureEnabled: boolean,
+) {
   const tools: { type: 'function'; function: Record<string, unknown> }[] = []
   if (knowledgeBaseNames) {
     tools.push({
@@ -132,6 +139,23 @@ function buildTools(knowledgeBaseNames: string[] | null, attachmentsEnabled: boo
       },
     })
   }
+  if (nameCaptureEnabled) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: CAPTURE_NAME_TOOL_NAME,
+        description:
+          "Record the customer's name once they've told it to you in the conversation, so the CRM can label this conversation with it. Call this exactly once, right after they state their name.",
+        parameters: {
+          type: 'object',
+          properties: {
+            name: { type: 'string', description: "The customer's name or preferred name, exactly as they gave it." },
+          },
+          required: ['name'],
+        },
+      },
+    })
+  }
   return tools
 }
 
@@ -184,11 +208,13 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const knowledgeTool = toolArgs?.knowledge
   const attachmentTool = toolArgs?.attachments
   const bookingTool = toolArgs?.booking
+  const nameCaptureEnabled = !!toolArgs?.nameCapture
   const supportsVision = findChatModel(model)?.supportsVision ?? false
   const tools = buildTools(
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
     !!bookingTool,
+    nameCaptureEnabled,
   )
 
   const conversation: OpenAiMessage[] = [
@@ -202,6 +228,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   let usage: AiUsage | null = null
   const attachments: ResolvedAttachment[] = []
   const booking: BookingOutcome = {}
+  const nameCapture: { name?: string } = {}
 
   async function callOpenAi(withTools: boolean): Promise<OpenAiResponse> {
     let res: Response
@@ -256,7 +283,16 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
         conversation.push({
           role: 'tool',
           tool_call_id: toolCall.id,
-          content: await runOpenAiTool(toolCall, knowledgeTool, attachmentTool, bookingTool, attachments, booking),
+          content: await runOpenAiTool(
+            toolCall,
+            knowledgeTool,
+            attachmentTool,
+            bookingTool,
+            nameCaptureEnabled,
+            attachments,
+            booking,
+            nameCapture,
+          ),
         })
       }
       round += 1
@@ -269,7 +305,13 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
         code: 'empty_response',
       })
     }
-    return { text, usage, attachments, booking: booking.offer || booking.appointment ? booking : undefined }
+    return {
+      text,
+      usage,
+      attachments,
+      booking: booking.offer || booking.appointment ? booking : undefined,
+      customerName: nameCapture.name,
+    }
   }
 }
 
@@ -278,8 +320,10 @@ async function runOpenAiTool(
   knowledgeTool: KnowledgeSearchTool | undefined,
   attachmentTool: AttachmentSearchTool | undefined,
   bookingTool: BookingSearchTool | undefined,
+  nameCaptureEnabled: boolean,
   attachments: ResolvedAttachment[],
   booking: BookingOutcome,
+  nameCapture: { name?: string },
 ): Promise<string> {
   let parsed: Record<string, unknown> = {}
   try {
@@ -328,6 +372,13 @@ async function runOpenAiTool(
     if ('error' in result) return JSON.stringify({ confirmed: false, error: result.error })
     booking.appointment = result.appointment
     return JSON.stringify({ confirmed: true })
+  }
+
+  if (toolCall.function.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {
+    const result = parseCustomerName(parsed)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    nameCapture.name = result.name
+    return JSON.stringify({ recorded: true })
   }
 
   return JSON.stringify({ error: 'unknown tool' })

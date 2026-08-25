@@ -32,6 +32,10 @@ export interface GenerateArgs {
   /** Runs the availability lookup for the model's `check_availability`
    *  tool call, enabling both booking tools. Omit to run without them. */
   checkAvailability?: BookingSearchTool['execute']
+  /** True to expose the `set_customer_name` tool — the caller decides
+   *  this (typically "the contact has no real name on file yet"). No
+   *  executor needed: the adapter only validates and reports the name. */
+  captureCustomerName?: boolean
 }
 
 /**
@@ -40,8 +44,16 @@ export interface GenerateArgs {
  * of the raw text. Throws `AiError` on any provider/network failure.
  */
 export async function generateReply(args: GenerateArgs): Promise<GenerateResult> {
-  const { config, systemPrompt, messages, knowledgeBases, searchKnowledgeBase, searchAttachments, checkAvailability } =
-    args
+  const {
+    config,
+    systemPrompt,
+    messages,
+    knowledgeBases,
+    searchKnowledgeBase,
+    searchAttachments,
+    checkAvailability,
+    captureCustomerName,
+  } = args
   const timeoutMs = aiRequestTimeoutMs()
   const knowledge: KnowledgeSearchTool | undefined =
     knowledgeBases && knowledgeBases.length > 0 && searchKnowledgeBase
@@ -51,16 +63,26 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     ? { execute: searchAttachments }
     : undefined
   const booking: BookingSearchTool | undefined = checkAvailability ? { execute: checkAvailability } : undefined
+  const nameCapture = !!captureCustomerName
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
     systemPrompt,
     messages,
     timeoutMs,
-    tools: knowledge || attachments || booking ? { knowledge, attachments, booking } : undefined,
+    tools:
+      knowledge || attachments || booking || nameCapture
+        ? { knowledge, attachments, booking, nameCapture }
+        : undefined,
   }
 
-  let result: { text: string; usage: AiUsage | null; attachments: ResolvedAttachment[]; booking?: BookingOutcome }
+  let result: {
+    text: string
+    usage: AiUsage | null
+    attachments: ResolvedAttachment[]
+    booking?: BookingOutcome
+    customerName?: string
+  }
   switch (config.provider) {
     case 'openai':
       result = await generateOpenAi(providerArgs)
@@ -75,23 +97,24 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       })
   }
 
-  return parseGeneration(result.text, result.usage, result.attachments, result.booking)
+  return parseGeneration(result.text, result.usage, result.attachments, result.booking, result.customerName)
 }
 
 /**
  * Split the raw model output into `{ text, handoff, usage, attachments,
- * booking }`. The sentinel can appear alone or trailing a partial reply;
- * either way we treat the turn as a handoff and strip the marker from any
- * remaining text. `usage`/`attachments`/`booking` are passed straight
- * through.
+ * booking, customerName }`. The sentinel can appear alone or trailing a
+ * partial reply; either way we treat the turn as a handoff and strip the
+ * marker from any remaining text. The rest of the fields are passed
+ * straight through.
  */
 export function parseGeneration(
   raw: string,
   usage: AiUsage | null = null,
   attachments: ResolvedAttachment[] = [],
   booking?: BookingOutcome,
+  customerName?: string,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
   const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage, attachments, booking }
+  return { text, handoff, usage, attachments, booking, customerName }
 }

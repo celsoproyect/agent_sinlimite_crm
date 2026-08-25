@@ -15,6 +15,8 @@
     "createAccount": "계정 만들기"
   },
   "Sidebar": {
+    "sectionOperations": "운영",
+    "sectionIntelligence": "인텔리전스",
     "dashboard": "대시보드",
     "inbox": "메시지",
     "agenda": "일정",
@@ -656,7 +658,13 @@
       "detectSuccess": "채팅이 연결되었습니다: {name}",
       "detectFailed": "채팅을 감지하지 못했습니다 — 먼저 봇에게 메시지를 보내세요",
       "testSuccess": "테스트 메시지를 보냈습니다",
-      "testFailed": "테스트 메시지를 보내지 못했습니다"
+      "testFailed": "테스트 메시지를 보내지 못했습니다",
+      "assistantTitle": "텔레그램 질의응답 어시스턴트",
+      "assistantDesc": "연결된 텔레그램 채팅에서 바로 비즈니스 활동(예약, 신규 연락처, 매출, 대화, 후속 조치)에 대해 AI 어시스턴트에게 물어보세요. 인증된 그 채팅에서만 작동하며 고객 대화와 절대 섞이지 않습니다.",
+      "assistantEnabled": "텔레그램 어시스턴트가 활성화되었습니다",
+      "assistantDisabled": "텔레그램 어시스턴트가 비활성화되었습니다",
+      "assistantEnableFailed": "어시스턴트를 활성화하지 못했습니다",
+      "assistantDisableFailed": "어시스턴트를 비활성화하지 못했습니다"
     }
   },
   "Pipelines": {

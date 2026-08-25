@@ -133,6 +133,10 @@ export interface ProviderResult {
   /** Set only when the booking tools were offered and the model used
    *  one of them this turn — only auto-reply dispatches these. */
   booking?: BookingOutcome
+  /** Set only when the `set_customer_name` tool was offered and the model
+   *  captured a name this turn — only auto-reply/widget-reply persist it
+   *  onto the contact. */
+  customerName?: string
 }
 
 /** Outcome of a generation call. */
@@ -149,6 +153,10 @@ export interface GenerateResult {
   /** Set only when the booking tools were offered and the model used
    *  one of them this turn — only auto-reply dispatches these. */
   booking?: BookingOutcome
+  /** Set only when the `set_customer_name` tool was offered and the model
+   *  captured a name this turn — only auto-reply/widget-reply persist it
+   *  onto the contact. */
+  customerName?: string
 }
 
 /**

@@ -8,11 +8,16 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
+import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
 
 interface WidgetReplyArgs {
   db: SupabaseClient
   accountId: string
   conversationId: string
+  /** The widget visitor's contact row — used to decide whether to ask for
+   *  their name and, if so, where to persist it once captured. */
+  contactId: string
+  contactName: string
 }
 
 export type WidgetReplyOutcome =
@@ -32,7 +37,11 @@ export type WidgetReplyOutcome =
  * Kept out entirely rather than half-wired.
  */
 export async function generateWidgetReply(args: WidgetReplyArgs): Promise<WidgetReplyOutcome> {
-  const { db, accountId, conversationId } = args
+  const { db, accountId, conversationId, contactId, contactName } = args
+  // "Visitante web" is the placeholder findOrCreateWidgetContact falls
+  // back to when the visitor never supplied a name — the signal nobody's
+  // captured a real one yet.
+  const needsCustomerName = !contactName || contactName === 'Visitante web'
 
   const config = await loadAiConfig(db, accountId)
   if (!config || !config.autoReplyEnabled) return { ok: false, reason: 'ai_unavailable' }
@@ -81,9 +90,10 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     toolAvailable: true,
     attachmentsAvailable: false,
     bookingAvailable: false,
+    needsCustomerName,
   })
 
-  const { text, handoff, usage } = await generateReply({
+  const { text, handoff, usage, customerName } = await generateReply({
     config,
     systemPrompt,
     messages,
@@ -92,7 +102,19 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
       knowledgeBaseName
         ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
         : Promise.resolve([]),
+    captureCustomerName: needsCustomerName,
   })
+
+  if (customerName) {
+    try {
+      await db
+        .from('contacts')
+        .update({ name: customerName, updated_at: new Date().toISOString() })
+        .eq('id', contactId)
+    } catch (err) {
+      console.error('[widget ai reply] contact name update failed:', err)
+    }
+  }
 
   void logAiUsage(db, {
     accountId,
@@ -111,6 +133,11 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     }
     if (config.handoffAgentId) update.assigned_agent_id = config.handoffAgentId
     await db.from('conversations').update(update).eq('id', conversationId)
+    void notifyOwnerOfHandoff(db, accountId, {
+      contactName: needsCustomerName ? 'Un visitante web' : contactName,
+      summary,
+      conversationId,
+    })
     return { ok: false, reason: 'handoff' }
   }
 

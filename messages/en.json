@@ -15,6 +15,8 @@
     "createAccount": "Create account"
   },
   "Sidebar": {
+    "sectionOperations": "Operations",
+    "sectionIntelligence": "Intelligence",
     "dashboard": "Dashboard",
     "inbox": "Messages",
     "agenda": "Agenda",
@@ -656,7 +658,13 @@
       "detectSuccess": "Chat connected: {name}",
       "detectFailed": "Couldn't detect a chat — send your bot a message first",
       "testSuccess": "Test message sent",
-      "testFailed": "Couldn't send the test message"
+      "testFailed": "Couldn't send the test message",
+      "assistantTitle": "Telegram Q&A assistant",
+      "assistantDesc": "Ask the AI assistant about your business activity (bookings, new contacts, sales, conversations, follow-ups) directly from the connected Telegram chat. Only works from that verified chat — it never mixes with customer conversations.",
+      "assistantEnabled": "Telegram assistant enabled",
+      "assistantDisabled": "Telegram assistant disabled",
+      "assistantEnableFailed": "Couldn't enable the assistant",
+      "assistantDisableFailed": "Couldn't disable the assistant"
     }
   },
   "Pipelines": {
