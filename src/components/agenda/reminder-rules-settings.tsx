@@ -282,7 +282,7 @@ export function ReminderRulesSettings({ open, onOpenChange }: ReminderRulesSetti
                     rows={2}
                     className="border-border bg-background text-xs text-foreground"
                   />
-                  <p className="text-[10px] text-muted-foreground">{t.raw("placeholderHelp")}</p>
+                  <p className="text-[0.625rem] text-muted-foreground">{t.raw("placeholderHelp")}</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -310,14 +310,14 @@ export function ReminderRulesSettings({ open, onOpenChange }: ReminderRulesSetti
                     <button
                       type="button"
                       onClick={() => pickTemplate(index, null)}
-                      className="text-[10px] text-muted-foreground hover:text-foreground shrink-0"
+                      className="text-[0.625rem] text-muted-foreground hover:text-foreground shrink-0"
                     >
                       {t("clearTemplate")}
                     </button>
                   )}
                 </div>
                 {templates.length === 0 && (
-                  <p className="text-[10px] text-muted-foreground">{t("noApprovedTemplatesHint")}</p>
+                  <p className="text-[0.625rem] text-muted-foreground">{t("noApprovedTemplatesHint")}</p>
                 )}
 
                 <div className="flex justify-end">

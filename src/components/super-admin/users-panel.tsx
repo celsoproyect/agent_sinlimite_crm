@@ -297,13 +297,13 @@ export function UsersPanel() {
                           {u.full_name || t('unnamed')}
                         </span>
                         {u.is_super_admin && (
-                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-amber-300">
+                          <span className="inline-flex items-center gap-1 rounded-md border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[0.625rem] font-medium uppercase tracking-wide text-amber-300">
                             <ShieldAlert className="size-3" />
                             {t('superAdminBadge')}
                           </span>
                         )}
                         {isSelf && (
-                          <Badge className="border-border bg-muted text-[10px] uppercase tracking-wide text-muted-foreground">
+                          <Badge className="border-border bg-muted text-[0.625rem] uppercase tracking-wide text-muted-foreground">
                             {t('you')}
                           </Badge>
                         )}

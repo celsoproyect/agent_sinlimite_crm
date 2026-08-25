@@ -175,7 +175,7 @@ function MessageContent({
         <div>
           <span
             className={cn(
-              "mb-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-medium",
+              "mb-1 inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[0.625rem] font-medium",
               isAgent
                 ? "bg-primary-foreground/20 text-primary-foreground"
                 : "bg-primary/20 text-primary",
@@ -222,7 +222,7 @@ function MessageContent({
       if (message.sender_type === "customer") {
         return (
           <div className="flex flex-col gap-0.5">
-            <span className="inline-flex items-center gap-1 text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            <span className="inline-flex items-center gap-1 text-[0.625rem] font-medium uppercase tracking-wide text-muted-foreground">
               <CornerDownLeft className="h-3 w-3" />
               {t("buttonReply")}
             </span>
@@ -320,7 +320,7 @@ function SystemEventRow({
 
   return (
     <div className="flex justify-center py-1">
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-[11px] text-muted-foreground">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-muted/60 px-3 py-1 text-[0.6875rem] text-muted-foreground">
         <Info className="h-3 w-3 shrink-0" />
         {label}
       </span>
@@ -387,7 +387,7 @@ export function MessageBubble({
               glance. */}
           {message.ai_generated && (
             <span
-              className="inline-flex items-center gap-0.5 rounded-full bg-primary-foreground/20 px-1.5 py-px text-[9px] font-semibold uppercase leading-none tracking-wide text-primary-foreground"
+              className="inline-flex items-center gap-0.5 rounded-full bg-primary-foreground/20 px-1.5 py-px text-[0.5625rem] font-semibold uppercase leading-none tracking-wide text-primary-foreground"
               title={t("aiBadgeTitle")}
             >
               <Sparkles className="h-2.5 w-2.5" />
@@ -396,7 +396,7 @@ export function MessageBubble({
           )}
           <span
             className={cn(
-              "text-[10px]",
+              "text-[0.625rem]",
               // Outbound bubbles sit on the primary fill, so the
               // timestamp must read against that (not the neutral
               // foreground) — otherwise it goes low-contrast in light

@@ -228,7 +228,8 @@ html[data-theme="rose"] {
     @apply font-sans;
     /* Every Tailwind size/spacing utility is rem-based, so this one bump
      * scales text, icons, padding and gaps together across the whole app —
-     * the "everything looks small" fix without touching each screen. */
-    font-size: 17px;
+     * the "everything looks small" fix without touching each screen.
+     * 25.5px = 17px * 1.5 (all texts sized up 50% per user request). */
+    font-size: 25.5px;
   }
 }

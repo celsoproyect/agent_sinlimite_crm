@@ -325,7 +325,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                 tags.map((tag) => (
                   <span
                     key={tag.contact_tag_id}
-                    className="rounded-full px-2 py-0.5 text-[10px] font-medium"
+                    className="rounded-full px-2 py-0.5 text-[0.625rem] font-medium"
                     style={{
                       backgroundColor: `${tag.color}20`,
                       color: tag.color,
@@ -367,7 +367,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                       </span>
                       {primaryDeal.stage && (
                         <span
-                          className="rounded-full px-1.5 py-0.5 text-[10px]"
+                          className="rounded-full px-1.5 py-0.5 text-[0.625rem]"
                           style={{
                             backgroundColor: `${primaryDeal.stage.color}20`,
                             color: primaryDeal.stage.color,
@@ -426,7 +426,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                   const current = customValues.find((v) => v.custom_field_id === field.id)?.value ?? "";
                   return (
                     <div key={field.id} className="px-1">
-                      <label className="text-[10px] text-muted-foreground">{field.field_name}</label>
+                      <label className="text-[0.625rem] text-muted-foreground">{field.field_name}</label>
                       <input
                         defaultValue={current}
                         onBlur={(e) => {
@@ -480,7 +480,7 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                     <p className="whitespace-pre-wrap text-xs text-muted-foreground">
                       {note.note_text}
                     </p>
-                    <p className="mt-1 text-[10px] text-muted-foreground">
+                    <p className="mt-1 text-[0.625rem] text-muted-foreground">
                       {format(new Date(note.created_at), "MMM d, yyyy HH:mm")}
                     </p>
                   </div>

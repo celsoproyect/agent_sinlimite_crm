@@ -540,7 +540,7 @@ export function TemplateManager() {
                       )}
                       {template.quality_score && (
                         <span
-                          className={`text-[10px] uppercase font-medium ${
+                          className={`text-[0.625rem] uppercase font-medium ${
                             template.quality_score === 'GREEN'
                               ? 'text-emerald-400'
                               : template.quality_score === 'YELLOW'
@@ -667,7 +667,7 @@ export function TemplateManager() {
                 disabled={editingId !== null}
                 className="bg-muted border-border text-foreground placeholder:text-muted-foreground disabled:opacity-60 disabled:cursor-not-allowed"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[0.6875rem] text-muted-foreground">
                 {editingId
                   ? t('nameFixed')
                   : t('nameHint')}
@@ -720,7 +720,7 @@ export function TemplateManager() {
                     <option key={code} value={code} />
                   ))}
                 </datalist>
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[0.6875rem] text-muted-foreground">
                   {editingId ? (
                     t('langFixed')
                   ) : (
@@ -828,7 +828,7 @@ export function TemplateManager() {
                         )}
                         {t('uploadImage')}
                       </Button>
-                      <span className="text-[11px] text-muted-foreground">
+                      <span className="text-[0.6875rem] text-muted-foreground">
                         {t('uploadHint')}
                       </span>
                     </div>
@@ -849,7 +849,7 @@ export function TemplateManager() {
                       className="max-h-28 rounded-md border border-border object-contain"
                     />
                   )}
-                  <p className="text-[11px] text-muted-foreground leading-relaxed">
+                  <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
                     {form.header_format === 'image'
                       ? t('imageHint')
                       : t('mediaHint')}
@@ -874,13 +874,13 @@ export function TemplateManager() {
                 maxLength={TEMPLATE_LIMITS.bodyMaxLength}
                 className="bg-muted border-border text-foreground placeholder:text-muted-foreground resize-none"
               />
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-[0.6875rem] text-muted-foreground">
                 {t.raw('bodyHint')}
               </p>
 
               {bodyVarCount > 0 && (
                 <div className="space-y-1.5 pt-1">
-                  <Label className="text-[11px] text-muted-foreground">
+                  <Label className="text-[0.6875rem] text-muted-foreground">
                     {t('sampleValues')}
                   </Label>
                   {form.body_samples.map((val, i) => {
@@ -934,7 +934,7 @@ export function TemplateManager() {
                 </Button>
               </div>
               {form.buttons.length === 0 ? (
-                <p className="text-[11px] text-muted-foreground">
+                <p className="text-[0.6875rem] text-muted-foreground">
                   {t('buttonsLimit', { max: TEMPLATE_LIMITS.maxButtonsTotal })}
                 </p>
               ) : (

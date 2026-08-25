@@ -229,11 +229,11 @@ export function TemplatePicker({
                         <p className="truncate text-sm font-medium text-popover-foreground">
                           {t.name}
                         </p>
-                        <Badge className="border border-primary/30 bg-primary/20 text-[10px] text-primary">
+                        <Badge className="border border-primary/30 bg-primary/20 text-[0.625rem] text-primary">
                           {t.category}
                         </Badge>
                         {t.language && (
-                          <span className="text-[10px] uppercase text-muted-foreground">
+                          <span className="text-[0.625rem] uppercase text-muted-foreground">
                             {t.language}
                           </span>
                         )}
@@ -305,7 +305,7 @@ export function TemplatePicker({
                   placeholder={t("urlSuffixValuePlaceholder")}
                   className="border-border bg-muted text-foreground placeholder:text-muted-foreground"
                 />
-                <p className="text-[10px] text-muted-foreground break-all">
+                <p className="text-[0.625rem] text-muted-foreground break-all">
                   {t("finalUrl", { url: slot.url.replace(/\{\{1\}\}/g, buttonParams[slot.index] || "{{1}}") })}
                 </p>
               </div>

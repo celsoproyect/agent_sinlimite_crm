@@ -321,7 +321,7 @@ function AutomationCard({
           <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             <span
               className={cn(
-                "inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                "inline-flex items-center rounded-full border px-2 py-0.5 text-[0.6875rem] font-medium",
                 meta.pillClass,
               )}
             >

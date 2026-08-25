@@ -818,7 +818,7 @@ function TriggerCard({
             <Zap className="h-4 w-4" />
           </div>
           <div className="min-w-0 flex-1">
-            <div className="text-[11px] uppercase tracking-wide text-blue-300">{t("trigger")}</div>
+            <div className="text-[0.6875rem] uppercase tracking-wide text-blue-300">{t("trigger")}</div>
             <div className="truncate text-sm font-medium text-foreground">
               {t(`triggers.${type}.label`)}
             </div>
@@ -844,7 +844,7 @@ function TriggerCard({
                   </option>
                 ))}
               </select>
-              <p className="mt-1 text-[11px] text-muted-foreground">
+              <p className="mt-1 text-[0.6875rem] text-muted-foreground">
                 {t(`triggers.${type}.hint`)}
               </p>
             </div>
@@ -883,7 +883,7 @@ function TriggerCard({
                   }
                   className="bg-muted text-foreground"
                 />
-                <p className="mt-1 text-[11px] text-muted-foreground">
+                <p className="mt-1 text-[0.6875rem] text-muted-foreground">
                   {t("scheduleHint")}
                 </p>
               </div>
@@ -1026,7 +1026,7 @@ function InteractiveReplyConfig({
         placeholder={t("replyIdsHint")}
         className="bg-muted font-mono text-foreground"
       />
-      <p className="mt-1 text-[11px] text-muted-foreground">{t("replyIdsHelp")}</p>
+      <p className="mt-1 text-[0.6875rem] text-muted-foreground">{t("replyIdsHelp")}</p>
     </div>
   )
 }
@@ -1132,11 +1132,11 @@ function StepRenderer({
               <Icon className="h-4 w-4" />
             </div>
             <div className="min-w-0 flex-1">
-              <div className="text-[11px] uppercase tracking-wide text-muted-foreground">
+              <div className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground">
                 {isCondition ? "Condition" : step.step_type === "wait" ? "Wait" : "Action"}
               </div>
               <div className="truncate text-sm font-medium text-foreground">{t(`steps.${meta.label}`)}</div>
-              <div className="truncate text-[11px] text-muted-foreground">{previewFor(step)}</div>
+              <div className="truncate text-[0.6875rem] text-muted-foreground">{previewFor(step)}</div>
             </div>
             <ChevronDown
               className={cn("h-4 w-4 text-muted-foreground transition-transform", expanded && "rotate-180")}
@@ -1248,7 +1248,7 @@ function BranchColumn({
 }) {
   return (
     <div className="flex min-w-0 flex-col items-center">
-      <div className={cn("mb-2 text-[11px] font-semibold uppercase", color)}>{label}</div>
+      <div className={cn("mb-2 text-[0.6875rem] font-semibold uppercase", color)}>{label}</div>
       {children}
     </div>
   )

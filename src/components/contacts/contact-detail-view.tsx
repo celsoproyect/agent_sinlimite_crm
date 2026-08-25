@@ -709,7 +709,7 @@ export function ContactDetailView({
                           </p>
                           {deal.stage && (
                             <span
-                              className="shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-medium"
+                              className="shrink-0 rounded-full px-1.5 py-0.5 text-[0.625rem] font-medium"
                               style={{
                                 backgroundColor: `${deal.stage.color}20`,
                                 color: deal.stage.color,

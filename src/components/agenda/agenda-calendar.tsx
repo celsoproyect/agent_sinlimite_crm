@@ -73,7 +73,7 @@ export function AgendaCalendar({
 
         {HOURS.map((hour) => (
           <div key={hour} className="contents">
-            <div className="border-b border-border px-1.5 py-3 text-right text-[11px] text-muted-foreground">
+            <div className="border-b border-border px-1.5 py-3 text-right text-[0.6875rem] text-muted-foreground">
               {String(hour).padStart(2, "0")}:00
             </div>
             {days.map((day) => {
@@ -104,7 +104,7 @@ export function AgendaCalendar({
                         onBookingClick(b);
                       }}
                       className={cn(
-                        "mb-1 truncate rounded-md px-1.5 py-1 text-[11px] font-medium",
+                        "mb-1 truncate rounded-md px-1.5 py-1 text-[0.6875rem] font-medium",
                         b.status === "cancelled"
                           ? "bg-muted text-muted-foreground line-through"
                           : "bg-primary/15 text-primary",

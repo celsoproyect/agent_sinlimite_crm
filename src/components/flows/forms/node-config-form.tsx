@@ -153,7 +153,7 @@ export function NodeConfigForm({
               placeholder={t("varKeyPlaceholder")}
               className="bg-muted font-mono text-xs"
             />
-            <p className="mt-1 text-[10px] text-muted-foreground">
+            <p className="mt-1 text-[0.625rem] text-muted-foreground">
               {t("varKeyHelp")}{" "}
               <code className="rounded bg-muted px-1">
                 {"{{vars."}

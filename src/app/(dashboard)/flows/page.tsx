@@ -215,7 +215,7 @@ export default function FlowsPage() {
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-semibold text-foreground">{t("title")}</h1>
-            <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-300">
+            <span className="inline-flex items-center rounded-full border border-amber-500/40 bg-amber-500/10 px-2 py-0.5 text-[0.625rem] font-semibold uppercase tracking-wide text-amber-300">
               {t("beta")}
             </span>
           </div>
@@ -289,7 +289,7 @@ export default function FlowsPage() {
                       <span className="text-xs leading-relaxed text-muted-foreground">
                         {template.description}
                       </span>
-                      <span className="mt-auto border-t border-border pt-2 text-[11px] text-muted-foreground">
+                      <span className="mt-auto border-t border-border pt-2 text-[0.6875rem] text-muted-foreground">
                         {t("nodeCount", { count: template.node_count })}
                       </span>
                     </button>
@@ -396,7 +396,7 @@ function FlowCard({
         <Badge
           variant="outline"
           className={cn(
-            "shrink-0 gap-1 text-[10px]",
+            "shrink-0 gap-1 text-[0.625rem]",
             STATUS_COLORS[flow.status],
           )}
         >
@@ -409,7 +409,7 @@ function FlowCard({
         {flow.description || triggerSummary}
       </p>
 
-      <div className="mt-4 flex items-center gap-3 text-[11px] text-muted-foreground">
+      <div className="mt-4 flex items-center gap-3 text-[0.6875rem] text-muted-foreground">
         <span className="inline-flex items-center gap-1">
           <MessageSquare className="h-3 w-3" />
           {t("runCount", { count: flow.execution_count })}

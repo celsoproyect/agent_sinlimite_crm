@@ -118,7 +118,7 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
           x={cx}
           y={cy - 6}
           textAnchor="middle"
-          className="fill-muted-foreground text-[11px]"
+          className="fill-muted-foreground text-[0.6875rem]"
         >
           {t('total')}
         </text>
@@ -126,7 +126,7 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
           x={cx}
           y={cy + 14}
           textAnchor="middle"
-          className="fill-foreground text-[18px] font-semibold tabular-nums"
+          className="fill-foreground text-[1.125rem] font-semibold tabular-nums"
         >
           {formatCurrencyShort(data.totalValue, currency)}
         </text>
