@@ -458,6 +458,19 @@ export interface BookingSettings {
   >;
 }
 
+/** Account-level reminder rule — `booking_reminder_rules` (migration 052). */
+export interface BookingReminderRule {
+  id: string;
+  account_id: string;
+  offset_minutes: number;
+  message_text: string;
+  template_name?: string | null;
+  template_language?: string | null;
+  enabled: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 export type BroadcastStatus = 'draft' | 'scheduled' | 'sending' | 'sent' | 'failed';
 export type RecipientStatus = 'pending' | 'sent' | 'delivered' | 'read' | 'replied' | 'failed';
 

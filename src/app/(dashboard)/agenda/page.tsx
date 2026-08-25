@@ -7,8 +7,9 @@ import { AgendaCalendar } from "@/components/agenda/agenda-calendar";
 import { TodayPanel } from "@/components/agenda/today-panel";
 import { BookingFormDialog } from "@/components/agenda/booking-form-dialog";
 import { BusinessHoursSettings } from "@/components/agenda/business-hours-settings";
+import { ReminderRulesSettings } from "@/components/agenda/reminder-rules-settings";
 import { GatedButton } from "@/components/ui/gated-button";
-import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Settings } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Settings, BellRing } from "lucide-react";
 import { useCan } from "@/hooks/use-can";
 import { useTranslations } from "next-intl";
 import { useModuleGate } from "@/hooks/use-module-gate";
@@ -27,6 +28,7 @@ export default function AgendaPage() {
   const [editingBooking, setEditingBooking] = useState<Booking | null>(null);
   const [slotDefaults, setSlotDefaults] = useState<{ date: string; time: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [remindersOpen, setRemindersOpen] = useState(false);
 
   const loadBookings = useCallback(async () => {
     const from = startOfWeek(weekStart, { weekStartsOn: 1 });
@@ -150,6 +152,16 @@ export default function AgendaPage() {
             {t("settings")}
           </GatedButton>
           <GatedButton
+            variant="outline"
+            canAct={canEditSettings}
+            gateReason="edit booking reminders"
+            onClick={() => setRemindersOpen(true)}
+            className="border-border bg-card text-foreground hover:bg-muted"
+          >
+            <BellRing className="mr-1 h-4 w-4" />
+            {t("reminders")}
+          </GatedButton>
+          <GatedButton
             canAct={canCreateBookings}
             gateReason="create bookings"
             onClick={handleNewBooking}
@@ -182,6 +194,9 @@ export default function AgendaPage() {
 
       {canEditSettings && (
         <BusinessHoursSettings open={settingsOpen} onOpenChange={setSettingsOpen} />
+      )}
+      {canEditSettings && (
+        <ReminderRulesSettings open={remindersOpen} onOpenChange={setRemindersOpen} />
       )}
     </div>
   );
