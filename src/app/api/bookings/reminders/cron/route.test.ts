@@ -128,7 +128,7 @@ describe('GET /api/bookings/reminders/cron', () => {
         accountId: 'acct-1',
         conversationId: 'conv-1',
         contactId: 'contact-1',
-        text: 'Hola Ana, recordatorio de Corte de cabello a las 14:30.',
+        text: 'Hola Ana, recordatorio de Corte de cabello a las 10:30.',
       }),
     )
     expect(engineSendTemplate).not.toHaveBeenCalled()
@@ -172,7 +172,7 @@ describe('GET /api/bookings/reminders/cron', () => {
       expect.objectContaining({
         templateName: 'reminder_24h',
         language: 'es_MX',
-        params: ['Ana', 'Corte de cabello', '2026-08-25', '14:30'],
+        params: ['Ana', 'Corte de cabello', '2026-08-25', '10:30'],
       }),
     )
     expect(sendUpdates).toEqual([{ id: 'send-1', payload: { status: 'sent', channel: 'template' } }])

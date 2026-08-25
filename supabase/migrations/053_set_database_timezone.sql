@@ -1,0 +1,27 @@
+-- ============================================================
+-- 053_set_database_timezone.sql
+--
+-- The business this app runs for always operates in
+-- America/Santo_Domingo (UTC-4, no DST) — the app container already
+-- defaults to this zone via `TZ` in docker-compose.yml. `bookings.
+-- starts_at`/`ends_at` are `timestamptz` (migration 046), i.e. true
+-- UTC instants, so the time-window math in
+-- `get_due_booking_reminders` (migration 052) is already timezone-
+-- safe regardless of this setting — it compares absolute instants,
+-- not wall-clock strings.
+--
+-- This migration only fixes the *database's session default*, so
+-- that any date-bucketing SQL written in the future (`now()::date`,
+-- `CURRENT_DATE`, `date_trunc('day', ...)`) defaults to Santo
+-- Domingo calendar days instead of the server's UTC default —
+-- closing off an off-by-several-hours/wrong-day class of bug before
+-- it can be introduced, rather than fixing one after the fact.
+--
+-- Existing connections (e.g. a connection pooler) keep whatever
+-- timezone they already negotiated until they reconnect — this only
+-- affects new sessions.
+--
+-- Idempotent — safe to re-run.
+-- ============================================================
+
+ALTER DATABASE postgres SET timezone TO 'America/Santo_Domingo';

@@ -6,12 +6,23 @@ import {
 } from './reminder-message'
 
 describe('renderReminderMessage', () => {
-  it('substitutes all known placeholders', () => {
+  it('substitutes all known placeholders, converting UTC to America/Santo_Domingo', () => {
+    // 14:30 UTC - 4h (Santo Domingo, no DST) = 10:30 local.
     const out = renderReminderMessage(
       'Hola {{contact_name}}, te esperamos el {{date}} a las {{time}} para {{service}}.',
       { contactName: 'Ana', service: 'Corte de cabello', startsAt: '2026-08-25T14:30:00.000Z' },
     )
-    expect(out).toBe('Hola Ana, te esperamos el 2026-08-25 a las 14:30 para Corte de cabello.')
+    expect(out).toBe('Hola Ana, te esperamos el 2026-08-25 a las 10:30 para Corte de cabello.')
+  })
+
+  it('rolls the date back a day when the UTC instant is after 20:00 Santo Domingo-local', () => {
+    // 02:00 UTC on the 26th - 4h = 22:00 local on the 25th.
+    const out = renderReminderMessage('{{date}} {{time}}', {
+      contactName: 'Ana',
+      service: 'Corte',
+      startsAt: '2026-08-26T02:00:00.000Z',
+    })
+    expect(out).toBe('2026-08-25 22:00')
   })
 
   it('leaves an unrecognized token visible', () => {
@@ -34,13 +45,13 @@ describe('renderReminderMessage', () => {
 })
 
 describe('reminderTemplateParams', () => {
-  it('returns positional params in the documented order', () => {
+  it('returns positional params in the documented order, converted to America/Santo_Domingo', () => {
     const params = reminderTemplateParams({
       contactName: 'Ana',
       service: 'Corte de cabello',
       startsAt: '2026-08-25T14:30:00.000Z',
     })
-    expect(params).toEqual(['Ana', 'Corte de cabello', '2026-08-25', '14:30'])
+    expect(params).toEqual(['Ana', 'Corte de cabello', '2026-08-25', '10:30'])
   })
 })
 

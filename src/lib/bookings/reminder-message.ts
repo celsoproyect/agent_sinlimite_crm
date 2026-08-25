@@ -7,12 +7,16 @@
 // with no value is left visible rather than blanked, matching
 // `renderTemplateBody`'s convention in template-body.ts.
 //
-// Dates/times are read directly off the ISO `starts_at` string
-// (UTC-offset components), not converted through a per-account
-// timezone — `src/lib/ai/booking.ts` documents that no such timezone
-// is stored; `starts_at` already reflects whatever wall-clock the
-// booking was created against.
+// `starts_at` is a `timestamptz` (migration 046) — a true UTC instant,
+// not a naive local wall-clock value. The business this app runs for
+// always operates in America/Santo_Domingo (UTC-4, no DST), same zone
+// the app container defaults `TZ` to in docker-compose.yml — so the
+// date/time shown to the customer must be explicitly converted to that
+// zone rather than read off the raw (UTC) ISO string, which would show
+// the wrong wall-clock hour to the customer.
 // ============================================================
+
+const REMINDER_TIME_ZONE = 'America/Santo_Domingo'
 
 export interface ReminderMessageVars {
   contactName: string
@@ -34,11 +38,25 @@ export function renderReminderMessage(text: string, vars: ReminderMessageVars): 
   return text.replace(TOKEN_PATTERN, (match, key: string) => values[key] ?? match)
 }
 
-/** `2026-08-25T14:30:00.000Z` -> `{ date: '2026-08-25', time: '14:30' }`. */
+const DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
+  timeZone: REMINDER_TIME_ZONE,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+})
+const TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
+  timeZone: REMINDER_TIME_ZONE,
+  hour: '2-digit',
+  minute: '2-digit',
+  hour12: false,
+})
+
+/** `2026-08-25T18:30:00.000Z` (UTC) -> `{ date: '2026-08-25', time: '14:30' }` (America/Santo_Domingo). */
 function splitIsoDateTime(iso: string): { date: string; time: string } {
-  const match = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})/.exec(iso)
-  if (!match) return { date: iso, time: '' }
-  return { date: match[1], time: match[2] }
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return { date: iso, time: '' }
+  // en-CA renders as YYYY-MM-DD; en-GB + hour12:false renders as HH:mm.
+  return { date: DATE_FORMATTER.format(d), time: TIME_FORMATTER.format(d) }
 }
 
 /**
