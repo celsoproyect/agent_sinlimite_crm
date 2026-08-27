@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
     replyContextParent: null as { id: string } | null,
     conversation: { id: 'conv-1', unread_count: 0, account_id: 'acc-1' },
     upsertCalls: [] as { row: Record<string, unknown>; options: unknown }[],
+    contactInsertCalls: [] as Record<string, unknown>[],
     rpcCalls: [] as { name: string; args: Record<string, unknown> }[],
     afterCallbacks: [] as (() => Promise<void> | void)[],
     automationStarted: 0,
@@ -61,6 +62,22 @@ vi.mock('@supabase/supabase-js', () => ({
                   error: null,
                 }),
             }),
+          }
+        case 'contacts':
+          // findOrCreateContact's create path: insert(...).select().single()
+          return {
+            insert: (row: Record<string, unknown>) => {
+              h.state.contactInsertCalls.push(row)
+              return {
+                select: () => ({
+                  single: () =>
+                    Promise.resolve({
+                      data: { id: 'contact-bsuid', ...row },
+                      error: null,
+                    }),
+                }),
+              }
+            },
           }
         case 'conversations':
           // findOrCreateConversation: select().eq().eq().order().limit()
@@ -180,6 +197,7 @@ vi.mock('@/lib/contacts/dedupe', () => ({
     name: 'Ada',
     phone: '15551230000',
   })),
+  findExistingContactByWaUserId: vi.fn(async () => null),
   isUniqueViolation: () => false,
 }))
 vi.mock('@/lib/whatsapp/webhook-signature', () => ({
@@ -216,7 +234,10 @@ const TEXT_MESSAGE = {
   text: { body: 'hello' },
 }
 
-function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
+function inboundRequest(
+  message: Record<string, unknown> = TEXT_MESSAGE,
+  contact: Record<string, unknown> = { wa_id: '15551230000', profile: { name: 'Ada' } },
+) {
   const body = {
     entry: [
       {
@@ -225,7 +246,7 @@ function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
             field: 'messages',
             value: {
               metadata: { phone_number_id: 'pn-1' },
-              contacts: [{ wa_id: '15551230000', profile: { name: 'Ada' } }],
+              contacts: [contact],
               messages: [message],
             },
           },
@@ -239,8 +260,11 @@ function inboundRequest(message: Record<string, unknown> = TEXT_MESSAGE) {
   } as unknown as Request
 }
 
-async function runWebhook(message?: Record<string, unknown>) {
-  const res = await POST(inboundRequest(message))
+async function runWebhook(
+  message?: Record<string, unknown>,
+  contact?: Record<string, unknown>,
+) {
+  const res = await POST(inboundRequest(message, contact))
   // Drain the after() callback exactly as the runtime would.
   for (const cb of h.state.afterCallbacks) await cb()
   return res
@@ -253,6 +277,7 @@ beforeEach(() => {
   h.state.replyContextParent = null
   h.state.conversation = { id: 'conv-1', unread_count: 0, account_id: 'acc-1' }
   h.state.upsertCalls = []
+  h.state.contactInsertCalls = []
   h.state.rpcCalls = []
   h.state.afterCallbacks = []
   h.state.automationStarted = 0
@@ -524,6 +549,47 @@ describe('inbound webhook: inbound media is mirrored (#466)', () => {
     expect(mockGetMediaUrl).not.toHaveBeenCalled()
     expect(h.state.storageUploads).toHaveLength(0)
     expect(h.state.upsertCalls[0].row).toMatchObject({ media_type: null })
+  })
+})
+
+describe('inbound webhook: BSUID-only deliveries (Meta rollout 2026-03-31)', () => {
+  // Meta omits `from` / `wa_id` entirely for a WhatsApp-username sender
+  // with no recent interaction — only the BSUID (`from_user_id` /
+  // `user_id`) and profile.username survive. See migration 054.
+  const BSUID_MESSAGE = {
+    id: 'wamid.BSUID1',
+    from_user_id: 'DO.1063619026050293',
+    timestamp: '1700000000',
+    type: 'text',
+    text: { body: 'hola' },
+  }
+  const BSUID_CONTACT = {
+    user_id: 'DO.1063619026050293',
+    profile: { name: 'Celso', username: 'celsodelossantos_' },
+  }
+
+  it('creates a contact keyed by BSUID instead of dropping the message', async () => {
+    await runWebhook(BSUID_MESSAGE, BSUID_CONTACT)
+
+    expect(h.state.contactInsertCalls).toHaveLength(1)
+    expect(h.state.contactInsertCalls[0]).toMatchObject({
+      phone: '',
+      whatsapp_user_id: 'DO.1063619026050293',
+      name: 'Celso',
+    })
+    expect(h.state.upsertCalls).toHaveLength(1)
+    expect(h.dispatchInboundToFlows).toHaveBeenCalledTimes(1)
+  })
+
+  it('still drops the message when neither phone nor BSUID is present', async () => {
+    await runWebhook(
+      { ...BSUID_MESSAGE, from_user_id: undefined },
+      { profile: { name: 'Nobody' } },
+    )
+
+    expect(h.state.contactInsertCalls).toHaveLength(0)
+    expect(h.state.upsertCalls).toHaveLength(0)
+    expect(h.dispatchInboundToFlows).not.toHaveBeenCalled()
   })
 })
 

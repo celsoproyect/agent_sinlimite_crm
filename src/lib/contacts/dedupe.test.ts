@@ -3,6 +3,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   dedupeByPhone,
   findExistingContact,
+  findExistingContactByWaUserId,
   isExactMatch,
   isUniqueViolation,
   normalizeKey,
@@ -93,5 +94,32 @@ describe("findExistingContact", () => {
   it("returns null for an empty phone without querying", async () => {
     const db = stubDb([{ id: "c1", phone: "15551234567" }]);
     expect(await findExistingContact(db, "acct", "   ")).toBeNull();
+  });
+});
+
+describe("findExistingContactByWaUserId", () => {
+  function stubDb(row: { id: string; phone: string } | null): SupabaseClient {
+    const builder = {
+      select: () => builder,
+      eq: () => builder,
+      maybeSingle: () => Promise.resolve({ data: row, error: null }),
+    };
+    return { from: () => builder } as unknown as SupabaseClient;
+  }
+
+  it("returns the matching contact", async () => {
+    const db = stubDb({ id: "c1", phone: "" });
+    const hit = await findExistingContactByWaUserId(db, "acct", "DO.123");
+    expect(hit?.id).toBe("c1");
+  });
+
+  it("returns null when nothing matches", async () => {
+    const db = stubDb(null);
+    expect(await findExistingContactByWaUserId(db, "acct", "DO.123")).toBeNull();
+  });
+
+  it("returns null for an empty BSUID without querying", async () => {
+    const db = stubDb({ id: "c1", phone: "" });
+    expect(await findExistingContactByWaUserId(db, "acct", "")).toBeNull();
   });
 });
