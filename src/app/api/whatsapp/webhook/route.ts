@@ -588,8 +588,24 @@ async function processMessage(
   // See parseMessageContent for what it turns off.
   mirrorMedia: boolean
 ) {
-  const senderPhone = normalizePhone(message.from)
+  // `contact.wa_id` (the paired entry in value.contacts) mirrors
+  // message.from in every normal delivery — falling back to it guards
+  // against ever creating a contact with an empty phone, which would
+  // never dedupe on the next message from the same sender (issue: every
+  // inbound from the same number spawned a brand-new contact +
+  // conversation because findExistingContact's phone-suffix lookup can
+  // never match an empty string).
+  const senderPhone = normalizePhone(message.from) || normalizePhone(contact.wa_id)
   const contactName = contact.profile.name
+
+  if (!senderPhone) {
+    console.error('[webhook] no phone on inbound message/contact — dropping', {
+      messageId: message.id,
+      messageFrom: message.from,
+      contactWaId: contact.wa_id,
+    })
+    return
+  }
 
   // Find or create contact
   const contactOutcome = await findOrCreateContact(
