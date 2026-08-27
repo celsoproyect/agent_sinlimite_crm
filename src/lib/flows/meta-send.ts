@@ -165,6 +165,7 @@ export async function engineSendText(
       phoneNumberId: config.phone_number_id,
       accessToken,
       to,
+      toIsBsuid: contact.isBsuid,
       text: args.text,
     })
     return r.messageId
@@ -246,6 +247,7 @@ export async function engineSendMedia(
       phoneNumberId: config.phone_number_id,
       accessToken,
       to,
+      toIsBsuid: contact.isBsuid,
       kind: args.kind,
       link: args.link,
       caption: args.caption,
@@ -369,6 +371,7 @@ async function sendInteractiveViaMeta(
         phoneNumberId: config.phone_number_id,
         accessToken,
         to,
+        toIsBsuid: contact.isBsuid,
         bodyText: input.bodyText,
         buttons: input.buttons,
         headerText: input.headerText,
@@ -380,6 +383,7 @@ async function sendInteractiveViaMeta(
       phoneNumberId: config.phone_number_id,
       accessToken,
       to,
+      toIsBsuid: contact.isBsuid,
       bodyText: input.bodyText,
       buttonLabel: input.buttonLabel,
       sections: input.sections,

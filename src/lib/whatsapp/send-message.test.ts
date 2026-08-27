@@ -163,12 +163,14 @@ describe('SendMessageError', () => {
 // ============================================================
 
 const sendTemplateMessage = vi.fn(async () => ({ messageId: 'wamid.1' }));
+const sendTextMessage = vi.fn(async () => ({ messageId: 'wamid.text' }));
 
 // Stub only the senders — the module also exports INTERACTIVE_LIMITS,
 // which `interactive.ts` needs for the payload validation covered above.
 vi.mock('@/lib/whatsapp/meta-api', async (importOriginal) => ({
   ...(await importOriginal<Record<string, unknown>>()),
-  sendTextMessage: vi.fn(async () => ({ messageId: 'wamid.text' })),
+  sendTextMessage: (...args: unknown[]) =>
+    (sendTextMessage as unknown as (...a: unknown[]) => unknown)(...args),
   sendTemplateMessage: (...args: unknown[]) =>
     (sendTemplateMessage as unknown as (...a: unknown[]) => unknown)(...args),
   sendMediaMessage: vi.fn(async () => ({ messageId: 'wamid.media' })),
@@ -206,12 +208,10 @@ interface CapturedWrites {
  */
 function sendPathDb(
   templateRows: unknown[],
-  captured: CapturedWrites
+  captured: CapturedWrites,
+  contact: Record<string, unknown> = { id: 'ct-1', phone: '+15551234567' }
 ): SupabaseClient {
-  const conversation = {
-    id: 'cv-1',
-    contact: { id: 'ct-1', phone: '+15551234567' },
-  };
+  const conversation = { id: 'cv-1', contact };
   const config = {
     id: 'cfg-1',
     phone_number_id: 'pn-1',
@@ -344,5 +344,42 @@ describe('sendMessageToConversation — template persistence (#483)', () => {
     // name rather than inventing a body.
     expect(captured.message?.content_text).toBeNull();
     expect(captured.conversation?.last_message_text).toBe('[template]');
+  });
+});
+
+// ============================================================
+// BSUID fallback — manual agent replies to a contact with no phone
+// (see contacts.whatsapp_user_id / migration 054, and the AI auto-reply
+// fix this mirrors in flows/meta-send.ts).
+// ============================================================
+
+describe('sendMessageToConversation — BSUID recipient fallback', () => {
+  it('sends via the BSUID (recipient field) when the contact has no phone', async () => {
+    sendTextMessage.mockClear();
+    const captured: CapturedWrites = {};
+    const result = await sendMessageToConversation(
+      sendPathDb([], captured, { id: 'ct-1', phone: '', whatsapp_user_id: 'DO.123' }),
+      'acct-1',
+      { conversationId: 'cv-1', messageType: 'text', contentText: 'hola' }
+    );
+
+    expect(result.whatsappMessageId).toBe('wamid.text');
+    expect(sendTextMessage).toHaveBeenCalledTimes(1);
+    const call = (sendTextMessage.mock.calls[0] as unknown as [
+      { to: string; toIsBsuid?: boolean },
+    ])[0];
+    expect(call.to).toBe('DO.123');
+    expect(call.toIsBsuid).toBe(true);
+  });
+
+  it('rejects when the contact has neither a phone nor a BSUID', async () => {
+    const captured: CapturedWrites = {};
+    await expect(
+      sendMessageToConversation(
+        sendPathDb([], captured, { id: 'ct-1', phone: '', whatsapp_user_id: null }),
+        'acct-1',
+        { conversationId: 'cv-1', messageType: 'text', contentText: 'hola' }
+      )
+    ).rejects.toMatchObject({ status: 400 });
   });
 });
