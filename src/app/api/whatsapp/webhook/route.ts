@@ -599,11 +599,14 @@ async function processMessage(
   const contactName = contact.profile.name
 
   if (!senderPhone) {
-    console.error('[webhook] no phone on inbound message/contact — dropping', {
-      messageId: message.id,
-      messageFrom: message.from,
-      contactWaId: contact.wa_id,
-    })
+    // TEMPORARY: dump the full raw shapes to find out what Meta is
+    // actually sending for these deliveries — message.from and
+    // contact.wa_id are both coming back undefined, which shouldn't
+    // happen per the Cloud API spec. Remove once diagnosed.
+    console.error(
+      '[webhook] no phone on inbound message/contact — dropping',
+      JSON.stringify({ message, contact }),
+    )
     return
   }
 
