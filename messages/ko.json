@@ -303,7 +303,8 @@
       "nextBooking": "다음 예약",
       "noUpcomingBooking": "예정된 예약 없음",
       "capturedData": "수집된 데이터",
-      "noCapturedData": "정의된 커스텀 필드 없음"
+      "noCapturedData": "정의된 커스텀 필드 없음",
+      "whatsappId": "WhatsApp ID"
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",

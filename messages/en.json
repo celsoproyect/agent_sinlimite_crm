@@ -303,7 +303,8 @@
       "nextBooking": "Next booking",
       "noUpcomingBooking": "No upcoming booking",
       "capturedData": "Captured data",
-      "noCapturedData": "No custom fields defined"
+      "noCapturedData": "No custom fields defined",
+      "whatsappId": "WhatsApp ID"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",

@@ -105,6 +105,11 @@ export interface Contact {
    *  and unique per account. Read-only. */
   phone_normalized?: string;
   name?: string;
+  /** Business-Scoped User ID — the stable identity for a WhatsApp
+   *  username-only contact with no phone on record (migration 054). */
+  whatsapp_user_id?: string | null;
+  /** The `profile.username` Meta sends alongside the BSUID (migration 056). */
+  whatsapp_username?: string | null;
   email?: string;
   company?: string;
   avatar_url?: string;

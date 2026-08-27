@@ -182,15 +182,22 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
     [contact],
   );
 
-  const handleCopyPhone = useCallback(async () => {
-    if (!contact?.phone) return;
-    await navigator.clipboard.writeText(contact.phone);
+  // A BSUID-only contact (migration 054 — WhatsApp username sender with
+  // no recent interaction) has no phone at all, so the phone row falls
+  // back to the username Meta sent (`@handle`) and, failing that, the
+  // raw BSUID — better than the blank row this used to render.
+  const identityValue = contact?.phone
+    ? contact.phone
+    : contact?.whatsapp_username
+      ? `@${contact.whatsapp_username}`
+      : contact?.whatsapp_user_id || null;
+
+  const handleCopyIdentity = useCallback(async () => {
+    if (!identityValue) return;
+    await navigator.clipboard.writeText(identityValue);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    // Dep is the whole `contact` object (not `contact?.phone`) so the
-    // React Compiler's inference agrees with the manual dep list —
-    // fixes the `preserve-manual-memoization` lint error.
-  }, [contact]);
+  }, [identityValue]);
 
   const handleAddNote = useCallback(async () => {
     if (!contact || !newNote.trim()) return;
@@ -257,20 +264,27 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
             )}
           </div>
 
-          {/* Phone */}
+          {/* Phone / WhatsApp identity */}
           <div className="mt-4 space-y-2">
-            <button
-              onClick={handleCopyPhone}
-              className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
-            >
-              <Phone className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-left">{contact.phone}</span>
-              {copied ? (
-                <Check className="h-3 w-3 text-primary" />
-              ) : (
-                <Copy className="h-3 w-3 text-muted-foreground" />
-              )}
-            </button>
+            {identityValue && (
+              <button
+                onClick={handleCopyIdentity}
+                className="flex w-full items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground transition-colors hover:bg-muted"
+              >
+                <Phone className="h-4 w-4 text-muted-foreground" />
+                <div className="flex-1 text-left">
+                  <span className="block">{identityValue}</span>
+                  {!contact.phone && (
+                    <span className="block text-xs">{tSidebar("whatsappId")}</span>
+                  )}
+                </div>
+                {copied ? (
+                  <Check className="h-3 w-3 text-primary" />
+                ) : (
+                  <Copy className="h-3 w-3 text-muted-foreground" />
+                )}
+              </button>
+            )}
 
             {contact.email && (
               <div className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm text-muted-foreground">

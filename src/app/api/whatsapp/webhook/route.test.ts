@@ -575,6 +575,7 @@ describe('inbound webhook: BSUID-only deliveries (Meta rollout 2026-03-31)', () 
     expect(h.state.contactInsertCalls[0]).toMatchObject({
       phone: '',
       whatsapp_user_id: 'DO.1063619026050293',
+      whatsapp_username: 'celsodelossantos_',
       name: 'Celso',
     })
     expect(h.state.upsertCalls).toHaveLength(1)

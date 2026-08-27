@@ -13,6 +13,7 @@ const h = vi.hoisted(() => ({
     conv: null as Record<string, unknown> | null,
     autoResponders: [] as { id: string }[],
     claim: true as boolean,
+    releaseShouldFail: false as boolean,
     updatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
   },
@@ -56,6 +57,9 @@ vi.mock('./admin-client', () => ({
     },
     rpc: (name: string, args: unknown) => {
       h.state.rpcCalls.push({ name, args })
+      if (name === 'release_ai_reply_slot' && h.state.releaseShouldFail) {
+        return Promise.resolve({ data: null, error: new Error('boom') })
+      }
       return Promise.resolve({ data: h.state.claim, error: null })
     },
   }),
@@ -94,6 +98,7 @@ beforeEach(() => {
   }
   h.state.autoResponders = []
   h.state.claim = true
+  h.state.releaseShouldFail = false
   h.state.updatePayload = null
   h.state.rpcCalls = []
   h.loadAiConfig.mockResolvedValue(aiConfig())
@@ -191,6 +196,29 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
     expect(h.engineSendText).not.toHaveBeenCalled()
+  })
+})
+
+describe('dispatchInboundToAiReply — reply-slot release on send failure', () => {
+  it('releases the claimed slot when the text send fails', async () => {
+    h.engineSendText.mockRejectedValue(new Error('(#100) Invalid parameter'))
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.rpcCalls.map((c) => c.name)).toEqual([
+      'claim_ai_reply_slot',
+      'release_ai_reply_slot',
+    ])
+    expect(h.state.rpcCalls[1].args).toEqual({ conversation_id: 'conv-1' })
+  })
+
+  it('does not release the slot when the send succeeds', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.rpcCalls.map((c) => c.name)).toEqual(['claim_ai_reply_slot'])
+  })
+
+  it('does not crash the dispatcher when the release call itself fails', async () => {
+    h.engineSendText.mockRejectedValue(new Error('send failed'))
+    h.state.releaseShouldFail = true
+    await expect(dispatchInboundToAiReply(ARGS)).resolves.toBeUndefined()
   })
 })
 

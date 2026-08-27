@@ -266,14 +266,29 @@ export async function dispatchInboundToAiReply(
       }
     }
     if (!sentInteractive) {
-      await engineSendText({
-        accountId,
-        userId: configOwnerUserId,
-        conversationId,
-        contactId,
-        text,
-        aiGenerated: true,
-      })
+      try {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          text,
+          aiGenerated: true,
+        })
+      } catch (err) {
+        // The claimed slot never turned into a delivered message — give it
+        // back so a transient send failure (or a bug like the BSUID `to`
+        // rejection) doesn't permanently cap this conversation's auto-reply
+        // budget. Best-effort: if the release itself fails we just under-
+        // reply on a later inbound instead of crashing here.
+        console.error('[ai auto-reply] text send failed, releasing claimed reply slot:', err)
+        try {
+          await db.rpc('release_ai_reply_slot', { conversation_id: conversationId })
+        } catch (releaseErr) {
+          console.error('[ai auto-reply] release_ai_reply_slot failed:', releaseErr)
+        }
+        return
+      }
     }
 
     // Dispatch any attachment(s) the model selected via send_attachment,

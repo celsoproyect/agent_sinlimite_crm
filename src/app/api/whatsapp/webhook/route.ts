@@ -618,6 +618,7 @@ async function processMessage(
   // delivery. See migration 054 / contacts.whatsapp_user_id.
   const senderWaUserId = message.from_user_id || contact.user_id || null
   const contactName = contact.profile.name
+  const contactUsername = contact.profile.username || null
 
   if (!senderPhone && !senderWaUserId) {
     // Per the Cloud API spec this shouldn't be reachable — every
@@ -634,7 +635,8 @@ async function processMessage(
     configOwnerUserId,
     senderPhone,
     senderWaUserId,
-    contactName
+    contactName,
+    contactUsername
   )
   if (!contactOutcome) return
   const contactRecord = contactOutcome.contact
@@ -1161,7 +1163,8 @@ async function findOrCreateContact(
   configOwnerUserId: string,
   phone: string,
   waUserId: string | null,
-  name: string
+  name: string,
+  username: string | null
 ): Promise<ContactOutcome | null> {
   // Prefer the BSUID lookup when we have one — it's the stable identity
   // Meta guarantees on every delivery, whereas phone can be '' for a
@@ -1184,6 +1187,7 @@ async function findOrCreateContact(
     if (name && name !== existingContact.name) updates.name = name
     if (waUserId && !existingContact.whatsapp_user_id) updates.whatsapp_user_id = waUserId
     if (phone && !existingContact.phone) updates.phone = phone
+    if (username && username !== existingContact.whatsapp_username) updates.whatsapp_username = username
     if (Object.keys(updates).length > 0) {
       updates.updated_at = new Date().toISOString()
       await supabaseAdmin().from('contacts').update(updates).eq('id', existingContact.id)
@@ -1204,6 +1208,7 @@ async function findOrCreateContact(
       user_id: configOwnerUserId,
       phone,
       whatsapp_user_id: waUserId,
+      whatsapp_username: username,
       name: name || phone || waUserId || 'Unknown',
     })
     .select()

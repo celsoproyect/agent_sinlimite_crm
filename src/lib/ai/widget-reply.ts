@@ -158,7 +158,17 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     content_text: text,
     status: 'sent',
   })
-  if (insertErr) throw insertErr
+  if (insertErr) {
+    // Mirror the WhatsApp path: a failed persist means the visitor never
+    // got a reply, so give the claimed slot back rather than burning it.
+    console.error('[widget ai reply] message insert failed, releasing claimed reply slot:', insertErr)
+    try {
+      await db.rpc('release_ai_reply_slot', { conversation_id: conversationId })
+    } catch (releaseErr) {
+      console.error('[widget ai reply] release_ai_reply_slot failed:', releaseErr)
+    }
+    throw insertErr
+  }
 
   await db
     .from('conversations')
