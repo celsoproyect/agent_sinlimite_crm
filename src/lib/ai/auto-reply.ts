@@ -66,12 +66,19 @@ export async function dispatchInboundToAiReply(
   args: DispatchArgs,
 ): Promise<void> {
   const { accountId, conversationId, contactId, configOwnerUserId } = args
+  console.log('[ai auto-reply][debug] entry', { accountId, conversationId })
 
   try {
     const db = supabaseAdmin()
 
     const config = await loadAiConfig(db, accountId)
-    if (!config || !config.autoReplyEnabled) return
+    if (!config || !config.autoReplyEnabled) {
+      console.log('[ai auto-reply][debug] exit: no config or auto-reply disabled', {
+        hasConfig: !!config,
+        autoReplyEnabled: config?.autoReplyEnabled,
+      })
+      return
+    }
 
     // Deterministic, user-configured responders win over the LLM — the
     // caller already excludes messages a Flow consumed. Message-level
@@ -88,24 +95,41 @@ export async function dispatchInboundToAiReply(
       .eq('is_active', true)
       .in('trigger_type', ['new_message_received', 'keyword_match'])
       .limit(1)
-    if (autoResponders && autoResponders.length > 0) return
+    if (autoResponders && autoResponders.length > 0) {
+      console.log('[ai auto-reply][debug] exit: active automation auto-responder stands down')
+      return
+    }
 
     const { data: conv, error: convErr } = await db
       .from('conversations')
       .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count, last_ai_reply_at')
       .eq('id', conversationId)
       .maybeSingle()
-    if (convErr || !conv) return
-    if (conv.assigned_agent_id) return // a human owns this thread
-    if (conv.ai_autoreply_disabled) return // handed off / turned off here
+    if (convErr || !conv) {
+      console.log('[ai auto-reply][debug] exit: conversation fetch failed or missing', convErr)
+      return
+    }
+    if (conv.assigned_agent_id) {
+      console.log('[ai auto-reply][debug] exit: human agent assigned', conv.assigned_agent_id)
+      return // a human owns this thread
+    }
+    if (conv.ai_autoreply_disabled) {
+      console.log('[ai auto-reply][debug] exit: ai_autoreply_disabled on conversation')
+      return // handed off / turned off here
+    }
     // Cheap early-out; the authoritative cap check is the atomic claim
     // below (this read can race a concurrent inbound). Null cap = "sin
     // límite" (migration 057) — never early-out on it.
     if (
       config.autoReplyMaxPerConversation != null &&
       conv.ai_reply_count >= config.autoReplyMaxPerConversation
-    )
+    ) {
+      console.log('[ai auto-reply][debug] exit: per-conversation cap reached', {
+        replyCount: conv.ai_reply_count,
+        cap: config.autoReplyMaxPerConversation,
+      })
       return
+    }
 
     // Reply delay (WhatsApp-only, migration 057): the bot waits
     // `replyDelaySeconds` after ITS OWN last reply before answering
@@ -115,11 +139,18 @@ export async function dispatchInboundToAiReply(
     // a message arriving mid-wait never pushes the wait out further —
     // it just rides the timer that's already running.
     if (config.replyDelaySeconds > 0) {
-      if (pendingReplyTimers.has(conversationId)) return // already queued for the pending fire
+      if (pendingReplyTimers.has(conversationId)) {
+        console.log('[ai auto-reply][debug] exit: already queued for the pending delayed fire')
+        return // already queued for the pending fire
+      }
       if (conv.last_ai_reply_at) {
         const waitMs =
           config.replyDelaySeconds * 1000 - (Date.now() - new Date(conv.last_ai_reply_at).getTime())
         if (waitMs > 0) {
+          console.log('[ai auto-reply][debug] scheduling delayed reply', {
+            waitMs,
+            lastAiReplyAt: conv.last_ai_reply_at,
+          })
           scheduleDelayedReply(conversationId, waitMs, args)
           return
         }
@@ -130,7 +161,11 @@ export async function dispatchInboundToAiReply(
       accountId,
       embeddingsApiKey: config.embeddingsApiKey,
     })
-    if (messages.length === 0) return
+    if (messages.length === 0) {
+      console.log('[ai auto-reply][debug] exit: empty conversation context')
+      return
+    }
+    console.log('[ai auto-reply][debug] proceeding to generate reply', { messageCount: messages.length })
 
     // A name is "on file" once it's a real, non-placeholder value — on
     // WhatsApp the contact is created with `name || phone` (see the

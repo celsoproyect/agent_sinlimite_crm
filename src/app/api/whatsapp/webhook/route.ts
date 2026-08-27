@@ -913,6 +913,12 @@ async function processMessage(
   // `after()` (same reason as the webhook dispatch below);
   // `dispatchInboundToAiReply` owns its eligibility gates + try/catch and
   // never throws.
+  console.log('[ai auto-reply][debug] webhook gate', {
+    flowConsumed,
+    interactiveReplyId,
+    inboundTextTrimmed: inboundText.trim().length > 0,
+    contentType,
+  })
   if (
     !flowConsumed &&
     !interactiveReplyId &&
