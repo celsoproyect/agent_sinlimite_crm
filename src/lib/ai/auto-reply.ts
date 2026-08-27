@@ -16,6 +16,23 @@ import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
 
+// Pending reply-delay timers, keyed by conversation. In-process only —
+// doesn't survive a restart and doesn't coordinate across replicas, which
+// is fine for the single-instance Dokploy deployment this targets but is
+// worth knowing if that ever changes. A conversation only ever has one
+// entry: while it's set, further inbounds during the wait are folded into
+// the pending fire instead of scheduling their own timer (see the
+// `pendingReplyTimers.has` check above).
+const pendingReplyTimers = new Map<string, ReturnType<typeof setTimeout>>()
+
+function scheduleDelayedReply(conversationId: string, waitMs: number, args: DispatchArgs): void {
+  const timer = setTimeout(() => {
+    pendingReplyTimers.delete(conversationId)
+    void dispatchInboundToAiReply(args)
+  }, waitMs)
+  pendingReplyTimers.set(conversationId, timer)
+}
+
 interface DispatchArgs {
   /** Tenancy key — drives config, contact, and whatsapp_config lookups. */
   accountId: string
@@ -75,15 +92,39 @@ export async function dispatchInboundToAiReply(
 
     const { data: conv, error: convErr } = await db
       .from('conversations')
-      .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count')
+      .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count, last_ai_reply_at')
       .eq('id', conversationId)
       .maybeSingle()
     if (convErr || !conv) return
     if (conv.assigned_agent_id) return // a human owns this thread
     if (conv.ai_autoreply_disabled) return // handed off / turned off here
     // Cheap early-out; the authoritative cap check is the atomic claim
-    // below (this read can race a concurrent inbound).
-    if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return
+    // below (this read can race a concurrent inbound). Null cap = "sin
+    // límite" (migration 057) — never early-out on it.
+    if (
+      config.autoReplyMaxPerConversation != null &&
+      conv.ai_reply_count >= config.autoReplyMaxPerConversation
+    )
+      return
+
+    // Reply delay (WhatsApp-only, migration 057): the bot waits
+    // `replyDelaySeconds` after ITS OWN last reply before answering
+    // again, so a burst of customer messages sent in that window gets
+    // answered together on one call instead of one bot reply per
+    // inbound. Anchored to `last_ai_reply_at` (not to this inbound), so
+    // a message arriving mid-wait never pushes the wait out further —
+    // it just rides the timer that's already running.
+    if (config.replyDelaySeconds > 0) {
+      if (pendingReplyTimers.has(conversationId)) return // already queued for the pending fire
+      if (conv.last_ai_reply_at) {
+        const waitMs =
+          config.replyDelaySeconds * 1000 - (Date.now() - new Date(conv.last_ai_reply_at).getTime())
+        if (waitMs > 0) {
+          scheduleDelayedReply(conversationId, waitMs, args)
+          return
+        }
+      }
+    }
 
     const messages = await buildConversationContext(db, conversationId, {
       accountId,
@@ -289,6 +330,18 @@ export async function dispatchInboundToAiReply(
         }
         return
       }
+    }
+
+    // Anchor for the next reply-delay wait (see the check near the top of
+    // this function) — best-effort, never blocks the reply that already
+    // landed.
+    try {
+      await db
+        .from('conversations')
+        .update({ last_ai_reply_at: new Date().toISOString() })
+        .eq('id', conversationId)
+    } catch (err) {
+      console.error('[ai auto-reply] last_ai_reply_at update failed:', err)
     }
 
     // Dispatch any attachment(s) the model selected via send_attachment,

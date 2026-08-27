@@ -204,12 +204,16 @@ function sumUsage(a: AiUsage | null, b: AiUsage | null): AiUsage | null {
  * text reply is guaranteed. Usage is summed across every round.
  */
 export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs, tools: toolArgs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, temperature, tools: toolArgs } = args
   const knowledgeTool = toolArgs?.knowledge
   const attachmentTool = toolArgs?.attachments
   const bookingTool = toolArgs?.booking
   const nameCaptureEnabled = !!toolArgs?.nameCapture
   const supportsVision = findChatModel(model)?.supportsVision ?? false
+  // The o-series reasoning models 400 on any non-default temperature —
+  // omit the field entirely for them rather than send a value they'll
+  // reject (see models.ts).
+  const supportsTemperature = findChatModel(model)?.supportsTemperature ?? true
   const tools = buildTools(
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
@@ -243,6 +247,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
           model,
           messages: conversation,
           max_completion_tokens: MAX_OUTPUT_TOKENS,
+          ...(supportsTemperature && temperature != null ? { temperature } : {}),
           ...(withTools && tools.length > 0 ? { tools, tool_choice: 'auto' } : {}),
         }),
         signal: AbortSignal.timeout(timeoutMs),

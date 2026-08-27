@@ -66,7 +66,14 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   if (convErr || !conv) return { ok: false, reason: 'ai_unavailable' }
   if (conv.assigned_agent_id) return { ok: false, reason: 'human_owns_thread' }
   if (conv.ai_autoreply_disabled) return { ok: false, reason: 'human_owns_thread' }
-  if (conv.ai_reply_count >= config.autoReplyMaxPerConversation) return { ok: false, reason: 'reply_cap_reached' }
+  // Null cap = "sin límite" (migration 057) — `>= null` coerces to `>= 0`
+  // in JS and would wrongly read as "cap reached" on the very first
+  // reply, so this must be guarded explicitly rather than compared bare.
+  if (
+    config.autoReplyMaxPerConversation != null &&
+    conv.ai_reply_count >= config.autoReplyMaxPerConversation
+  )
+    return { ok: false, reason: 'reply_cap_reached' }
 
   const messages = await buildConversationContext(db, conversationId, {
     accountId,

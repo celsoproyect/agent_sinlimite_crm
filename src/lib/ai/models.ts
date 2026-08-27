@@ -21,6 +21,11 @@ export interface OpenAiChatModel {
    *  (o1-mini) get a text placeholder substituted in for any image
    *  instead of a failed request — see providers/openai.ts. */
   supportsVision: boolean
+  /** Whether the model accepts a non-default `temperature`. The o-series
+   *  reasoning models reject the parameter outright (400) unless it's
+   *  left at their fixed default, so the adapter omits it entirely for
+   *  these — see providers/openai.ts. */
+  supportsTemperature: boolean
 }
 
 export interface OpenAiEmbeddingModel {
@@ -35,26 +40,33 @@ export interface OpenAiEmbeddingModel {
 }
 
 export const OPENAI_CHAT_MODELS: OpenAiChatModel[] = [
-  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (balanced, default)', supportsVision: true },
-  { id: 'gpt-5.4', label: 'GPT-5.4 (most capable)', supportsVision: true },
-  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)', supportsVision: true },
-  { id: 'gpt-5', label: 'GPT-5', supportsVision: true },
-  { id: 'gpt-5-mini', label: 'GPT-5 Mini', supportsVision: true },
-  { id: 'gpt-5-nano', label: 'GPT-5 Nano', supportsVision: true },
-  { id: 'o4-mini', label: 'o4-mini (reasoning)', supportsVision: true },
-  { id: 'o3', label: 'o3 (reasoning)', supportsVision: true },
-  { id: 'o3-mini', label: 'o3-mini (reasoning)', supportsVision: false },
-  { id: 'o1', label: 'o1 (reasoning)', supportsVision: true },
-  { id: 'o1-mini', label: 'o1-mini (reasoning)', supportsVision: false },
-  { id: 'gpt-4.1', label: 'GPT-4.1', supportsVision: true },
-  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', supportsVision: true },
-  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', supportsVision: true },
-  { id: 'gpt-4o', label: 'GPT-4o', supportsVision: true },
-  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', supportsVision: true },
+  { id: 'gpt-5.4-mini', label: 'GPT-5.4 Mini (balanced, default)', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-5.4', label: 'GPT-5.4 (most capable)', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-5.4-nano', label: 'GPT-5.4 Nano (cheapest)', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-5', label: 'GPT-5', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-5-mini', label: 'GPT-5 Mini', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-5-nano', label: 'GPT-5 Nano', supportsVision: true, supportsTemperature: true },
+  { id: 'o4-mini', label: 'o4-mini (reasoning)', supportsVision: true, supportsTemperature: false },
+  { id: 'o3', label: 'o3 (reasoning)', supportsVision: true, supportsTemperature: false },
+  { id: 'o3-mini', label: 'o3-mini (reasoning)', supportsVision: false, supportsTemperature: false },
+  { id: 'o1', label: 'o1 (reasoning)', supportsVision: true, supportsTemperature: false },
+  { id: 'o1-mini', label: 'o1-mini (reasoning)', supportsVision: false, supportsTemperature: false },
+  { id: 'gpt-4.1', label: 'GPT-4.1', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-4.1-mini', label: 'GPT-4.1 Mini', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-4.1-nano', label: 'GPT-4.1 Nano', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-4o', label: 'GPT-4o', supportsVision: true, supportsTemperature: true },
+  { id: 'gpt-4o-mini', label: 'GPT-4o Mini', supportsVision: true, supportsTemperature: true },
 ]
 
 export function findChatModel(id: string): OpenAiChatModel | undefined {
   return OPENAI_CHAT_MODELS.find((m) => m.id === id)
+}
+
+/** Anthropic's Messages API accepts `temperature` on every current
+ *  model — only OpenAI's picklist has models that reject it. */
+export function modelSupportsTemperature(provider: AiProviderLike, model: string): boolean {
+  if (provider === 'anthropic') return true
+  return findChatModel(model)?.supportsTemperature ?? true
 }
 
 /** Anthropic keeps a free-text model input (see ai-config.tsx), so there's

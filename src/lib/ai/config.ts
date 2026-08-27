@@ -10,14 +10,16 @@ interface AiConfigRow {
   system_prompt: string | null
   is_active: boolean
   auto_reply_enabled: boolean
-  auto_reply_max_per_conversation: number
+  auto_reply_max_per_conversation: number | null
+  reply_delay_seconds: number
+  temperature: number
   handoff_agent_id: string | null
   embeddings_api_key: string | null
   embeddings_model: string
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, embeddings_api_key, embeddings_model'
+  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, embeddings_api_key, embeddings_model'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -79,6 +81,8 @@ export async function loadAiConfig(
     isActive: row.is_active,
     autoReplyEnabled: row.auto_reply_enabled,
     autoReplyMaxPerConversation: row.auto_reply_max_per_conversation,
+    replyDelaySeconds: row.reply_delay_seconds,
+    temperature: row.temperature,
     handoffAgentId: row.handoff_agent_id,
     embeddingsApiKey,
     embeddingsModel: row.embeddings_model,

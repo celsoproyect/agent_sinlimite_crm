@@ -72,6 +72,8 @@ export async function POST(request: Request) {
         isActive: true,
         autoReplyEnabled: false,
         autoReplyMaxPerConversation: 3,
+        replyDelaySeconds: 0,
+        temperature: 0.7,
         handoffAgentId: null,
         embeddingsApiKey: null,
         embeddingsModel: DEFAULT_EMBEDDINGS_MODEL,

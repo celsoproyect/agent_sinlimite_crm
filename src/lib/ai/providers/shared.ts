@@ -92,6 +92,10 @@ export interface ProviderArgs {
   systemPrompt: string
   messages: ChatMessage[]
   timeoutMs: number
+  /** Sampling temperature (0-2). Omit to use the provider's own
+   *  default — the OpenAI adapter also omits it for models that reject
+   *  a non-default value (see models.ts `supportsTemperature`). */
+  temperature?: number
   /** When either is present, the adapter exposes the corresponding
    *  function tool to the model and runs its own internal multi-round
    *  tool-call loop (both tools can be offered in the same round). */

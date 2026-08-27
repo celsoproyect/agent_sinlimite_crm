@@ -26,6 +26,8 @@ const ROW = {
   is_active: false,
   auto_reply_enabled: false,
   auto_reply_max_per_conversation: 3,
+  reply_delay_seconds: 0,
+  temperature: 0.7,
   embeddings_api_key: null,
 }
 

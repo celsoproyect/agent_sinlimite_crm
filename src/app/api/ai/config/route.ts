@@ -31,7 +31,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, handoff_agent_id, api_key, embeddings_api_key, embeddings_model',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, api_key, embeddings_api_key, embeddings_model',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -97,9 +97,28 @@ export async function POST(request: Request) {
     const isActive = body.is_active === true
     const autoReplyEnabled = body.auto_reply_enabled === true
 
-    let maxPer = Number(body.auto_reply_max_per_conversation)
-    if (!Number.isFinite(maxPer)) maxPer = 3
-    maxPer = Math.min(20, Math.max(1, Math.floor(maxPer)))
+    // `null` = "sin límite" (migration 057); anything else clamps to the
+    // existing 1-20 cap range, same as before.
+    let maxPer: number | null
+    if (body.auto_reply_max_per_conversation === null) {
+      maxPer = null
+    } else {
+      let n = Number(body.auto_reply_max_per_conversation)
+      if (!Number.isFinite(n)) n = 3
+      maxPer = Math.min(20, Math.max(1, Math.floor(n)))
+    }
+
+    // WhatsApp-only reply delay, in seconds, measured from the bot's own
+    // last reply (see lib/ai/auto-reply.ts). 0 = reply immediately.
+    let replyDelaySeconds = Number(body.reply_delay_seconds)
+    if (!Number.isFinite(replyDelaySeconds)) replyDelaySeconds = 0
+    replyDelaySeconds = Math.min(300, Math.max(0, Math.floor(replyDelaySeconds)))
+
+    // Sampling temperature threaded straight into the provider request
+    // (lib/ai/providers/*.ts). Rounded to match the numeric(3,2) column.
+    let temperature = Number(body.temperature)
+    if (!Number.isFinite(temperature)) temperature = 0.7
+    temperature = Math.round(Math.min(2, Math.max(0, temperature)) * 100) / 100
 
     // Handoff routing target for auto-reply. A non-empty string must be a
     // member of this account (else the conversation would be assigned to a
@@ -181,6 +200,8 @@ export async function POST(request: Request) {
           isActive,
           autoReplyEnabled,
           autoReplyMaxPerConversation: maxPer,
+          replyDelaySeconds,
+          temperature,
           handoffAgentId: null,
           embeddingsApiKey: null,
           embeddingsModel: rawEmbeddingsModel || DEFAULT_EMBEDDINGS_MODEL,
@@ -222,6 +243,8 @@ export async function POST(request: Request) {
       is_active: isActive,
       auto_reply_enabled: autoReplyEnabled,
       auto_reply_max_per_conversation: maxPer,
+      reply_delay_seconds: replyDelaySeconds,
+      temperature,
     }
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.

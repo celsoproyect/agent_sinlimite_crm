@@ -75,6 +75,9 @@ export function AiConfig() {
   const [isActive, setIsActive] = useState(false);
   const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
   const [maxPerConversation, setMaxPerConversation] = useState(3);
+  const [unlimitedReplies, setUnlimitedReplies] = useState(false);
+  const [replyDelaySeconds, setReplyDelaySeconds] = useState(0);
+  const [temperature, setTemperature] = useState(0.7);
   // Empty string = leave unassigned (shared queue).
   const [handoffAgentId, setHandoffAgentId] = useState('');
   const [members, setMembers] = useState<AccountMember[]>([]);
@@ -101,7 +104,10 @@ export function AiConfig() {
         setSystemPrompt(data.system_prompt ?? '');
         setIsActive(data.is_active);
         setAutoReplyEnabled(data.auto_reply_enabled);
+        setUnlimitedReplies(data.auto_reply_max_per_conversation == null);
         setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
+        setReplyDelaySeconds(data.reply_delay_seconds ?? 0);
+        setTemperature(data.temperature ?? 0.7);
         setHandoffAgentId(data.handoff_agent_id ?? '');
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
@@ -154,7 +160,9 @@ export function AiConfig() {
     system_prompt: systemPrompt.trim() || null,
     is_active: isActive,
     auto_reply_enabled: autoReplyEnabled,
-    auto_reply_max_per_conversation: maxPerConversation,
+    auto_reply_max_per_conversation: unlimitedReplies ? null : maxPerConversation,
+    reply_delay_seconds: replyDelaySeconds,
+    temperature,
     handoff_agent_id: handoffAgentId || null,
   });
 
@@ -222,6 +230,10 @@ export function AiConfig() {
         setKeyEdited(false);
         setIsActive(false);
         setAutoReplyEnabled(false);
+        setUnlimitedReplies(false);
+        setMaxPerConversation(3);
+        setReplyDelaySeconds(0);
+        setTemperature(0.7);
         setSystemPrompt('');
         setHandoffAgentId('');
       } else {
@@ -484,18 +496,73 @@ export function AiConfig() {
                   {t('maxAutoRepliesDesc')}
                 </p>
               </div>
+              <div className="flex items-center gap-3">
+                <Input
+                  id="ai-max"
+                  type="number"
+                  min={1}
+                  max={20}
+                  value={maxPerConversation}
+                  onChange={(e) =>
+                    setMaxPerConversation(
+                      Math.min(20, Math.max(1, Number(e.target.value) || 1)),
+                    )
+                  }
+                  disabled={disabled || !autoReplyEnabled || unlimitedReplies}
+                  className="w-20"
+                />
+                <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Switch
+                    checked={unlimitedReplies}
+                    onCheckedChange={setUnlimitedReplies}
+                    disabled={disabled || !autoReplyEnabled}
+                  />
+                  {t('unlimitedReplies')}
+                </label>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="ai-reply-delay">{t('replyDelay')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('replyDelayDesc')}
+                </p>
+              </div>
               <Input
-                id="ai-max"
+                id="ai-reply-delay"
                 type="number"
-                min={1}
-                max={20}
-                value={maxPerConversation}
+                min={0}
+                max={300}
+                value={replyDelaySeconds}
                 onChange={(e) =>
-                  setMaxPerConversation(
-                    Math.min(20, Math.max(1, Number(e.target.value) || 1)),
+                  setReplyDelaySeconds(
+                    Math.min(300, Math.max(0, Math.floor(Number(e.target.value) || 0))),
                   )
                 }
                 disabled={disabled || !autoReplyEnabled}
+                className="w-20"
+              />
+            </div>
+
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <Label htmlFor="ai-temperature">{t('temperature')}</Label>
+                <p className="text-xs text-muted-foreground">
+                  {t('temperatureDesc')}
+                </p>
+              </div>
+              <Input
+                id="ai-temperature"
+                type="number"
+                min={0}
+                max={2}
+                step={0.1}
+                value={temperature}
+                onChange={(e) =>
+                  setTemperature(Math.min(2, Math.max(0, Number(e.target.value) || 0)))
+                }
+                disabled={disabled}
                 className="w-20"
               />
             </div>

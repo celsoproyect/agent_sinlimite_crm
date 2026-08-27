@@ -70,6 +70,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     systemPrompt,
     messages,
     timeoutMs,
+    temperature: config.temperature,
     tools:
       knowledge || attachments || booking || nameCapture
         ? { knowledge, attachments, booking, nameCapture }

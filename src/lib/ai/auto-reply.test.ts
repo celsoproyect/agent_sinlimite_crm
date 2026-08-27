@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import type { AiConfig } from './types'
 
 // Shared, hoisted mock state so the module mocks can close over it.
@@ -83,6 +83,8 @@ function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
     isActive: true,
     autoReplyEnabled: true,
     autoReplyMaxPerConversation: 3,
+    replyDelaySeconds: 0,
+    temperature: 0.7,
     handoffAgentId: null,
     embeddingsApiKey: null,
     embeddingsModel: 'text-embedding-3-small',
@@ -95,6 +97,7 @@ beforeEach(() => {
     assigned_agent_id: null,
     ai_autoreply_disabled: false,
     ai_reply_count: 0,
+    last_ai_reply_at: null,
   }
   h.state.autoResponders = []
   h.state.claim = true
@@ -196,6 +199,90 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
     expect(h.engineSendText).not.toHaveBeenCalled()
+  })
+
+  it('does not skip when the per-conversation cap is null (sin límite)', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ autoReplyMaxPerConversation: null }))
+    h.state.conv = {
+      assigned_agent_id: null,
+      ai_autoreply_disabled: false,
+      ai_reply_count: 999,
+      last_ai_reply_at: null,
+    }
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText).toHaveBeenCalled()
+    expect(h.state.rpcCalls[0]).toEqual({
+      name: 'claim_ai_reply_slot',
+      args: { conversation_id: 'conv-1', max_replies: null },
+    })
+  })
+
+  it('stamps last_ai_reply_at on the conversation after a successful send', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.updatePayload).toHaveProperty('last_ai_reply_at')
+  })
+})
+
+describe('dispatchInboundToAiReply — reply delay', () => {
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('replies immediately on the first reply, when there is no prior reply to anchor the delay to', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ replyDelaySeconds: 60 }))
+    // h.state.conv.last_ai_reply_at is null by default (see beforeEach).
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
+  it('replies immediately once the cool-down since the last reply has already elapsed', async () => {
+    const conversationId = 'conv-delay-elapsed'
+    h.state.conv = {
+      assigned_agent_id: null,
+      ai_autoreply_disabled: false,
+      ai_reply_count: 0,
+      last_ai_reply_at: new Date(Date.now() - 120_000).toISOString(),
+    }
+    h.loadAiConfig.mockResolvedValue(aiConfig({ replyDelaySeconds: 60 }))
+    await dispatchInboundToAiReply({ ...ARGS, conversationId })
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
+  it('waits out the remaining cool-down before replying', async () => {
+    vi.useFakeTimers()
+    const conversationId = 'conv-delay-wait'
+    h.state.conv = {
+      assigned_agent_id: null,
+      ai_autoreply_disabled: false,
+      ai_reply_count: 0,
+      last_ai_reply_at: new Date(Date.now() - 30_000).toISOString(),
+    }
+    h.loadAiConfig.mockResolvedValue(aiConfig({ replyDelaySeconds: 60 }))
+
+    await dispatchInboundToAiReply({ ...ARGS, conversationId })
+    expect(h.engineSendText).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(30_000)
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+  })
+
+  it('batches a burst of inbounds during the wait into a single reply', async () => {
+    vi.useFakeTimers()
+    const conversationId = 'conv-delay-burst'
+    h.state.conv = {
+      assigned_agent_id: null,
+      ai_autoreply_disabled: false,
+      ai_reply_count: 0,
+      last_ai_reply_at: new Date(Date.now() - 10_000).toISOString(),
+    }
+    h.loadAiConfig.mockResolvedValue(aiConfig({ replyDelaySeconds: 60 }))
+
+    await dispatchInboundToAiReply({ ...ARGS, conversationId })
+    await dispatchInboundToAiReply({ ...ARGS, conversationId }) // second inbound arrives mid-wait
+    expect(h.engineSendText).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(60_000)
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
   })
 })
 

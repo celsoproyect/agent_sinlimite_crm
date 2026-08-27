@@ -204,7 +204,7 @@ function sumUsage(a: AiUsage | null, b: AiUsage | null): AiUsage | null {
  * so a text reply is guaranteed. Usage is summed across every round.
  */
 export async function generateAnthropic(args: ProviderArgs): Promise<ProviderResult> {
-  const { apiKey, model, systemPrompt, messages, timeoutMs, tools: toolArgs } = args
+  const { apiKey, model, systemPrompt, messages, timeoutMs, temperature, tools: toolArgs } = args
   const knowledgeTool = toolArgs?.knowledge
   const attachmentTool = toolArgs?.attachments
   const bookingTool = toolArgs?.booking
@@ -241,6 +241,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
           system: systemPrompt,
           max_tokens: MAX_OUTPUT_TOKENS,
           messages: conversation,
+          ...(temperature != null ? { temperature } : {}),
           ...(withTools && tools.length > 0 ? { tools } : {}),
         }),
         signal: AbortSignal.timeout(timeoutMs),

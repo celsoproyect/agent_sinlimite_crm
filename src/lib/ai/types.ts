@@ -20,7 +20,16 @@ export interface AiConfig {
   systemPrompt: string | null
   isActive: boolean
   autoReplyEnabled: boolean
-  autoReplyMaxPerConversation: number
+  /** Null = "sin límite" — no per-conversation reply cap. */
+  autoReplyMaxPerConversation: number | null
+  /** Seconds the bot waits after its OWN last reply before answering
+   *  again, so a burst of customer messages in that window is answered
+   *  once instead of one reply per inbound. 0 = reply immediately
+   *  (today's behaviour). WhatsApp auto-reply only. */
+  replyDelaySeconds: number
+  /** Sampling temperature (0-2) passed straight through to the
+   *  provider's request body. */
+  temperature: number
   /** Where auto-reply hands a conversation off when the model bails: an
    *  agent's `auth.users.id`, or null to leave it unassigned (drop into
    *  the shared queue). */
