@@ -32,6 +32,7 @@ import { OPENAI_CHAT_MODELS, OPENAI_EMBEDDING_MODELS, DEFAULT_EMBEDDINGS_MODEL }
 import type { AiProvider } from '@/lib/ai/types';
 import type { AccountMember } from '@/types';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
+import { createClient } from '@/lib/supabase/client';
 import { useTranslations } from 'next-intl';
 
 const MASKED_KEY = '••••••••••••••••';
@@ -39,6 +40,12 @@ const MASKED_KEY = '••••••••••••••••';
 // Radix Select can't use an empty-string item value, so the "leave
 // unassigned" choice gets a sentinel that maps to null in the payload.
 const HANDOFF_QUEUE = '__queue__';
+const NO_LEAD_PIPELINE = '__none__';
+
+interface PipelineOption {
+  id: string;
+  name: string;
+}
 
 const PROVIDER_LABEL: Record<AiProvider, string> = {
   openai: 'OpenAI',
@@ -81,6 +88,10 @@ export function AiConfig() {
   // Empty string = leave unassigned (shared queue).
   const [handoffAgentId, setHandoffAgentId] = useState('');
   const [members, setMembers] = useState<AccountMember[]>([]);
+  const [handoffOnMissingInfo, setHandoffOnMissingInfo] = useState(true);
+  // Empty string = no lead capture (tool not exposed to the model).
+  const [leadPipelineId, setLeadPipelineId] = useState('');
+  const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
 
   // Guard keyed on the account (not a bare boolean) so an in-place
   // account switch — ownership transfer, multi-account membership —
@@ -109,6 +120,8 @@ export function AiConfig() {
         setReplyDelaySeconds(data.reply_delay_seconds ?? 0);
         setTemperature(data.temperature ?? 0.7);
         setHandoffAgentId(data.handoff_agent_id ?? '');
+        setHandoffOnMissingInfo(data.handoff_on_missing_info ?? true);
+        setLeadPipelineId(data.lead_pipeline_id ?? '');
         setHasStoredKey(Boolean(data.has_key));
         setApiKey(data.has_key ? MASKED_KEY : '');
         setKeyEdited(false);
@@ -132,6 +145,14 @@ export function AiConfig() {
     // older deployment without the endpoint the picker just shows the
     // queue option.
     void fetchAccountMembers().then(setMembers);
+    // Pipelines for the lead-capture picker — straight from the DB like
+    // automation-builder.tsx's resource loader; RLS scopes it to the
+    // caller's account.
+    void createClient()
+      .from('pipelines')
+      .select('id, name')
+      .order('name')
+      .then(({ data }) => setPipelines((data as PipelineOption[] | null) ?? []));
   }, [accountId, fetchConfig]);
 
   // Swap the model default when the provider changes, unless the user
@@ -164,6 +185,8 @@ export function AiConfig() {
     reply_delay_seconds: replyDelaySeconds,
     temperature,
     handoff_agent_id: handoffAgentId || null,
+    handoff_on_missing_info: handoffOnMissingInfo,
+    lead_pipeline_id: leadPipelineId || null,
   });
 
   const handleTest = async () => {
@@ -236,6 +259,8 @@ export function AiConfig() {
         setTemperature(0.7);
         setSystemPrompt('');
         setHandoffAgentId('');
+        setHandoffOnMissingInfo(true);
+        setLeadPipelineId('');
       } else {
         const data = await res.json();
         toast.error(data.error ?? t('removeFailed'));
@@ -589,6 +614,50 @@ export function AiConfig() {
                   {members.map((m) => (
                     <SelectItem key={m.user_id} value={m.user_id}>
                       {memberLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
+              <div>
+                <p className="text-sm font-medium text-foreground">
+                  {t('handoffOnMissingInfo')}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {t('handoffOnMissingInfoDesc')}
+                </p>
+              </div>
+              <Switch
+                checked={handoffOnMissingInfo}
+                onCheckedChange={setHandoffOnMissingInfo}
+                disabled={disabled || !autoReplyEnabled}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="ai-lead-pipeline">{t('leadPipeline')}</Label>
+              <p className="text-xs text-muted-foreground">
+                {t('leadPipelineDesc')}
+              </p>
+              <Select
+                value={leadPipelineId || NO_LEAD_PIPELINE}
+                onValueChange={(v) =>
+                  setLeadPipelineId(!v || v === NO_LEAD_PIPELINE ? '' : v)
+                }
+                disabled={disabled}
+              >
+                <SelectTrigger id="ai-lead-pipeline">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_LEAD_PIPELINE}>
+                    {t('leadPipelineNone')}
+                  </SelectItem>
+                  {pipelines.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name}
                     </SelectItem>
                   ))}
                 </SelectContent>

@@ -1,8 +1,10 @@
 import {
   AiError,
   type AiConfig,
+  type AiSentiment,
   type AiUsage,
   type BookingOutcome,
+  type CapturedCustomField,
   type ChatMessage,
   type GenerateResult,
   type ResolvedAttachment,
@@ -36,6 +38,18 @@ export interface GenerateArgs {
    *  this (typically "the contact has no real name on file yet"). No
    *  executor needed: the adapter only validates and reports the name. */
   captureCustomerName?: boolean
+  /** True to expose the `add_note` tool. No executor needed. */
+  captureNote?: boolean
+  /** Names of the account's custom fields — present to expose
+   *  `set_custom_field`, constrained to this exact list. No executor
+   *  needed. */
+  customFieldNames?: string[]
+  /** Names of the configured lead pipeline's stages — present to expose
+   *  `set_lead_stage`, constrained to this exact list. No executor
+   *  needed. */
+  leadStageNames?: string[]
+  /** True to expose the `set_sentiment` tool. No executor needed. */
+  captureSentiment?: boolean
 }
 
 /**
@@ -53,6 +67,10 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     searchAttachments,
     checkAvailability,
     captureCustomerName,
+    captureNote,
+    customFieldNames,
+    leadStageNames,
+    captureSentiment,
   } = args
   const timeoutMs = aiRequestTimeoutMs()
   const knowledge: KnowledgeSearchTool | undefined =
@@ -64,6 +82,8 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     : undefined
   const booking: BookingSearchTool | undefined = checkAvailability ? { execute: checkAvailability } : undefined
   const nameCapture = !!captureCustomerName
+  const noteCapture = !!captureNote
+  const sentimentCapture = !!captureSentiment
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
@@ -72,8 +92,15 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     timeoutMs,
     temperature: config.temperature,
     tools:
-      knowledge || attachments || booking || nameCapture
-        ? { knowledge, attachments, booking, nameCapture }
+      knowledge ||
+      attachments ||
+      booking ||
+      nameCapture ||
+      noteCapture ||
+      (customFieldNames && customFieldNames.length > 0) ||
+      (leadStageNames && leadStageNames.length > 0) ||
+      sentimentCapture
+        ? { knowledge, attachments, booking, nameCapture, noteCapture, customFieldNames, leadStageNames, sentimentCapture }
         : undefined,
   }
 
@@ -83,6 +110,10 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     attachments: ResolvedAttachment[]
     booking?: BookingOutcome
     customerName?: string
+    note?: string
+    customFields?: CapturedCustomField[]
+    leadStage?: string
+    sentiment?: AiSentiment
   }
   switch (config.provider) {
     case 'openai':
@@ -98,15 +129,25 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       })
   }
 
-  return parseGeneration(result.text, result.usage, result.attachments, result.booking, result.customerName)
+  return parseGeneration(
+    result.text,
+    result.usage,
+    result.attachments,
+    result.booking,
+    result.customerName,
+    result.note,
+    result.customFields,
+    result.leadStage,
+    result.sentiment,
+  )
 }
 
 /**
  * Split the raw model output into `{ text, handoff, usage, attachments,
- * booking, customerName }`. The sentinel can appear alone or trailing a
- * partial reply; either way we treat the turn as a handoff and strip the
- * marker from any remaining text. The rest of the fields are passed
- * straight through.
+ * booking, customerName, note, customFields, leadStage, sentiment }`. The
+ * sentinel can appear alone or trailing a partial reply; either way we
+ * treat the turn as a handoff and strip the marker from any remaining
+ * text. The rest of the fields are passed straight through.
  */
 export function parseGeneration(
   raw: string,
@@ -114,8 +155,12 @@ export function parseGeneration(
   attachments: ResolvedAttachment[] = [],
   booking?: BookingOutcome,
   customerName?: string,
+  note?: string,
+  customFields?: CapturedCustomField[],
+  leadStage?: string,
+  sentiment?: AiSentiment,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
   const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage, attachments, booking, customerName }
+  return { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, sentiment }
 }

@@ -79,6 +79,23 @@ export function buildSystemPrompt(args: {
   /** True when the contact has no real name on file yet — adds the
    *  instruction to ask for it and call `set_customer_name` once given. */
   needsCustomerName?: boolean
+  /** Auto-reply only: whether the model should hand off when it lacks the
+   *  information to answer confidently, in addition to always handing off
+   *  for an upset customer or an explicit human request. */
+  handoffOnMissingInfo?: boolean
+  /** True when the caller wired up the `add_note` tool — adds the
+   *  instruction on when/how to use it. */
+  noteCaptureAvailable?: boolean
+  /** Names of the account's custom fields — when present, adds the
+   *  `set_custom_field` instruction constrained to this exact list. */
+  customFieldNames?: string[]
+  /** Names of the configured lead pipeline's stages, in order — when
+   *  present, adds the `set_lead_stage` instruction constrained to this
+   *  exact list. */
+  leadStageNames?: string[]
+  /** True when the caller wired up the `set_sentiment` tool — adds the
+   *  instruction on when/how to use it. */
+  sentimentCaptureAvailable?: boolean
 }): string {
   const {
     userPrompt,
@@ -90,6 +107,11 @@ export function buildSystemPrompt(args: {
     attachmentNames,
     bookingAvailable,
     needsCustomerName,
+    handoffOnMissingInfo,
+    noteCaptureAvailable,
+    customFieldNames,
+    leadStageNames,
+    sentimentCaptureAvailable,
   } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
@@ -104,7 +126,10 @@ export function buildSystemPrompt(args: {
 
   if (mode === 'auto_reply') {
     parts.push(
-      `You are replying automatically with no human in the loop. If you cannot confidently and safely help — the customer explicitly asks for a human, is upset or complaining, or the request needs information you do not have — reply with exactly ${HANDOFF_SENTINEL} and nothing else. A human agent will then take over. Prefer handing off over guessing.`,
+      `You are replying automatically with no human in the loop. If the customer explicitly asks for a human, or is upset or complaining, reply with exactly ${HANDOFF_SENTINEL} and nothing else — a human agent will then take over.` +
+        (handoffOnMissingInfo
+          ? ` Also hand off the same way if the request needs information you do not have — prefer handing off over guessing.`
+          : " If you don't have specific information to answer, say so honestly and offer to follow up — do not guess, but do not hand off for this reason alone unless the customer is upset or asks for a human."),
     )
   }
 
@@ -179,6 +204,36 @@ export function buildSystemPrompt(args: {
     parts.push(
       "You don't have this customer's name on file yet. Ask for it in a natural, friendly way, in the customer's own language — right after greeting them, or woven into your first reply if they've already asked something (answer their question first, don't block on the name). " +
         'Once they tell you their name, call set_customer_name with exactly what they gave you — call it at most once per conversation, and never ask again after that, even if they ignore the question or give a business name instead of a personal one.',
+    )
+  }
+
+  if (noteCaptureAvailable) {
+    parts.push(
+      'You also have an add_note tool — call it when you learn something worth remembering about this customer (a preference, a complaint, useful context) that is not already captured elsewhere. ' +
+        "Keep the note short and factual. Don't call it for routine chit-chat, and don't call it more than once or twice per reply.",
+    )
+  }
+
+  if (customFieldNames && customFieldNames.length > 0) {
+    parts.push(
+      'You also have a set_custom_field tool for these known fields on the customer record: ' +
+        `${customFieldNames.join(', ')}. ` +
+        'Call it when the customer tells you something that matches one of these fields exactly. Never invent a field name outside this list.',
+    )
+  }
+
+  if (leadStageNames && leadStageNames.length > 0) {
+    parts.push(
+      'You also have a set_lead_stage tool for this business\'s sales pipeline, with these stages in order: ' +
+        `${leadStageNames.join(', ')}. ` +
+        "Call it when the conversation clearly moves the customer into one of these stages (e.g. they show real interest, or confirm/decline). Don't call it speculatively on a vague first message, and never use a stage name outside this list.",
+    )
+  }
+
+  if (sentimentCaptureAvailable) {
+    parts.push(
+      "You also have a set_sentiment tool — call it when the customer's mood is clearly readable from their message (positive, neutral, or negative). " +
+        "Call it at most once per reply, and only when it's actually informative — skip it for neutral routine messages that don't reveal a mood.",
     )
   }
 

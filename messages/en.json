@@ -304,7 +304,13 @@
       "noUpcomingBooking": "No upcoming booking",
       "capturedData": "Captured data",
       "noCapturedData": "No custom fields defined",
-      "whatsappId": "WhatsApp ID"
+      "whatsappId": "WhatsApp ID",
+      "sentiment": {
+        "positive": "Positive",
+        "neutral": "Neutral",
+        "negative": "Negative"
+      },
+      "aiNote": "Captured automatically by the AI assistant"
     },
     "aiBanner": {
       "pausedTitle": "AI assistant is paused here",
@@ -1909,6 +1915,11 @@
       "handoffTo": "Hand off to",
       "handoffToDesc": "When the bot can’t help — or hits the reply cap — it pauses and routes the chat here, with a short note on what happened.",
       "handoffQueue": "Unassigned queue (any agent can pick it up)",
+      "handoffOnMissingInfo": "Hand off when the AI lacks information",
+      "handoffOnMissingInfoDesc": "If the customer asks something the bot doesn't know, it hands off to a human instead of guessing. Turn this off to let it say so honestly and keep the conversation instead of pausing.",
+      "leadPipeline": "Pipeline for AI-captured leads",
+      "leadPipelineDesc": "When set, the bot can move contacts through this pipeline's stages as the conversation reveals interest — creating a deal if none exists yet.",
+      "leadPipelineNone": "None (don't capture leads)",
       "remove": "Remove",
       "save": "Save",
       "missingModel": "Enter a model name.",

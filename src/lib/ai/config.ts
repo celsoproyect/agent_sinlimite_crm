@@ -14,12 +14,14 @@ interface AiConfigRow {
   reply_delay_seconds: number
   temperature: number
   handoff_agent_id: string | null
+  handoff_on_missing_info: boolean
+  lead_pipeline_id: string | null
   embeddings_api_key: string | null
   embeddings_model: string
 }
 
 const CONFIG_COLUMNS =
-  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, embeddings_api_key, embeddings_model'
+  'provider, model, api_key, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, handoff_on_missing_info, lead_pipeline_id, embeddings_api_key, embeddings_model'
 
 /**
  * Load and decrypt the account's AI config for *use* (draft or
@@ -84,6 +86,8 @@ export async function loadAiConfig(
     replyDelaySeconds: row.reply_delay_seconds,
     temperature: row.temperature,
     handoffAgentId: row.handoff_agent_id,
+    handoffOnMissingInfo: row.handoff_on_missing_info,
+    leadPipelineId: row.lead_pipeline_id,
     embeddingsApiKey,
     embeddingsModel: row.embeddings_model,
   }

@@ -31,7 +31,7 @@ export async function GET() {
       // `api_key` is selected only to derive `has_key` — it is stripped
       // out below and never returned to the client.
       .select(
-        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, api_key, embeddings_api_key, embeddings_model',
+        'provider, model, system_prompt, is_active, auto_reply_enabled, auto_reply_max_per_conversation, reply_delay_seconds, temperature, handoff_agent_id, handoff_on_missing_info, lead_pipeline_id, api_key, embeddings_api_key, embeddings_model',
       )
       .eq('account_id', accountId)
       .maybeSingle()
@@ -139,6 +139,30 @@ export async function POST(request: Request) {
       handoffAgentId = rawHandoff
     }
 
+    // Whether the bot hands off when it lacks the information to answer
+    // confidently (migration 058). Absent → left unchanged on update, or
+    // defaults to the column default (true) on insert.
+    const handoffOnMissingInfoProvided = 'handoff_on_missing_info' in body
+    const handoffOnMissingInfo = body.handoff_on_missing_info !== false
+
+    // Pipeline the AI files/advances leads into via the set_lead_stage
+    // tool. A non-empty string must belong to this account; empty/null
+    // means "no lead capture". Absent → left unchanged on update.
+    const rawLeadPipeline =
+      typeof body.lead_pipeline_id === 'string' ? body.lead_pipeline_id.trim() : ''
+    const leadPipelineProvided = 'lead_pipeline_id' in body
+    let leadPipelineId: string | null = null
+    if (rawLeadPipeline) {
+      const { data: pipeline } = await supabase
+        .from('pipelines')
+        .select('id')
+        .eq('account_id', accountId)
+        .eq('id', rawLeadPipeline)
+        .maybeSingle()
+      if (!pipeline) return bad('lead_pipeline_id must be a pipeline of this account')
+      leadPipelineId = rawLeadPipeline
+    }
+
     const rawKey = typeof body.api_key === 'string' ? body.api_key.trim() : ''
 
     // Embeddings key (optional, for semantic KB search): a non-empty
@@ -203,6 +227,8 @@ export async function POST(request: Request) {
           replyDelaySeconds,
           temperature,
           handoffAgentId: null,
+          handoffOnMissingInfo: true,
+          leadPipelineId: null,
           embeddingsApiKey: null,
           embeddingsModel: rawEmbeddingsModel || DEFAULT_EMBEDDINGS_MODEL,
         })
@@ -249,6 +275,8 @@ export async function POST(request: Request) {
     // Only touch the handoff target when the form actually sent the field,
     // so a partial save (e.g. flipping a toggle) doesn't wipe it.
     if (handoffProvided) shared.handoff_agent_id = handoffAgentId
+    if (handoffOnMissingInfoProvided) shared.handoff_on_missing_info = handoffOnMissingInfo
+    if (leadPipelineProvided) shared.lead_pipeline_id = leadPipelineId
     if (rawEmbeddingsKey) {
       shared.embeddings_api_key = encrypt(rawEmbeddingsKey)
     } else if (clearEmbeddingsKey) {

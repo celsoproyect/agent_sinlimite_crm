@@ -33,7 +33,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
 
 interface ContactSidebarProps {
@@ -261,6 +261,33 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
             </h3>
             {contact.company && (
               <p className="text-xs text-muted-foreground">{contact.company}</p>
+            )}
+            {contact.ai_sentiment && (
+              <span
+                className={cn(
+                  "mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium",
+                  contact.ai_sentiment === "positive" &&
+                    "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-400",
+                  contact.ai_sentiment === "neutral" &&
+                    "bg-muted text-muted-foreground",
+                  contact.ai_sentiment === "negative" &&
+                    "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
+                )}
+                title={
+                  contact.ai_sentiment_updated_at
+                    ? formatDistanceToNow(new Date(contact.ai_sentiment_updated_at), {
+                        addSuffix: true,
+                      })
+                    : undefined
+                }
+              >
+                {contact.ai_sentiment === "positive"
+                  ? "🙂"
+                  : contact.ai_sentiment === "negative"
+                    ? "🙁"
+                    : "😐"}{" "}
+                {tSidebar(`sentiment.${contact.ai_sentiment}`)}
+              </span>
             )}
           </div>
 
@@ -492,6 +519,11 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
                     className="rounded-lg bg-muted px-3 py-2"
                   >
                     <p className="whitespace-pre-wrap text-xs text-muted-foreground">
+                      {note.source === "ai" && (
+                        <span title={tSidebar("aiNote")} className="mr-1">
+                          🤖
+                        </span>
+                      )}
                       {note.note_text}
                     </p>
                     <p className="mt-1 text-[0.625rem] text-muted-foreground">

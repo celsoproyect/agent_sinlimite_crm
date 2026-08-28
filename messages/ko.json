@@ -304,7 +304,13 @@
       "noUpcomingBooking": "예정된 예약 없음",
       "capturedData": "수집된 데이터",
       "noCapturedData": "정의된 커스텀 필드 없음",
-      "whatsappId": "WhatsApp ID"
+      "whatsappId": "WhatsApp ID",
+      "sentiment": {
+        "positive": "긍정적",
+        "neutral": "중립적",
+        "negative": "부정적"
+      },
+      "aiNote": "AI 어시스턴트가 자동으로 기록함"
     },
     "aiBanner": {
       "pausedTitle": "이 대화에서 AI 어시스턴트가 일시 중지됨",
@@ -1909,6 +1915,11 @@
       "handoffTo": "인계 대상",
       "handoffToDesc": "봇이 도움을 줄 수 없거나 응답 한도에 도달하면 일시 중지하고 무슨 일이 있었는지 짧은 메모와 함께 이 대상에게 대화를 넘깁니다.",
       "handoffQueue": "미배정 대기열 (모든 상담원이 처리 가능)",
+      "handoffOnMissingInfo": "정보가 부족하면 상담원에게 인계",
+      "handoffOnMissingInfoDesc": "고객이 봇이 모르는 것을 물어보면 추측하는 대신 상담원에게 인계합니다. 이 옵션을 끄면 봇이 솔직하게 모른다고 답하고 대화를 계속 이어갑니다.",
+      "leadPipeline": "AI가 확보한 리드용 파이프라인",
+      "leadPipelineDesc": "설정하면 봇이 대화에서 관심이 드러날 때 이 파이프라인의 단계로 연락처를 이동시키고, 거래가 없으면 새로 생성합니다.",
+      "leadPipelineNone": "없음 (리드를 캡처하지 않음)",
       "remove": "제거",
       "save": "저장",
       "missingModel": "모델 이름을 입력하세요.",

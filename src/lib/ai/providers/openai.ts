@@ -2,6 +2,7 @@ import {
   AiError,
   type AiUsage,
   type BookingOutcome,
+  type CapturedCustomField,
   type ChatMessage,
   type ProviderResult,
   type ResolvedAttachment,
@@ -13,13 +14,21 @@ import {
   mergeConsecutive,
   normalizeUsage,
   parseBookAppointment,
+  parseCustomField,
   parseCustomerName,
+  parseLeadStage,
+  parseNote,
+  parseSentiment,
   providerHttpError,
   runAttachmentSearch,
   runAvailabilityCheck,
   toNetworkError,
+  ADD_NOTE_TOOL_NAME,
   BOOK_APPOINTMENT_TOOL_NAME,
+  CAPTURE_FIELD_TOOL_NAME,
+  CAPTURE_LEAD_STAGE_TOOL_NAME,
   CAPTURE_NAME_TOOL_NAME,
+  CAPTURE_SENTIMENT_TOOL_NAME,
   CHECK_AVAILABILITY_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
@@ -63,6 +72,10 @@ function buildTools(
   attachmentsEnabled: boolean,
   bookingEnabled: boolean,
   nameCaptureEnabled: boolean,
+  noteCaptureEnabled: boolean,
+  customFieldNames: string[] | null,
+  leadStageNames: string[] | null,
+  sentimentCaptureEnabled: boolean,
 ) {
   const tools: { type: 'function'; function: Record<string, unknown> }[] = []
   if (knowledgeBaseNames) {
@@ -156,6 +169,74 @@ function buildTools(
       },
     })
   }
+  if (noteCaptureEnabled) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: ADD_NOTE_TOOL_NAME,
+        description:
+          'Record a short note about the customer (preference, complaint, useful context) for the CRM. Only for things worth remembering, not routine chit-chat.',
+        parameters: {
+          type: 'object',
+          properties: {
+            text: { type: 'string', description: 'The note text, short and factual.' },
+          },
+          required: ['text'],
+        },
+      },
+    })
+  }
+  if (customFieldNames && customFieldNames.length > 0) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: CAPTURE_FIELD_TOOL_NAME,
+        description:
+          "Record a value for one of the customer's known custom fields, once they've told it to you.",
+        parameters: {
+          type: 'object',
+          properties: {
+            field: { type: 'string', enum: customFieldNames, description: 'Which known field to set.' },
+            value: { type: 'string', description: 'The value the customer gave, as text.' },
+          },
+          required: ['field', 'value'],
+        },
+      },
+    })
+  }
+  if (leadStageNames && leadStageNames.length > 0) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: CAPTURE_LEAD_STAGE_TOOL_NAME,
+        description:
+          "Move this customer's lead into a specific stage of the business's sales pipeline, when the conversation clearly signals it.",
+        parameters: {
+          type: 'object',
+          properties: {
+            stage: { type: 'string', enum: leadStageNames, description: 'Which pipeline stage to set.' },
+          },
+          required: ['stage'],
+        },
+      },
+    })
+  }
+  if (sentimentCaptureEnabled) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: CAPTURE_SENTIMENT_TOOL_NAME,
+        description: "Record the customer's current mood, when it's clearly readable from their message.",
+        parameters: {
+          type: 'object',
+          properties: {
+            sentiment: { type: 'string', enum: ['positive', 'neutral', 'negative'] },
+          },
+          required: ['sentiment'],
+        },
+      },
+    })
+  }
   return tools
 }
 
@@ -209,6 +290,10 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const attachmentTool = toolArgs?.attachments
   const bookingTool = toolArgs?.booking
   const nameCaptureEnabled = !!toolArgs?.nameCapture
+  const noteCaptureEnabled = !!toolArgs?.noteCapture
+  const customFieldNames = toolArgs?.customFieldNames ?? null
+  const leadStageNames = toolArgs?.leadStageNames ?? null
+  const sentimentCaptureEnabled = !!toolArgs?.sentimentCapture
   const supportsVision = findChatModel(model)?.supportsVision ?? false
   // The o-series reasoning models 400 on any non-default temperature —
   // omit the field entirely for them rather than send a value they'll
@@ -219,6 +304,10 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
     !!attachmentTool,
     !!bookingTool,
     nameCaptureEnabled,
+    noteCaptureEnabled,
+    customFieldNames,
+    leadStageNames,
+    sentimentCaptureEnabled,
   )
 
   const conversation: OpenAiMessage[] = [
@@ -233,6 +322,10 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const attachments: ResolvedAttachment[] = []
   const booking: BookingOutcome = {}
   const nameCapture: { name?: string } = {}
+  const noteCapture: { text?: string } = {}
+  const customFields: CapturedCustomField[] = []
+  const leadStageCapture: { stage?: string } = {}
+  const sentimentCapture: { sentiment?: ProviderResult['sentiment'] } = {}
 
   async function callOpenAi(withTools: boolean): Promise<OpenAiResponse> {
     let res: Response
@@ -294,9 +387,17 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
             attachmentTool,
             bookingTool,
             nameCaptureEnabled,
+            noteCaptureEnabled,
+            customFieldNames,
+            leadStageNames,
+            sentimentCaptureEnabled,
             attachments,
             booking,
             nameCapture,
+            noteCapture,
+            customFields,
+            leadStageCapture,
+            sentimentCapture,
           ),
         })
       }
@@ -316,6 +417,10 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
       attachments,
       booking: booking.offer || booking.appointment ? booking : undefined,
       customerName: nameCapture.name,
+      note: noteCapture.text,
+      customFields: customFields.length > 0 ? customFields : undefined,
+      leadStage: leadStageCapture.stage,
+      sentiment: sentimentCapture.sentiment,
     }
   }
 }
@@ -326,9 +431,17 @@ async function runOpenAiTool(
   attachmentTool: AttachmentSearchTool | undefined,
   bookingTool: BookingSearchTool | undefined,
   nameCaptureEnabled: boolean,
+  noteCaptureEnabled: boolean,
+  customFieldNames: string[] | null,
+  leadStageNames: string[] | null,
+  sentimentCaptureEnabled: boolean,
   attachments: ResolvedAttachment[],
   booking: BookingOutcome,
   nameCapture: { name?: string },
+  noteCapture: { text?: string },
+  customFields: CapturedCustomField[],
+  leadStageCapture: { stage?: string },
+  sentimentCapture: { sentiment?: ProviderResult['sentiment'] },
 ): Promise<string> {
   let parsed: Record<string, unknown> = {}
   try {
@@ -383,6 +496,34 @@ async function runOpenAiTool(
     const result = parseCustomerName(parsed)
     if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
     nameCapture.name = result.name
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolCall.function.name === ADD_NOTE_TOOL_NAME && noteCaptureEnabled) {
+    const result = parseNote(parsed)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    noteCapture.text = result.text
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolCall.function.name === CAPTURE_FIELD_TOOL_NAME && customFieldNames) {
+    const result = parseCustomField(parsed, customFieldNames)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    customFields.push(result)
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolCall.function.name === CAPTURE_LEAD_STAGE_TOOL_NAME && leadStageNames) {
+    const result = parseLeadStage(parsed, leadStageNames)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    leadStageCapture.stage = result.stage
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolCall.function.name === CAPTURE_SENTIMENT_TOOL_NAME && sentimentCaptureEnabled) {
+    const result = parseSentiment(parsed)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    sentimentCapture.sentiment = result.sentiment
     return JSON.stringify({ recorded: true })
   }
 

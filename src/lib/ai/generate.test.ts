@@ -14,6 +14,8 @@ function config(overrides: Partial<AiConfig> = {}): AiConfig {
     replyDelaySeconds: 0,
     temperature: 0.7,
     handoffAgentId: null,
+    handoffOnMissingInfo: true,
+    leadPipelineId: null,
     embeddingsApiKey: null,
     embeddingsModel: 'text-embedding-3-small',
     ...overrides,
@@ -701,6 +703,156 @@ describe('generateReply — send_attachment tool loop', () => {
     })
 
     expect(res.attachments).toEqual([])
+  })
+})
+
+describe('generateReply — handoff/capture tool loop', () => {
+  it('accumulates note, custom field, lead stage, and sentiment captures in one round (OpenAI)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: { name: 'add_note', arguments: JSON.stringify({ text: 'Wants a callback' }) },
+                  },
+                  {
+                    id: 'call_2',
+                    type: 'function',
+                    function: {
+                      name: 'set_custom_field',
+                      arguments: JSON.stringify({ field: 'Budget', value: '$500' }),
+                    },
+                  },
+                  {
+                    id: 'call_3',
+                    type: 'function',
+                    function: { name: 'set_lead_stage', arguments: JSON.stringify({ stage: 'Qualified' }) },
+                  },
+                  {
+                    id: 'call_4',
+                    type: 'function',
+                    function: { name: 'set_sentiment', arguments: JSON.stringify({ sentiment: 'positive' }) },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'Got it, thanks!' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'My budget is $500 and I want a callback' }],
+      captureNote: true,
+      customFieldNames: ['Budget'],
+      leadStageNames: ['New', 'Qualified'],
+      captureSentiment: true,
+    })
+
+    expect(res.text).toBe('Got it, thanks!')
+    expect(res.note).toBe('Wants a callback')
+    expect(res.customFields).toEqual([{ field: 'Budget', value: '$500' }])
+    expect(res.leadStage).toBe('Qualified')
+    expect(res.sentiment).toBe('positive')
+  })
+
+  it('does not expose set_lead_stage when no lead stage names are given', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+      captureNote: true,
+      captureSentiment: true,
+    })
+
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body)
+    const toolNames = (body.tools ?? []).map((t: { function: { name: string } }) => t.function.name)
+    expect(toolNames).toContain('add_note')
+    expect(toolNames).toContain('set_sentiment')
+    expect(toolNames).not.toContain('set_lead_stage')
+    expect(toolNames).not.toContain('set_custom_field')
+  })
+
+  it('reports an error result and keeps generating when a custom field is unknown, without accumulating it', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          choices: [
+            {
+              message: {
+                content: null,
+                tool_calls: [
+                  {
+                    id: 'call_1',
+                    type: 'function',
+                    function: {
+                      name: 'set_custom_field',
+                      arguments: JSON.stringify({ field: 'Not A Field', value: 'x' }),
+                    },
+                  },
+                ],
+              },
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'ok' } }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'openai' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Hi' }],
+      customFieldNames: ['Budget'],
+    })
+
+    expect(res.customFields).toBeUndefined()
+    const secondBody = JSON.parse(fetchMock.mock.calls[1][1].body)
+    const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
+    expect(JSON.parse(toolMsg.content).recorded).toBe(false)
+  })
+
+  it('accumulates note and sentiment captures (Anthropic)', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        okResponse({
+          content: [
+            { type: 'tool_use', id: 'toolu_1', name: 'add_note', input: { text: 'Prefers email' } },
+            { type: 'tool_use', id: 'toolu_2', name: 'set_sentiment', input: { sentiment: 'neutral' } },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(okResponse({ content: [{ type: 'text', text: 'Noted!' }] }))
+    vi.stubGlobal('fetch', fetchMock)
+
+    const res = await generateReply({
+      config: config({ provider: 'anthropic' }),
+      systemPrompt: 'sys',
+      messages: [{ role: 'user', content: 'Email me instead please' }],
+      captureNote: true,
+      captureSentiment: true,
+    })
+
+    expect(res.text).toBe('Noted!')
+    expect(res.note).toBe('Prefers email')
+    expect(res.sentiment).toBe('neutral')
   })
 })
 

@@ -3,6 +3,7 @@ import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { getAttachmentRoster, searchAttachments } from './attachments'
+import { getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
 import { bookingEnabled, checkAvailability, insertAiBooking } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
@@ -66,17 +67,12 @@ export async function dispatchInboundToAiReply(
   args: DispatchArgs,
 ): Promise<void> {
   const { accountId, conversationId, contactId, configOwnerUserId } = args
-  console.log('[ai auto-reply][debug] entry', { accountId, conversationId })
 
   try {
     const db = supabaseAdmin()
 
     const config = await loadAiConfig(db, accountId)
     if (!config || !config.autoReplyEnabled) {
-      console.log('[ai auto-reply][debug] exit: no config or auto-reply disabled', {
-        hasConfig: !!config,
-        autoReplyEnabled: config?.autoReplyEnabled,
-      })
       return
     }
 
@@ -96,7 +92,6 @@ export async function dispatchInboundToAiReply(
       .in('trigger_type', ['new_message_received', 'keyword_match'])
       .limit(1)
     if (autoResponders && autoResponders.length > 0) {
-      console.log('[ai auto-reply][debug] exit: active automation auto-responder stands down')
       return
     }
 
@@ -106,15 +101,12 @@ export async function dispatchInboundToAiReply(
       .eq('id', conversationId)
       .maybeSingle()
     if (convErr || !conv) {
-      console.log('[ai auto-reply][debug] exit: conversation fetch failed or missing', convErr)
       return
     }
     if (conv.assigned_agent_id) {
-      console.log('[ai auto-reply][debug] exit: human agent assigned', conv.assigned_agent_id)
       return // a human owns this thread
     }
     if (conv.ai_autoreply_disabled) {
-      console.log('[ai auto-reply][debug] exit: ai_autoreply_disabled on conversation')
       return // handed off / turned off here
     }
     // Cheap early-out; the authoritative cap check is the atomic claim
@@ -124,10 +116,6 @@ export async function dispatchInboundToAiReply(
       config.autoReplyMaxPerConversation != null &&
       conv.ai_reply_count >= config.autoReplyMaxPerConversation
     ) {
-      console.log('[ai auto-reply][debug] exit: per-conversation cap reached', {
-        replyCount: conv.ai_reply_count,
-        cap: config.autoReplyMaxPerConversation,
-      })
       return
     }
 
@@ -140,17 +128,12 @@ export async function dispatchInboundToAiReply(
     // it just rides the timer that's already running.
     if (config.replyDelaySeconds > 0) {
       if (pendingReplyTimers.has(conversationId)) {
-        console.log('[ai auto-reply][debug] exit: already queued for the pending delayed fire')
         return // already queued for the pending fire
       }
       if (conv.last_ai_reply_at) {
         const waitMs =
           config.replyDelaySeconds * 1000 - (Date.now() - new Date(conv.last_ai_reply_at).getTime())
         if (waitMs > 0) {
-          console.log('[ai auto-reply][debug] scheduling delayed reply', {
-            waitMs,
-            lastAiReplyAt: conv.last_ai_reply_at,
-          })
           scheduleDelayedReply(conversationId, waitMs, args)
           return
         }
@@ -162,10 +145,8 @@ export async function dispatchInboundToAiReply(
       embeddingsApiKey: config.embeddingsApiKey,
     })
     if (messages.length === 0) {
-      console.log('[ai auto-reply][debug] exit: empty conversation context')
       return
     }
-    console.log('[ai auto-reply][debug] proceeding to generate reply', { messageCount: messages.length })
 
     // A name is "on file" once it's a real, non-placeholder value — on
     // WhatsApp the contact is created with `name || phone` (see the
@@ -196,13 +177,20 @@ export async function dispatchInboundToAiReply(
     }
 
     // Ground the reply in the account's knowledge base (best-effort).
-    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable] = await Promise.all([
-      retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
-      getKnowledgeBaseRoster(db, accountId),
-      getAttachmentRoster(db, accountId),
-      bookingEnabled(db, accountId),
-    ])
+    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable, customFieldRoster, leadStageRoster] =
+      await Promise.all([
+        retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
+        getKnowledgeBaseRoster(db, accountId),
+        getAttachmentRoster(db, accountId),
+        bookingEnabled(db, accountId),
+        getCustomFieldRoster(db, accountId),
+        config.leadPipelineId
+          ? getLeadPipelineStages(db, config.leadPipelineId)
+          : Promise.resolve([]),
+      ])
     const attachmentsEnabled = attachmentRoster.length > 0
+    const customFieldNames = customFieldRoster.map((f) => f.field_name)
+    const leadStageNames = leadStageRoster.map((s) => s.name)
 
     const systemPrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
@@ -214,25 +202,35 @@ export async function dispatchInboundToAiReply(
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
       needsCustomerName,
+      handoffOnMissingInfo: config.handoffOnMissingInfo,
+      noteCaptureAvailable: true,
+      customFieldNames,
+      leadStageNames,
+      sentimentCaptureAvailable: true,
     })
 
-    const { text, handoff, usage, attachments, booking, customerName } = await generateReply({
-      config,
-      systemPrompt,
-      messages,
-      knowledgeBases,
-      searchKnowledgeBase: ({ query, knowledgeBaseName }) =>
-        knowledgeBaseName
-          ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
-          : Promise.resolve([]),
-      searchAttachments: attachmentsEnabled
-        ? ({ query }) => searchAttachments(db, accountId, query)
-        : undefined,
-      checkAvailability: bookingAvailable
-        ? ({ date }) => checkAvailability(db, accountId, date)
-        : undefined,
-      captureCustomerName: needsCustomerName,
-    })
+    const { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, sentiment } =
+      await generateReply({
+        config,
+        systemPrompt,
+        messages,
+        knowledgeBases,
+        searchKnowledgeBase: ({ query, knowledgeBaseName }) =>
+          knowledgeBaseName
+            ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
+            : Promise.resolve([]),
+        searchAttachments: attachmentsEnabled
+          ? ({ query }) => searchAttachments(db, accountId, query)
+          : undefined,
+        checkAvailability: bookingAvailable
+          ? ({ date }) => checkAvailability(db, accountId, date)
+          : undefined,
+        captureCustomerName: needsCustomerName,
+        captureNote: true,
+        customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
+        leadStageNames: leadStageNames.length > 0 ? leadStageNames : undefined,
+        captureSentiment: true,
+      })
 
     // Persist a captured name right away, regardless of handoff — the
     // conversation should show the real name in the inbox even if the
@@ -245,6 +243,90 @@ export async function dispatchInboundToAiReply(
           .eq('id', contactId)
       } catch (err) {
         console.error('[ai auto-reply] contact name update failed:', err)
+      }
+    }
+
+    // Persist whatever the model captured this turn via add_note /
+    // set_custom_field / set_lead_stage / set_sentiment — same
+    // best-effort spirit as the customerName block above: none of these
+    // ever block or undo the reply that's about to go out.
+    if (note) {
+      try {
+        await db.from('contact_notes').insert({
+          contact_id: contactId,
+          account_id: accountId,
+          user_id: null,
+          note_text: note,
+          source: 'ai',
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] note insert failed:', err)
+      }
+    }
+
+    if (customFields && customFields.length > 0) {
+      for (const captured of customFields) {
+        const fieldId = customFieldRoster.find((f) => f.field_name === captured.field)?.id
+        if (!fieldId) continue
+        try {
+          await db
+            .from('contact_custom_values')
+            .upsert(
+              { contact_id: contactId, custom_field_id: fieldId, value: captured.value },
+              { onConflict: 'contact_id,custom_field_id' },
+            )
+        } catch (err) {
+          console.error('[ai auto-reply] custom field upsert failed:', err)
+        }
+      }
+    }
+
+    if (leadStage && config.leadPipelineId) {
+      const stageId = leadStageRoster.find((s) => s.name === leadStage)?.id
+      if (stageId) {
+        try {
+          // Same "primary deal" selection as the contact sidebar: the most
+          // recent open deal in this pipeline, falling back to the most
+          // recent deal overall — so the AI advances an existing deal
+          // instead of creating a duplicate whenever one already exists.
+          const { data: existingDeals } = await db
+            .from('deals')
+            .select('id, status')
+            .eq('contact_id', contactId)
+            .eq('pipeline_id', config.leadPipelineId)
+            .order('created_at', { ascending: false })
+          const primaryDeal = existingDeals?.find((d) => d.status === 'open') ?? existingDeals?.[0]
+          if (primaryDeal) {
+            await db
+              .from('deals')
+              .update({ stage_id: stageId, updated_at: new Date().toISOString() })
+              .eq('id', primaryDeal.id)
+          } else {
+            await db.from('deals').insert({
+              user_id: configOwnerUserId,
+              account_id: accountId,
+              pipeline_id: config.leadPipelineId,
+              stage_id: stageId,
+              contact_id: contactId,
+              conversation_id: conversationId,
+              title: contactRow?.name || contactRow?.phone || 'Lead',
+              value: 0,
+            })
+          }
+        } catch (err) {
+          console.error('[ai auto-reply] lead stage update failed:', err)
+        }
+      }
+    }
+
+    if (sentiment) {
+      try {
+        await db
+          .from('contacts')
+          .update({ ai_sentiment: sentiment, ai_sentiment_updated_at: new Date().toISOString() })
+          .eq('id', contactId)
+      } catch (err) {
+        console.error('[ai auto-reply] sentiment update failed:', err)
       }
     }
 
@@ -274,6 +356,19 @@ export async function dispatchInboundToAiReply(
         messages,
         replyCount: conv.ai_reply_count ?? 0,
       })
+      // Also leave the handoff summary as a real note, so it shows up in
+      // the contact sidebar's notes panel, not just the banner.
+      try {
+        await db.from('contact_notes').insert({
+          contact_id: contactId,
+          account_id: accountId,
+          user_id: null,
+          note_text: summary,
+          source: 'ai',
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] handoff note insert failed:', err)
+      }
       const update: Record<string, unknown> = {
         ai_autoreply_disabled: true,
         ai_handoff_summary: summary,

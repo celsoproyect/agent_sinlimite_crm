@@ -118,6 +118,10 @@ export interface Contact {
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
    *  Inbox conversation list, for tag filtering). Absent otherwise. */
   tags?: Tag[];
+  /** AI-derived sentiment signal (migration 058), set by the `set_sentiment`
+   *  tool. `null`/absent means no signal yet. */
+  ai_sentiment?: 'positive' | 'neutral' | 'negative' | null;
+  ai_sentiment_updated_at?: string | null;
 }
 
 export interface Tag {
@@ -155,9 +159,13 @@ export interface ContactCustomValue {
 export interface ContactNote {
   id: string;
   contact_id: string;
-  user_id: string;
+  /** Nullable since migration 058 — AI-authored notes have no human author. */
+  user_id: string | null;
   note_text: string;
   created_at: string;
+  /** 'ai' for notes the agent captured itself (migration 058). Defaults to
+   *  'human' at the DB level; absent on rows read before this column existed. */
+  source?: 'human' | 'ai';
 }
 
 export type ConversationStatus = 'open' | 'pending' | 'closed';

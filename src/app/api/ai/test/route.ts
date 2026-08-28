@@ -75,6 +75,8 @@ export async function POST(request: Request) {
         replyDelaySeconds: 0,
         temperature: 0.7,
         handoffAgentId: null,
+        handoffOnMissingInfo: true,
+        leadPipelineId: null,
         embeddingsApiKey: null,
         embeddingsModel: DEFAULT_EMBEDDINGS_MODEL,
       })

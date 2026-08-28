@@ -7,15 +7,24 @@ const h = vi.hoisted(() => ({
   buildConversationContext: vi.fn(),
   retrieveKnowledge: vi.fn(),
   getKnowledgeBaseRoster: vi.fn(),
+  getCustomFieldRoster: vi.fn(),
+  getLeadPipelineStages: vi.fn(),
   generateReply: vi.fn(),
   engineSendText: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
+    contact: null as Record<string, unknown> | null,
     autoResponders: [] as { id: string }[],
     claim: true as boolean,
     releaseShouldFail: false as boolean,
     updatePayload: null as Record<string, unknown> | null,
+    contactUpdatePayload: null as Record<string, unknown> | null,
     rpcCalls: [] as { name: string; args: unknown }[],
+    noteInserts: [] as Record<string, unknown>[],
+    customValueUpserts: [] as Record<string, unknown>[],
+    existingDeals: [] as { id: string; status: string }[],
+    dealInserts: [] as Record<string, unknown>[],
+    dealUpdates: [] as Record<string, unknown>[],
   },
 }))
 
@@ -24,6 +33,10 @@ vi.mock('./context', () => ({ buildConversationContext: h.buildConversationConte
 vi.mock('./knowledge', () => ({
   retrieveKnowledge: h.retrieveKnowledge,
   getKnowledgeBaseRoster: h.getKnowledgeBaseRoster,
+}))
+vi.mock('./custom-fields', () => ({
+  getCustomFieldRoster: h.getCustomFieldRoster,
+  getLeadPipelineStages: h.getLeadPipelineStages,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
@@ -40,6 +53,54 @@ vi.mock('./admin-client', () => ({
             Promise.resolve({ data: h.state.autoResponders, error: null }),
         }
         return chain
+      }
+      if (table === 'contacts') {
+        return {
+          select: () => ({
+            eq: () => ({
+              maybeSingle: () => Promise.resolve({ data: h.state.contact, error: null }),
+            }),
+          }),
+          update: (payload: Record<string, unknown>) => {
+            h.state.contactUpdatePayload = payload
+            return { eq: () => Promise.resolve({ error: null }) }
+          },
+        }
+      }
+      if (table === 'contact_notes') {
+        return {
+          insert: (payload: Record<string, unknown>) => {
+            h.state.noteInserts.push(payload)
+            return Promise.resolve({ error: null })
+          },
+        }
+      }
+      if (table === 'contact_custom_values') {
+        return {
+          upsert: (payload: Record<string, unknown>) => {
+            h.state.customValueUpserts.push(payload)
+            return Promise.resolve({ error: null })
+          },
+        }
+      }
+      if (table === 'deals') {
+        return {
+          select: () => ({
+            eq: () => ({
+              eq: () => ({
+                order: () => Promise.resolve({ data: h.state.existingDeals, error: null }),
+              }),
+            }),
+          }),
+          update: (payload: Record<string, unknown>) => {
+            h.state.dealUpdates.push(payload)
+            return { eq: () => Promise.resolve({ error: null }) }
+          },
+          insert: (payload: Record<string, unknown>) => {
+            h.state.dealInserts.push(payload)
+            return Promise.resolve({ error: null })
+          },
+        }
       }
       // conversations
       return {
@@ -86,6 +147,8 @@ function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
     replyDelaySeconds: 0,
     temperature: 0.7,
     handoffAgentId: null,
+    handoffOnMissingInfo: true,
+    leadPipelineId: null,
     embeddingsApiKey: null,
     embeddingsModel: 'text-embedding-3-small',
     ...overrides,
@@ -103,11 +166,20 @@ beforeEach(() => {
   h.state.claim = true
   h.state.releaseShouldFail = false
   h.state.updatePayload = null
+  h.state.contact = { name: null, phone: '+15550001111', ai_sentiment: null }
+  h.state.contactUpdatePayload = null
   h.state.rpcCalls = []
+  h.state.noteInserts = []
+  h.state.customValueUpserts = []
+  h.state.existingDeals = []
+  h.state.dealInserts = []
+  h.state.dealUpdates = []
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
   h.getKnowledgeBaseRoster.mockResolvedValue([])
+  h.getCustomFieldRoster.mockResolvedValue([])
+  h.getLeadPipelineStages.mockResolvedValue([])
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
   h.engineSendText.mockResolvedValue({ whatsapp_message_id: 'm1' })
 })
@@ -309,6 +381,101 @@ describe('dispatchInboundToAiReply — reply-slot release on send failure', () =
   })
 })
 
+describe('dispatchInboundToAiReply — capture side effects', () => {
+  it('inserts a note captured via add_note with source "ai"', async () => {
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, note: 'Wants a callback' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.noteInserts).toEqual([
+      {
+        contact_id: 'contact-1',
+        account_id: 'acct-1',
+        user_id: null,
+        note_text: 'Wants a callback',
+        source: 'ai',
+      },
+    ])
+  })
+
+  it('upserts a captured custom field that is in the known roster', async () => {
+    h.getCustomFieldRoster.mockResolvedValue([{ id: 'cf-1', field_name: 'Budget' }])
+    h.generateReply.mockResolvedValue({
+      text: 'Hello!',
+      handoff: false,
+      customFields: [{ field: 'Budget', value: '$500' }],
+    })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.customValueUpserts).toEqual([
+      { contact_id: 'contact-1', custom_field_id: 'cf-1', value: '$500' },
+    ])
+  })
+
+  it('skips a captured custom field that is not in the known roster, without crashing', async () => {
+    h.getCustomFieldRoster.mockResolvedValue([{ id: 'cf-1', field_name: 'Budget' }])
+    h.generateReply.mockResolvedValue({
+      text: 'Hello!',
+      handoff: false,
+      customFields: [{ field: 'Made Up Field', value: 'x' }],
+    })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.customValueUpserts).toEqual([])
+    expect(h.engineSendText).toHaveBeenCalled()
+  })
+
+  it('creates a new deal in the lead pipeline when the contact has no existing one', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-1', name: 'Qualified' }])
+    h.state.existingDeals = []
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Qualified' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.dealUpdates).toEqual([])
+    expect(h.state.dealInserts).toEqual([
+      {
+        user_id: 'user-1',
+        account_id: 'acct-1',
+        pipeline_id: 'pipe-1',
+        stage_id: 'stage-1',
+        contact_id: 'contact-1',
+        conversation_id: 'conv-1',
+        title: '+15550001111',
+        value: 0,
+      },
+    ])
+  })
+
+  it('advances the existing open deal instead of creating a duplicate', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-2', name: 'Won' }])
+    h.state.existingDeals = [{ id: 'deal-9', status: 'open' }]
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Won' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.dealInserts).toEqual([])
+    expect(h.state.dealUpdates).toEqual([
+      expect.objectContaining({ stage_id: 'stage-2' }),
+    ])
+  })
+
+  it('persists sentiment to the contact record', async () => {
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, sentiment: 'positive' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.contactUpdatePayload).toMatchObject({ ai_sentiment: 'positive' })
+    expect(h.state.contactUpdatePayload).toHaveProperty('ai_sentiment_updated_at')
+  })
+
+  it('includes the "prefer handoff over guessing" clause when handoff_on_missing_info is on (default)', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
+    expect(systemPrompt).toContain('prefer handing off over guessing')
+  })
+
+  it('omits the missing-info handoff clause when handoff_on_missing_info is off', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ handoffOnMissingInfo: false }))
+    await dispatchInboundToAiReply(ARGS)
+    const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
+    expect(systemPrompt).not.toContain('prefer handing off over guessing')
+    expect(systemPrompt).toContain('do not hand off for this reason alone')
+  })
+})
+
 describe('dispatchInboundToAiReply — handoff', () => {
   it('disables auto-reply, writes a summary, and does not send on handoff', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
@@ -321,6 +488,17 @@ describe('dispatchInboundToAiReply — handoff', () => {
     )
     // No handoff target configured → conversation left unassigned.
     expect(h.state.updatePayload).not.toHaveProperty('assigned_agent_id')
+  })
+
+  it('also inserts the handoff summary as a contact note', async () => {
+    h.generateReply.mockResolvedValue({ text: '', handoff: true })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.noteInserts).toHaveLength(1)
+    expect(h.state.noteInserts[0]).toMatchObject({
+      contact_id: 'contact-1',
+      source: 'ai',
+    })
+    expect(h.state.noteInserts[0].note_text).toContain('AI agent handed off')
   })
 
   it('routes to the configured handoff agent on handoff', async () => {

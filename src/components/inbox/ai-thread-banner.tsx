@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { Sparkles, Hand, Undo2, Loader2 } from "lucide-react";
+import { Sparkles, Hand, Undo2, Loader2, AlertTriangle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -140,16 +140,17 @@ export function AiThreadBanner({
   // Paused here (a human took over, or the model handed off).
   if (paused) {
     return (
-      <Banner tone="muted">
+      <Banner tone="warning">
+        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
         <div className="min-w-0 flex-1">
-          <p className="font-medium text-foreground">{t("pausedTitle")}</p>
+          <p className="text-sm font-medium text-foreground">{t("pausedTitle")}</p>
           {handoffSummary && (
             <p className="truncate text-muted-foreground" title={handoffSummary}>
               {handoffSummary}
             </p>
           )}
         </div>
-        <BannerButton onClick={() => toggle(false)} busy={busy} icon={Undo2}>
+        <BannerButton onClick={() => toggle(false)} busy={busy} icon={Undo2} tone="warning">
           {t("resume")}
         </BannerButton>
       </Banner>
@@ -179,16 +180,17 @@ function Banner({
   tone,
   children,
 }: {
-  tone: "primary" | "muted";
+  tone: "primary" | "muted" | "warning";
   children: React.ReactNode;
 }) {
   return (
     <div
       className={cn(
         "flex items-center gap-3 border-b px-3 py-2 text-xs sm:px-4",
-        tone === "primary"
-          ? "border-primary/20 bg-primary/5"
-          : "border-border bg-muted/40",
+        tone === "primary" && "border-primary/20 bg-primary/5",
+        tone === "muted" && "border-border bg-muted/40",
+        tone === "warning" &&
+          "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40",
       )}
     >
       {children}
@@ -200,11 +202,13 @@ function BannerButton({
   onClick,
   busy,
   icon: Icon,
+  tone,
   children,
 }: {
   onClick: () => void;
   busy: boolean;
   icon: typeof Hand;
+  tone?: "warning";
   children: React.ReactNode;
 }) {
   return (
@@ -212,7 +216,12 @@ function BannerButton({
       type="button"
       onClick={onClick}
       disabled={busy}
-      className="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-border bg-card px-2.5 py-1 font-medium text-foreground transition-colors hover:bg-muted disabled:opacity-60"
+      className={cn(
+        "inline-flex flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 font-medium transition-colors disabled:opacity-60",
+        tone === "warning"
+          ? "border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
+          : "border-border bg-card text-foreground hover:bg-muted",
+      )}
     >
       {busy ? (
         <Loader2 className="h-3 w-3 animate-spin" />

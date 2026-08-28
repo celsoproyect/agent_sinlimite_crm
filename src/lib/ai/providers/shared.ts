@@ -1,7 +1,9 @@
 import {
   AiError,
+  type AiSentiment,
   type AiUsage,
   type BookingAppointment,
+  type CapturedCustomField,
   type ChatMessage,
   type ContentPart,
   type ResolvedAttachment,
@@ -71,6 +73,37 @@ export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
  *  after generation finishes. */
 export const CAPTURE_NAME_TOOL_NAME = 'set_customer_name'
 
+/** The `add_note` function/tool both adapters expose to the model when
+ *  note capture is enabled. Running it during the tool-call loop never
+ *  writes to the DB by itself — it only validates the text, which the
+ *  adapter accumulates into `ProviderResult.note` for the caller
+ *  (auto-reply/widget-reply) to insert as a `contact_notes` row after
+ *  generation finishes. */
+export const ADD_NOTE_TOOL_NAME = 'add_note'
+
+/** The `set_custom_field` function/tool both adapters expose to the model
+ *  when the account has custom fields defined. `field` is constrained to
+ *  the account's real field names via an enum (same pattern as
+ *  `search_knowledge_base`'s `knowledge_base` enum) so the model can never
+ *  invent one. Running it never writes to the DB — the adapter
+ *  accumulates validated entries into `ProviderResult.customFields` for
+ *  the caller to upsert onto `contact_custom_values`. */
+export const CAPTURE_FIELD_TOOL_NAME = 'set_custom_field'
+
+/** The `set_lead_stage` function/tool both adapters expose to the model
+ *  only when the account has a lead pipeline configured. `stage` is
+ *  constrained to that pipeline's real stage names via an enum. Running
+ *  it never writes to the DB — the adapter accumulates the chosen stage
+ *  into `ProviderResult.leadStage` for auto-reply to apply to the
+ *  contact's deal after generation finishes. */
+export const CAPTURE_LEAD_STAGE_TOOL_NAME = 'set_lead_stage'
+
+/** The `set_sentiment` function/tool both adapters expose to the model
+ *  when sentiment capture is enabled. Running it never writes to the DB —
+ *  the adapter accumulates the reported mood into
+ *  `ProviderResult.sentiment` for the caller to persist onto the contact. */
+export const CAPTURE_SENTIMENT_TOOL_NAME = 'set_sentiment'
+
 /** Tool-call rounds allowed before the adapter forces a final,
  *  tool-free round to guarantee text comes back. */
 export const MAX_TOOL_ROUNDS = 2
@@ -106,6 +139,19 @@ export interface ProviderArgs {
     /** True to expose `set_customer_name` — no executor needed, the
      *  adapter just validates and accumulates what the model reports. */
     nameCapture?: boolean
+    /** True to expose `add_note` — no executor needed, same shape as
+     *  `nameCapture`. */
+    noteCapture?: boolean
+    /** Present to expose `set_custom_field`, constrained to these field
+     *  names — no executor needed, the adapter just validates against
+     *  this list and accumulates what the model reports. */
+    customFieldNames?: string[]
+    /** Present to expose `set_lead_stage`, constrained to these stage
+     *  names — no executor needed, same idea as `customFieldNames`. */
+    leadStageNames?: string[]
+    /** True to expose `set_sentiment` — no executor needed, same shape as
+     *  `nameCapture`. */
+    sentimentCapture?: boolean
   }
 }
 
@@ -329,4 +375,64 @@ export function parseCustomerName(
   if (!name) return { error: 'name is required.' }
   if (name.length > 100) return { error: 'name must be 100 characters or fewer.' }
   return { name }
+}
+
+/** Validate + normalize the model's `add_note` tool-call arguments, or
+ *  return an error string (sent back to the model as the tool result)
+ *  when the text is missing or absurdly long. */
+export function parseNote(rawArgs: unknown): { text: string } | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const text = typeof args.text === 'string' ? args.text.trim() : ''
+  if (!text) return { error: 'text is required.' }
+  if (text.length > 1000) return { error: 'text must be 1000 characters or fewer.' }
+  return { text }
+}
+
+/** Validate + normalize the model's `set_custom_field` tool-call
+ *  arguments against the account's real field names, or return an error
+ *  string (sent back to the model as the tool result) when the field is
+ *  unknown or the value is missing/too long. */
+export function parseCustomField(
+  rawArgs: unknown,
+  allowedFieldNames: string[],
+): CapturedCustomField | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const field = typeof args.field === 'string' ? args.field.trim() : ''
+  const value = typeof args.value === 'string' ? args.value.trim() : ''
+  if (!field || !allowedFieldNames.includes(field)) {
+    return { error: `field must be one of: ${allowedFieldNames.join(', ')}.` }
+  }
+  if (!value) return { error: 'value is required.' }
+  if (value.length > 500) return { error: 'value must be 500 characters or fewer.' }
+  return { field, value }
+}
+
+/** Validate + normalize the model's `set_lead_stage` tool-call arguments
+ *  against the configured pipeline's real stage names, or return an error
+ *  string (sent back to the model as the tool result) when the stage is
+ *  unknown. */
+export function parseLeadStage(
+  rawArgs: unknown,
+  allowedStageNames: string[],
+): { stage: string } | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const stage = typeof args.stage === 'string' ? args.stage.trim() : ''
+  if (!stage || !allowedStageNames.includes(stage)) {
+    return { error: `stage must be one of: ${allowedStageNames.join(', ')}.` }
+  }
+  return { stage }
+}
+
+const VALID_SENTIMENTS: AiSentiment[] = ['positive', 'neutral', 'negative']
+
+/** Validate + normalize the model's `set_sentiment` tool-call arguments,
+ *  or return an error string (sent back to the model as the tool result)
+ *  when the value isn't one of the three allowed moods. */
+export function parseSentiment(rawArgs: unknown): { sentiment: AiSentiment } | { error: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const sentiment = typeof args.sentiment === 'string' ? args.sentiment : ''
+  if (!VALID_SENTIMENTS.includes(sentiment as AiSentiment)) {
+    return { error: `sentiment must be one of: ${VALID_SENTIMENTS.join(', ')}.` }
+  }
+  return { sentiment: sentiment as AiSentiment }
 }

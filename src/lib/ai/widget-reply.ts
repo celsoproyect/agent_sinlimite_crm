@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
+import { getCustomFieldRoster } from './custom-fields'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -84,10 +85,12 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const acctLimit = checkRateLimit(`ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
-  const [knowledge, knowledgeBases] = await Promise.all([
+  const [knowledge, knowledgeBases, customFieldRoster] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
+    getCustomFieldRoster(db, accountId),
   ])
+  const customFieldNames = customFieldRoster.map((f) => f.field_name)
 
   const systemPrompt = buildSystemPrompt({
     userPrompt: config.systemPrompt,
@@ -98,9 +101,13 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     attachmentsAvailable: false,
     bookingAvailable: false,
     needsCustomerName,
+    handoffOnMissingInfo: config.handoffOnMissingInfo,
+    noteCaptureAvailable: true,
+    customFieldNames,
+    sentimentCaptureAvailable: true,
   })
 
-  const { text, handoff, usage, customerName } = await generateReply({
+  const { text, handoff, usage, customerName, note, customFields, sentiment } = await generateReply({
     config,
     systemPrompt,
     messages,
@@ -110,6 +117,9 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
         ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
         : Promise.resolve([]),
     captureCustomerName: needsCustomerName,
+    captureNote: true,
+    customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
+    captureSentiment: true,
   })
 
   if (customerName) {
@@ -120,6 +130,48 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
         .eq('id', contactId)
     } catch (err) {
       console.error('[widget ai reply] contact name update failed:', err)
+    }
+  }
+
+  if (note) {
+    try {
+      await db.from('contact_notes').insert({
+        contact_id: contactId,
+        account_id: accountId,
+        user_id: null,
+        note_text: note,
+        source: 'ai',
+      })
+    } catch (err) {
+      console.error('[widget ai reply] note insert failed:', err)
+    }
+  }
+
+  if (customFields && customFields.length > 0) {
+    for (const captured of customFields) {
+      const fieldId = customFieldRoster.find((f) => f.field_name === captured.field)?.id
+      if (!fieldId) continue
+      try {
+        await db
+          .from('contact_custom_values')
+          .upsert(
+            { contact_id: contactId, custom_field_id: fieldId, value: captured.value },
+            { onConflict: 'contact_id,custom_field_id' },
+          )
+      } catch (err) {
+        console.error('[widget ai reply] custom field upsert failed:', err)
+      }
+    }
+  }
+
+  if (sentiment) {
+    try {
+      await db
+        .from('contacts')
+        .update({ ai_sentiment: sentiment, ai_sentiment_updated_at: new Date().toISOString() })
+        .eq('id', contactId)
+    } catch (err) {
+      console.error('[widget ai reply] sentiment update failed:', err)
     }
   }
 
@@ -134,6 +186,17 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
 
   if (handoff || !text) {
     const summary = buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 })
+    try {
+      await db.from('contact_notes').insert({
+        contact_id: contactId,
+        account_id: accountId,
+        user_id: null,
+        note_text: summary,
+        source: 'ai',
+      })
+    } catch (err) {
+      console.error('[widget ai reply] handoff note insert failed:', err)
+    }
     const update: Record<string, unknown> = {
       ai_autoreply_disabled: true,
       ai_handoff_summary: summary,

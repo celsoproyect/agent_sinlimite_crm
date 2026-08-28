@@ -34,6 +34,14 @@ export interface AiConfig {
    *  agent's `auth.users.id`, or null to leave it unassigned (drop into
    *  the shared queue). */
   handoffAgentId: string | null
+  /** Whether auto-reply should hand off when it lacks the information to
+   *  answer confidently, in addition to always handing off for an upset
+   *  customer or an explicit human request. Defaults to true (existing
+   *  behaviour) for accounts that haven't touched the toggle. */
+  handoffOnMissingInfo: boolean
+  /** Pipeline the `set_lead_stage` tool files/advances leads into. The
+   *  tool is only offered to the model when this is set. */
+  leadPipelineId: string | null
   /** Optional OpenAI-compatible key for embeddings. When set, the
    *  knowledge base is embedded and semantic retrieval turns on; when
    *  null, retrieval falls back to lexical full-text search. */
@@ -57,6 +65,15 @@ export type ContentPart =
 export interface ChatMessage {
   role: 'user' | 'assistant'
   content: string | ContentPart[]
+}
+
+/** Customer mood as read by the `set_sentiment` tool. */
+export type AiSentiment = 'positive' | 'neutral' | 'negative'
+
+/** One custom field the model filled in via `set_custom_field`. */
+export interface CapturedCustomField {
+  field: string
+  value: string
 }
 
 /** An attachment resolved by the `send_attachment` tool, ready to be
@@ -146,6 +163,19 @@ export interface ProviderResult {
    *  captured a name this turn — only auto-reply/widget-reply persist it
    *  onto the contact. */
   customerName?: string
+  /** Set only when the `add_note` tool was offered and used this turn —
+   *  only auto-reply/widget-reply persist it as a `contact_notes` row. */
+  note?: string
+  /** Set only when the `set_custom_field` tool was offered and used this
+   *  turn (possibly multiple times) — only auto-reply/widget-reply persist
+   *  these onto `contact_custom_values`. */
+  customFields?: CapturedCustomField[]
+  /** Set only when the `set_lead_stage` tool was offered and used this
+   *  turn — only auto-reply persists this onto the account's `deals`. */
+  leadStage?: string
+  /** Set only when the `set_sentiment` tool was offered and used this
+   *  turn — only auto-reply/widget-reply persist it onto the contact. */
+  sentiment?: AiSentiment
 }
 
 /** Outcome of a generation call. */
@@ -166,6 +196,19 @@ export interface GenerateResult {
    *  captured a name this turn — only auto-reply/widget-reply persist it
    *  onto the contact. */
   customerName?: string
+  /** Set only when the `add_note` tool was offered and used this turn —
+   *  only auto-reply/widget-reply persist it as a `contact_notes` row. */
+  note?: string
+  /** Set only when the `set_custom_field` tool was offered and used this
+   *  turn (possibly multiple times) — only auto-reply/widget-reply persist
+   *  these onto `contact_custom_values`. */
+  customFields?: CapturedCustomField[]
+  /** Set only when the `set_lead_stage` tool was offered and used this
+   *  turn — only auto-reply persists this onto the account's `deals`. */
+  leadStage?: string
+  /** Set only when the `set_sentiment` tool was offered and used this
+   *  turn — only auto-reply/widget-reply persist it onto the contact. */
+  sentiment?: AiSentiment
 }
 
 /**
