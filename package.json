@@ -1,17 +1,17 @@
 {
-  "name": "wacrm",
+  "name": "sinlimiteia",
   "version": "0.8.0",
   "private": true,
-  "description": "Self-hostable CRM template for WhatsApp built on Next.js and Supabase — shared inbox, contacts, sales pipelines, broadcasts, and no-code automations.",
+  "description": "CRM de WhatsApp con IA construido sobre Next.js y Supabase — bandeja compartida, contactos, pipelines de ventas, broadcasts y automatizaciones sin código.",
   "license": "MIT",
-  "author": "Arnas Donauskas",
-  "homepage": "https://github.com/ArnasDon/wacrm",
+  "author": "Sin Limite IA",
+  "homepage": "https://github.com/celsoproyect/agent_sinlimite_crm",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ArnasDon/wacrm.git"
+    "url": "git+https://github.com/celsoproyect/agent_sinlimite_crm.git"
   },
   "bugs": {
-    "url": "https://github.com/ArnasDon/wacrm/issues"
+    "url": "https://github.com/celsoproyect/agent_sinlimite_crm/issues"
   },
   "keywords": [
     "crm",
@@ -21,8 +21,7 @@
     "supabase",
     "automation",
     "broadcast",
-    "self-hosted",
-    "template"
+    "ai"
   ],
   "engines": {
     "node": ">=20.0.0"
