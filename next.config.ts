@@ -70,6 +70,26 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   /**
+   * Disable Next's built-in gzip compression. `next start`'s response
+   * pipeline runs every response body through undici's Web Streams
+   * fetch/Response implementation (node_modules/undici/lib/web/fetch),
+   * which has a known teardown bug: if the client (or a reverse-proxy
+   * timeout) aborts the connection while a response is mid-compression,
+   * the TransformStream controller is torn down out from under the
+   * in-flight transform and Node throws
+   * `TypeError: controller[kState].transformAlgorithm is not a function`
+   * — seen repeatedly in production logs right after a wave of
+   * `ResponseAborted` entries.
+   *
+   * We run behind Traefik (Dokploy's reverse proxy), which already
+   * compresses responses at the edge, so Next's own gzip pass is
+   * redundant on top of being the thing that crashes. Turning it off
+   * here removes the vulnerable code path entirely instead of racing
+   * to catch every abort.
+   */
+  compress: false,
+
+  /**
    * The KB file-upload route's parsers (pdf-parse, mammoth, exceljs,
    * csv-parse) use conditional `exports` maps / dynamic requires that
    * Next's build-time file tracer (@vercel/nft) fails to resolve as
