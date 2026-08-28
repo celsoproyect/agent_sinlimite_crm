@@ -1820,7 +1820,13 @@
       "useMode": "Use {mode} mode",
       "active": "Active",
       "accentColor": "Accent color",
-      "useTheme": "Use {name} theme"
+      "useTheme": "Use {name} theme",
+      "language": "Language",
+      "languageDescription": "Choose the language used across the app for everyone on this deployment.",
+      "useLanguage": "Use {name}",
+      "localeEnglish": "English",
+      "localeSpanish": "Español",
+      "localeKorean": "한국어"
     },
     "security": {
       "title": "Login & security",
