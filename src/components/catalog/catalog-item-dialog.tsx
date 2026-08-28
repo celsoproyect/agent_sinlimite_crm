@@ -79,19 +79,27 @@ export function CatalogItemDialog({
     }
     setSaving(true);
     try {
-      if (isNew && file) {
+      // A freshly picked file uploads the same way whether this is a new
+      // item or an existing one getting its photo/document replaced.
+      let fileFields: { kind: "image" | "document"; mediaUrl: string; filename: string; mimeType: string } | null = null;
+      if (file) {
         const { publicUrl } = await uploadAccountMedia("chat-media", file);
-        const kind = file.type.startsWith("image/") ? "image" : "document";
+        fileFields = {
+          kind: file.type.startsWith("image/") ? "image" : "document",
+          mediaUrl: publicUrl,
+          filename: file.name,
+          mimeType: file.type || "application/octet-stream",
+        };
+      }
+
+      if (isNew) {
         const res = await fetch("/api/ai/attachments", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             name: name.trim(),
             description: description.trim(),
-            kind,
-            mediaUrl: publicUrl,
-            filename: file.name,
-            mimeType: file.type || "application/octet-stream",
+            ...fileFields,
             price: parsedPrice,
             currency: currency.trim() || null,
           }),
@@ -113,6 +121,7 @@ export function CatalogItemDialog({
             description: description.trim(),
             price: parsedPrice,
             currency: currency.trim() || null,
+            ...fileFields,
           }),
         });
         const data = await res.json();
@@ -190,27 +199,33 @@ export function CatalogItemDialog({
           </div>
           <p className="text-xs text-muted-foreground">{t("priceHint")}</p>
 
-          {item === null && (
-            <div className="grid gap-2">
-              <Label>{t("fileLabel")}</Label>
-              <input
-                ref={fileInputRef}
-                type="file"
-                className="hidden"
-                onChange={onPickFile}
+          <div className="grid gap-2">
+            <Label>{t("fileLabel")}</Label>
+            {item?.kind === "image" && !file && (
+              // eslint-disable-next-line @next/next/no-img-element -- external Supabase Storage URL preview
+              <img
+                src={item.mediaUrl}
+                alt={item.name}
+                className="h-32 w-full rounded-md object-cover"
               />
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => fileInputRef.current?.click()}
-                disabled={saving}
-              >
-                <Upload className="mr-2 h-4 w-4" />
-                {file ? file.name : t("chooseFile")}
-              </Button>
-            </div>
-          )}
+            )}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              onChange={onPickFile}
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={saving}
+            >
+              <Upload className="mr-2 h-4 w-4" />
+              {file ? file.name : item ? t("replaceFile") : t("chooseFile")}
+            </Button>
+          </div>
         </div>
 
         <DialogFooter>

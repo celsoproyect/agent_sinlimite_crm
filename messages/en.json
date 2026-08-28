@@ -2015,6 +2015,7 @@
       "priceInvalid": "Price must be a positive number.",
       "fileLabel": "File",
       "chooseFile": "Choose file",
+      "replaceFile": "Replace file",
       "fileRequired": "Choose a file to upload.",
       "fileTooLarge": "File is too large (max 16 MB).",
       "nameDescriptionRequired": "Name and description are required.",

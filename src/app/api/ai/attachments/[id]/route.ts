@@ -5,8 +5,11 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 type Params = { params: Promise<{ id: string }> }
 
 /**
- * PATCH /api/ai/attachments/[id]  (admin+) — rename / redescribe.
- * Swapping the file itself is out of scope: delete + re-add instead.
+ * PATCH /api/ai/attachments/[id]  (admin+) — edit any field, including
+ * swapping the underlying file. The file itself is already uploaded to
+ * the `chat-media` bucket by the client (reusing `uploadAccountMedia`) —
+ * this only stores the metadata + resulting URL, same division of labor
+ * as POST.
  */
 export async function PATCH(request: Request, { params }: Params) {
   try {
@@ -33,11 +36,28 @@ export async function PATCH(request: Request, { params }: Params) {
         : typeof body?.currency === 'string'
           ? body.currency.trim() || null
           : undefined
+    // Replacing the file is all-or-nothing: these four describe one
+    // coherent object, so a partial set (e.g. a new mediaUrl but the old
+    // mimeType) would desync the row from the actual uploaded blob.
+    const kind = body?.kind === 'image' || body?.kind === 'document' ? body.kind : undefined
+    const mediaUrl = typeof body?.mediaUrl === 'string' ? body.mediaUrl.trim() : undefined
+    const filename = typeof body?.filename === 'string' ? body.filename.trim() : undefined
+    const mimeType = typeof body?.mimeType === 'string' ? body.mimeType.trim() : undefined
+    const fileFields = [kind, mediaUrl, filename, mimeType]
+    const anyFileField = fileFields.some((f) => f !== undefined)
+    const allFileFields = fileFields.every((f) => f !== undefined && f !== '')
+    if (anyFileField && !allFileFields) {
+      return NextResponse.json(
+        { error: 'kind, mediaUrl, filename and mimeType must all be provided together' },
+        { status: 400 },
+      )
+    }
     if (
       name === undefined &&
       description === undefined &&
       price === undefined &&
-      currency === undefined
+      currency === undefined &&
+      !allFileFields
     ) {
       return NextResponse.json({ error: 'Nothing to update' }, { status: 400 })
     }
@@ -53,6 +73,12 @@ export async function PATCH(request: Request, { params }: Params) {
     if (description !== undefined) update.description = description
     if (price !== undefined) update.price = price
     if (currency !== undefined) update.currency = currency
+    if (allFileFields) {
+      update.kind = kind as string
+      update.media_url = mediaUrl as string
+      update.filename = filename as string
+      update.mime_type = mimeType as string
+    }
 
     const { data: updated, error } = await supabase
       .from('ai_attachments')

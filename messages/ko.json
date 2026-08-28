@@ -2015,6 +2015,7 @@
       "priceInvalid": "가격은 0 이상의 숫자여야 합니다.",
       "fileLabel": "파일",
       "chooseFile": "파일 선택",
+      "replaceFile": "파일 교체",
       "fileRequired": "업로드할 파일을 선택하세요.",
       "fileTooLarge": "파일이 너무 큽니다 (최대 16MB).",
       "nameDescriptionRequired": "이름과 설명은 필수입니다.",
