@@ -4,7 +4,7 @@ import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { getAttachmentRoster, searchAttachments } from './attachments'
 import { getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
-import { bookingEnabled, checkAvailability, insertAiBooking } from './booking'
+import { bookingEnabled, checkAvailability, getBusinessHoursSummary, insertAiBooking } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -177,17 +177,25 @@ export async function dispatchInboundToAiReply(
     }
 
     // Ground the reply in the account's knowledge base (best-effort).
-    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable, customFieldRoster, leadStageRoster] =
-      await Promise.all([
-        retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
-        getKnowledgeBaseRoster(db, accountId),
-        getAttachmentRoster(db, accountId),
-        bookingEnabled(db, accountId),
-        getCustomFieldRoster(db, accountId),
-        config.leadPipelineId
-          ? getLeadPipelineStages(db, config.leadPipelineId)
-          : Promise.resolve([]),
-      ])
+    const [
+      knowledge,
+      knowledgeBases,
+      attachmentRoster,
+      bookingAvailable,
+      businessHoursSummary,
+      customFieldRoster,
+      leadStageRoster,
+    ] = await Promise.all([
+      retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
+      getKnowledgeBaseRoster(db, accountId),
+      getAttachmentRoster(db, accountId),
+      bookingEnabled(db, accountId),
+      getBusinessHoursSummary(db, accountId),
+      getCustomFieldRoster(db, accountId),
+      config.leadPipelineId
+        ? getLeadPipelineStages(db, config.leadPipelineId)
+        : Promise.resolve([]),
+    ])
     const attachmentsEnabled = attachmentRoster.length > 0
     const customFieldNames = customFieldRoster.map((f) => f.field_name)
     const leadStageNames = leadStageRoster.map((s) => s.name)
@@ -201,6 +209,7 @@ export async function dispatchInboundToAiReply(
       attachmentsAvailable: attachmentsEnabled,
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
+      businessHoursSummary,
       needsCustomerName,
       handoffOnMissingInfo: config.handoffOnMissingInfo,
       noteCaptureAvailable: true,

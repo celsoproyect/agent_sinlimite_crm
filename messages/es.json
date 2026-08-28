@@ -590,7 +590,12 @@
       "thursday": "Jueves",
       "friday": "Viernes",
       "saturday": "Sábado",
-      "sunday": "Domingo"
+      "sunday": "Domingo",
+      "holidaysTitle": "Días feriados",
+      "holidaysDesc": "Fechas específicas en las que el negocio no trabaja, sin importar el día de la semana.",
+      "addHoliday": "Agregar",
+      "removeHoliday": "Quitar fecha feriada",
+      "noHolidays": "No hay días feriados agregados"
     },
     "reminders": {
       "title": "Recordatorios de citas",
@@ -684,8 +689,8 @@
       "chatDetectedAs": "Chat conectado: {name}",
       "sendTest": "Enviar mensaje de prueba",
       "adminOnlyHint": "Pide a un administrador que cambie esto.",
-      "enableTitle": "Notificaciones de leads",
-      "enableDesc": "Envía un mensaje de Telegram al chat conectado por cada lead nuevo.",
+      "enableTitle": "Notificaciones de leads y handoff",
+      "enableDesc": "Envía un mensaje de Telegram al chat conectado por cada lead nuevo y cada vez que una conversación pasa a atención humana (handoff).",
       "statusOn": "Activado",
       "statusOff": "Desactivado",
       "loadFailed": "Error al cargar la configuración de Telegram",

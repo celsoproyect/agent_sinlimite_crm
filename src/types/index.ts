@@ -469,6 +469,10 @@ export interface BookingSettings {
       { open: string; close: string } | null
     >
   >;
+  /** Specific closed dates (ISO "YYYY-MM-DD") that override the weekly
+   *  hours above — e.g. national/local holidays the business doesn't
+   *  work regardless of what weekday they fall on. */
+  holidays?: string[];
 }
 
 /** Account-level reminder rule — `booking_reminder_rules` (migration 052). */

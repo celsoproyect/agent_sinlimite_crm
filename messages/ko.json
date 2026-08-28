@@ -590,7 +590,12 @@
       "thursday": "목요일",
       "friday": "금요일",
       "saturday": "토요일",
-      "sunday": "일요일"
+      "sunday": "일요일",
+      "holidaysTitle": "공휴일",
+      "holidaysDesc": "요일과 상관없이 영업하지 않는 특정 날짜입니다.",
+      "addHoliday": "추가",
+      "removeHoliday": "공휴일 삭제",
+      "noHolidays": "추가된 공휴일이 없습니다"
     },
     "reminders": {
       "title": "예약 리마인더",
@@ -684,8 +689,8 @@
       "chatDetectedAs": "채팅이 연결되었습니다: {name}",
       "sendTest": "테스트 메시지 보내기",
       "adminOnlyHint": "변경하려면 관리자에게 문의하세요.",
-      "enableTitle": "리드 알림",
-      "enableDesc": "새 리드가 생길 때마다 연결된 채팅으로 텔레그램 메시지를 보냅니다.",
+      "enableTitle": "리드 및 핸드오프 알림",
+      "enableDesc": "새 리드가 생기거나 대화가 상담원에게 핸드오프될 때마다 연결된 채팅으로 텔레그램 메시지를 보냅니다.",
       "statusOn": "사용함",
       "statusOff": "사용 안 함",
       "loadFailed": "텔레그램 설정을 불러오지 못했습니다",

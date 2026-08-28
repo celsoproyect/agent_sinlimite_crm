@@ -590,7 +590,12 @@
       "thursday": "Thursday",
       "friday": "Friday",
       "saturday": "Saturday",
-      "sunday": "Sunday"
+      "sunday": "Sunday",
+      "holidaysTitle": "Holidays",
+      "holidaysDesc": "Specific dates the business is closed, regardless of the weekday.",
+      "addHoliday": "Add",
+      "removeHoliday": "Remove holiday date",
+      "noHolidays": "No holidays added"
     },
     "reminders": {
       "title": "Appointment reminders",
@@ -684,8 +689,8 @@
       "chatDetectedAs": "Chat connected: {name}",
       "sendTest": "Send test message",
       "adminOnlyHint": "Ask an admin to change this.",
-      "enableTitle": "Lead notifications",
-      "enableDesc": "Send a Telegram message to the connected chat for every new lead.",
+      "enableTitle": "Lead and handoff notifications",
+      "enableDesc": "Send a Telegram message to the connected chat for every new lead and whenever a conversation is handed off to a human.",
       "statusOn": "Enabled",
       "statusOff": "Disabled",
       "loadFailed": "Failed to load Telegram settings",

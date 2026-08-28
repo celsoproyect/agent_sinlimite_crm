@@ -111,8 +111,19 @@ export async function notifyOwnerOfHandoff(
       .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id')
       .eq('id', accountId)
       .maybeSingle()
-    if (error || !account) return
-    if (!account.telegram_notify_enabled || !account.telegram_bot_token || !account.telegram_chat_id) return
+    if (error || !account) {
+      console.warn('[telegram] notifyOwnerOfHandoff: could not load account row', { accountId, error })
+      return
+    }
+    if (!account.telegram_notify_enabled || !account.telegram_bot_token || !account.telegram_chat_id) {
+      console.warn('[telegram] notifyOwnerOfHandoff: skipped — notifications not configured/enabled', {
+        accountId,
+        notifyEnabled: account.telegram_notify_enabled,
+        hasBotToken: Boolean(account.telegram_bot_token),
+        hasChatId: Boolean(account.telegram_chat_id),
+      })
+      return
+    }
 
     await sendTelegramMessage({
       botToken: account.telegram_bot_token,

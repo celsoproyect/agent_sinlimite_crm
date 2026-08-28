@@ -76,6 +76,12 @@ export function buildSystemPrompt(args: {
    *  `book_appointment` tools — adds the instruction on when/how to use
    *  them. */
   bookingAvailable?: boolean
+  /** Human-readable weekly hours (+ upcoming holiday closures), from
+   *  `formatBusinessHoursSummary` — lets the model answer a general
+   *  "what are your hours" question without needing a specific date to
+   *  call `check_availability` with. Ignored when `bookingAvailable` is
+   *  false. */
+  businessHoursSummary?: string | null
   /** True when the contact has no real name on file yet — adds the
    *  instruction to ask for it and call `set_customer_name` once given. */
   needsCustomerName?: boolean
@@ -106,6 +112,7 @@ export function buildSystemPrompt(args: {
     attachmentsAvailable,
     attachmentNames,
     bookingAvailable,
+    businessHoursSummary,
     needsCustomerName,
     handoffOnMissingInfo,
     noteCaptureAvailable,
@@ -117,7 +124,23 @@ export function buildSystemPrompt(args: {
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
       'You are shown the recent WhatsApp conversation between the business (assistant) and a customer (user). ' +
       'Write the next reply the business should send to the customer.',
-    `The current date and time is ${new Date().toISOString()}. Use this to resolve relative dates the customer mentions (e.g. "tomorrow", "next Thursday").`,
+    // Formatted in the business's own timezone (America/Santo_Domingo), not
+    // server/UTC — `toISOString()` here would report the wrong calendar day
+    // for roughly the last 4 hours of every local day (UTC-4, no DST),
+    // which silently mis-resolves "today"/"tomorrow" and mis-dates
+    // check_availability/book_appointment calls right when the timezone
+    // gap crosses midnight.
+    `The current date and time (America/Santo_Domingo) is ${new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Santo_Domingo',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: false,
+    })
+      .format(new Date())
+      .replace(', ', 'T')}. Use this to resolve relative dates the customer mentions (e.g. "tomorrow", "next Thursday") — the business and its customers are always in this timezone.`,
     'Guidelines: reply in the same language the customer is writing in; keep it concise and friendly, suitable for WhatsApp; ' +
       'never invent facts, prices, order numbers, availability, or promises that are not supported by the conversation or the business context below; ' +
       'output only the message text — no quotes, no "Reply:" label, no preamble.',
@@ -192,11 +215,15 @@ export function buildSystemPrompt(args: {
 
   if (bookingAvailable) {
     parts.push(
-      'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
+      (businessHoursSummary
+        ? `The business's opening hours: ${businessHoursSummary} You can answer a general "what are your hours" / "are you open on X" question directly from this, in your own words — no tool call needed for that. `
+        : '') +
+        'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
         'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) to get real open slots, then offer those slots to the customer in your reply, in your own words — real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
         "Wait for the customer's next message to see which slot they picked — they may reply with the button text or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
         'Once they have clearly confirmed one specific slot, call book_appointment with that exact slot and a short description of the service. ' +
-        "Never tell the customer their appointment is booked unless book_appointment actually confirmed it — if it fails, apologize and suggest checking availability again. Don't call book_appointment speculatively or for a slot the customer didn't confirm.",
+        "Never tell the customer their appointment is booked unless book_appointment actually confirmed it — if it fails, apologize and suggest checking availability again. Don't call book_appointment speculatively or for a slot the customer didn't confirm. " +
+        "If they ask to book on a day that's closed (per the hours above, or a holiday), say so directly instead of calling check_availability for it.",
     )
   }
 

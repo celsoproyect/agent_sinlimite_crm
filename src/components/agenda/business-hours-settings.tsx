@@ -14,6 +14,8 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { X } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 
@@ -72,6 +74,8 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
   const [slotMinutes, setSlotMinutes] = useState(30);
   const [bufferMinutes, setBufferMinutes] = useState(0);
   const [days, setDays] = useState<Record<Weekday, DayState>>(fromSettings(null));
+  const [holidays, setHolidays] = useState<string[]>([]);
+  const [newHoliday, setNewHoliday] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
@@ -90,12 +94,24 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
       setSlotMinutes(settings?.slotMinutes ?? 30);
       setBufferMinutes(settings?.bufferMinutes ?? 0);
       setDays(fromSettings(settings));
+      setHolidays([...(settings?.holidays ?? [])].sort());
+      setNewHoliday("");
       setLoading(false);
     })();
     return () => {
       cancelled = true;
     };
   }, [open, accountId, supabase]);
+
+  function addHoliday() {
+    if (!newHoliday) return;
+    setHolidays((prev) => (prev.includes(newHoliday) ? prev : [...prev, newHoliday].sort()));
+    setNewHoliday("");
+  }
+
+  function removeHoliday(date: string) {
+    setHolidays((prev) => prev.filter((d) => d !== date));
+  }
 
   async function handleSave() {
     if (!accountId) return;
@@ -106,7 +122,7 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
       const d = days[day];
       hours[day] = d.open ? { open: d.openTime, close: d.closeTime } : null;
     }
-    const settings: BookingSettings = { slotMinutes, bufferMinutes, hours };
+    const settings: BookingSettings = { slotMinutes, bufferMinutes, hours, holidays };
 
     const { error } = await supabase
       .from("accounts")
@@ -170,18 +186,18 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
                     key={day}
                     className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2"
                   >
-                    <button
-                      type="button"
-                      onClick={() =>
+                    <Switch
+                      checked={d.open}
+                      onCheckedChange={(checked) =>
                         setDays((prev) => ({
                           ...prev,
-                          [day]: { ...prev[day], open: !prev[day].open },
+                          [day]: { ...prev[day], open: checked },
                         }))
                       }
-                      className="w-24 shrink-0 text-left text-xs font-medium text-foreground"
-                    >
+                    />
+                    <span className="w-20 shrink-0 text-left text-xs font-medium text-foreground">
                       {t(day)}
-                    </button>
+                    </span>
                     {d.open ? (
                       <div className="flex flex-1 items-center gap-1.5">
                         <Input
@@ -216,6 +232,51 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
                   </div>
                 );
               })}
+            </div>
+
+            <div className="space-y-2 border-t border-border/60 pt-3">
+              <Label className="text-muted-foreground">{t("holidaysTitle")}</Label>
+              <p className="text-xs text-muted-foreground">{t("holidaysDesc")}</p>
+              <div className="flex items-center gap-1.5">
+                <Input
+                  type="date"
+                  value={newHoliday}
+                  onChange={(e) => setNewHoliday(e.target.value)}
+                  className="h-8 border-border bg-background text-xs text-foreground"
+                />
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={addHoliday}
+                  disabled={!newHoliday}
+                  className="border-border text-muted-foreground hover:bg-muted"
+                >
+                  {t("addHoliday")}
+                </Button>
+              </div>
+              {holidays.length === 0 ? (
+                <p className="text-xs text-muted-foreground">{t("noHolidays")}</p>
+              ) : (
+                <ul className="space-y-1">
+                  {holidays.map((date) => (
+                    <li
+                      key={date}
+                      className="flex items-center justify-between rounded-md border border-border/60 bg-muted/40 px-2 py-1 text-xs text-foreground"
+                    >
+                      {date}
+                      <button
+                        type="button"
+                        onClick={() => removeHoliday(date)}
+                        className="text-muted-foreground hover:text-foreground"
+                        aria-label={t("removeHoliday")}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </div>
           </div>
         )}

@@ -24,7 +24,27 @@ interface BookingSettingsRow {
   slotMinutes?: number
   bufferMinutes?: number
   hours?: Partial<Record<Weekday, { open: string; close: string } | null>>
+  holidays?: string[]
 }
+
+const WEEKDAY_LABEL: Record<Weekday, string> = {
+  monday: 'Monday',
+  tuesday: 'Tuesday',
+  wednesday: 'Wednesday',
+  thursday: 'Thursday',
+  friday: 'Friday',
+  saturday: 'Saturday',
+  sunday: 'Sunday',
+}
+const WEEKDAY_ORDER: Weekday[] = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+]
 
 async function loadBookingSettings(
   db: SupabaseClient,
@@ -55,6 +75,64 @@ export async function bookingEnabled(db: SupabaseClient, accountId: string): Pro
 }
 
 /**
+ * Human-readable weekly schedule + upcoming holiday closures, for the
+ * system prompt — lets the model answer "what are your hours" directly
+ * instead of only being able to look up slots for one specific date via
+ * `check_availability`. Consecutive weekdays with identical hours (or
+ * identical closed status) are collapsed into one range for readability.
+ * Returns null when no hours are configured at all.
+ */
+export function formatBusinessHoursSummary(settings: BookingSettingsRow | null): string | null {
+  if (!settings?.hours) return null
+
+  const groups: { label: string; days: Weekday[] }[] = []
+  for (const day of WEEKDAY_ORDER) {
+    const hours = settings.hours[day]
+    const label = hours ? `${hours.open}-${hours.close}` : 'closed'
+    const last = groups[groups.length - 1]
+    if (last && last.label === label) {
+      last.days.push(day)
+    } else {
+      groups.push({ label, days: [day] })
+    }
+  }
+  if (groups.length === 0) return null
+
+  const lines = groups.map((g) => {
+    const range =
+      g.days.length > 1
+        ? `${WEEKDAY_LABEL[g.days[0]]}-${WEEKDAY_LABEL[g.days[g.days.length - 1]]}`
+        : WEEKDAY_LABEL[g.days[0]]
+    return g.label === 'closed' ? `${range}: closed` : `${range}: ${g.label}`
+  })
+
+  let summary = `Weekly hours — ${lines.join('; ')}.`
+
+  const todayIso = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santo_Domingo' }).format(new Date())
+  const upcomingHolidays = (settings.holidays ?? []).filter((d) => d >= todayIso).sort()
+  if (upcomingHolidays.length > 0) {
+    summary += ` Also closed on these specific upcoming dates (holidays): ${upcomingHolidays.join(', ')}.`
+  }
+  return summary
+}
+
+/**
+ * Load + format the account's business-hours summary in one call — the
+ * convenience wrapper `auto-reply.ts` uses alongside `bookingEnabled`.
+ */
+export async function getBusinessHoursSummary(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<string | null> {
+  try {
+    const settings = await loadBookingSettings(db, accountId)
+    return formatBusinessHoursSummary(settings)
+  } catch {
+    return null
+  }
+}
+
+/**
  * Compute open appointment slots for one calendar date, crossing the
  * account's configured business hours against existing (non-cancelled)
  * `bookings`. Best-effort like knowledge/attachment retrieval — any
@@ -79,9 +157,17 @@ export async function checkAvailability(
     const slotMinutes = settings.slotMinutes && settings.slotMinutes > 0 ? settings.slotMinutes : 30
     const bufferMinutes = settings.bufferMinutes && settings.bufferMinutes > 0 ? settings.bufferMinutes : 0
 
+    if (settings.holidays?.includes(dateISO)) {
+      console.log('[ai booking] checkAvailability: closed for holiday', { accountId, dateISO })
+      return []
+    }
+
     const weekday = WEEKDAY_BY_JS_INDEX[date.getDay()]
     const hours = settings.hours?.[weekday]
-    if (!hours) return [] // closed that day
+    if (!hours) {
+      console.log('[ai booking] checkAvailability: closed that weekday', { accountId, dateISO, weekday })
+      return [] // closed that day
+    }
 
     const dayStart = new Date(`${dateISO}T${hours.open}:00`)
     const dayEnd = new Date(`${dateISO}T${hours.close}:00`)
@@ -123,6 +209,7 @@ export async function checkAvailability(
         if (slots.length >= k) break
       }
     }
+    console.log('[ai booking] checkAvailability: found slots', { accountId, dateISO, slotsFound: slots.length })
     return slots
   } catch (err) {
     console.error('[ai booking] checkAvailability failed:', err)
