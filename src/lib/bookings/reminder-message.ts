@@ -8,15 +8,13 @@
 // `renderTemplateBody`'s convention in template-body.ts.
 //
 // `starts_at` is a `timestamptz` (migration 046) — a true UTC instant,
-// not a naive local wall-clock value. The business this app runs for
-// always operates in America/Santo_Domingo (UTC-4, no DST), same zone
-// the app container defaults `TZ` to in docker-compose.yml — so the
-// date/time shown to the customer must be explicitly converted to that
-// zone rather than read off the raw (UTC) ISO string, which would show
-// the wrong wall-clock hour to the customer.
+// not a naive local wall-clock value, so the date/time shown to the
+// customer must be explicitly converted to the business's zone rather
+// than read off the raw (UTC) ISO string. That conversion lives in
+// `@/lib/business-timezone`, shared with the AI booking tools.
 // ============================================================
 
-const REMINDER_TIME_ZONE = 'America/Santo_Domingo'
+import { businessDate, businessTime } from '@/lib/business-timezone'
 
 export interface ReminderMessageVars {
   contactName: string
@@ -38,25 +36,11 @@ export function renderReminderMessage(text: string, vars: ReminderMessageVars): 
   return text.replace(TOKEN_PATTERN, (match, key: string) => values[key] ?? match)
 }
 
-const DATE_FORMATTER = new Intl.DateTimeFormat('en-CA', {
-  timeZone: REMINDER_TIME_ZONE,
-  year: 'numeric',
-  month: '2-digit',
-  day: '2-digit',
-})
-const TIME_FORMATTER = new Intl.DateTimeFormat('en-GB', {
-  timeZone: REMINDER_TIME_ZONE,
-  hour: '2-digit',
-  minute: '2-digit',
-  hour12: false,
-})
-
 /** `2026-08-25T18:30:00.000Z` (UTC) -> `{ date: '2026-08-25', time: '14:30' }` (America/Santo_Domingo). */
 function splitIsoDateTime(iso: string): { date: string; time: string } {
   const d = new Date(iso)
   if (Number.isNaN(d.getTime())) return { date: iso, time: '' }
-  // en-CA renders as YYYY-MM-DD; en-GB + hour12:false renders as HH:mm.
-  return { date: DATE_FORMATTER.format(d), time: TIME_FORMATTER.format(d) }
+  return { date: businessDate(d), time: businessTime(d) }
 }
 
 /**

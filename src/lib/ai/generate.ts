@@ -34,6 +34,11 @@ export interface GenerateArgs {
   /** Runs the availability lookup for the model's `check_availability`
    *  tool call, enabling both booking tools. Omit to run without them. */
   checkAvailability?: BookingSearchTool['execute']
+  /** Writes the booking for the model's `book_appointment` tool call and
+   *  returns the real outcome, so the model can tell the customer the
+   *  truth in the same turn. Omit (as the Playground does) to have the
+   *  tool acknowledge without touching the agenda. */
+  bookAppointment?: BookingSearchTool['create']
   /** True to expose the `set_customer_name` tool — the caller decides
    *  this (typically "the contact has no real name on file yet"). No
    *  executor needed: the adapter only validates and reports the name. */
@@ -66,6 +71,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     searchKnowledgeBase,
     searchAttachments,
     checkAvailability,
+    bookAppointment,
     captureCustomerName,
     captureNote,
     customFieldNames,
@@ -80,7 +86,9 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   const attachments: AttachmentSearchTool | undefined = searchAttachments
     ? { execute: searchAttachments }
     : undefined
-  const booking: BookingSearchTool | undefined = checkAvailability ? { execute: checkAvailability } : undefined
+  const booking: BookingSearchTool | undefined = checkAvailability
+    ? { execute: checkAvailability, create: bookAppointment }
+    : undefined
   const nameCapture = !!captureCustomerName
   const noteCapture = !!captureNote
   const sentimentCapture = !!captureSentiment

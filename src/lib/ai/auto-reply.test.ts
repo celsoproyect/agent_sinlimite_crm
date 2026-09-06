@@ -11,6 +11,10 @@ const h = vi.hoisted(() => ({
   getLeadPipelineStages: vi.fn(),
   generateReply: vi.fn(),
   engineSendText: vi.fn(),
+  bookingEnabled: vi.fn(),
+  checkAvailability: vi.fn(),
+  confirmAiBooking: vi.fn(),
+  getBusinessHoursSummary: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
     contact: null as Record<string, unknown> | null,
@@ -39,6 +43,12 @@ vi.mock('./custom-fields', () => ({
   getLeadPipelineStages: h.getLeadPipelineStages,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+vi.mock('./booking', () => ({
+  bookingEnabled: h.bookingEnabled,
+  checkAvailability: h.checkAvailability,
+  confirmAiBooking: h.confirmAiBooking,
+  getBusinessHoursSummary: h.getBusinessHoursSummary,
+}))
 vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
@@ -182,6 +192,47 @@ beforeEach(() => {
   h.getLeadPipelineStages.mockResolvedValue([])
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
   h.engineSendText.mockResolvedValue({ whatsapp_message_id: 'm1' })
+  h.bookingEnabled.mockResolvedValue(false)
+  h.checkAvailability.mockResolvedValue([])
+  h.confirmAiBooking.mockResolvedValue({ confirmed: true })
+  h.getBusinessHoursSummary.mockResolvedValue(null)
+})
+
+describe('dispatchInboundToAiReply — booking tools', () => {
+  it('wires no booking tools when the account has no business hours', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    const args = h.generateReply.mock.calls[0][0]
+    expect(args.checkAvailability).toBeUndefined()
+    expect(args.bookAppointment).toBeUndefined()
+  })
+
+  // The appointment used to be written long after generation finished,
+  // with book_appointment always answering "confirmed" — so a slot that
+  // was taken, or an insert that failed, still had the bot telling the
+  // customer they were booked. The writer now runs inside the tool call.
+  it('hands the model a writer that persists the booking during the tool call', async () => {
+    h.bookingEnabled.mockResolvedValue(true)
+    await dispatchInboundToAiReply(ARGS)
+    const args = h.generateReply.mock.calls[0][0]
+    expect(args.checkAvailability).toBeTypeOf('function')
+    expect(args.bookAppointment).toBeTypeOf('function')
+
+    const appointment = {
+      startsAt: '2026-09-08T13:00:00.000Z',
+      endsAt: '2026-09-08T14:00:00.000Z',
+      service: 'Corte',
+    }
+    await args.bookAppointment(appointment)
+    expect(h.confirmAiBooking).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        accountId: 'acct-1',
+        contactId: 'contact-1',
+        conversationId: 'conv-1',
+        appointment,
+      }),
+    )
+  })
 })
 
 describe('dispatchInboundToAiReply — eligibility gates', () => {
@@ -461,18 +512,18 @@ describe('dispatchInboundToAiReply — capture side effects', () => {
     expect(h.state.contactUpdatePayload).toHaveProperty('ai_sentiment_updated_at')
   })
 
-  it('includes the "prefer handoff over guessing" clause when handoff_on_missing_info is on (default)', async () => {
+  it('lists missing information as a handoff reason when handoff_on_missing_info is on (default)', async () => {
     await dispatchInboundToAiReply(ARGS)
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
-    expect(systemPrompt).toContain('prefer handing off over guessing')
+    expect(systemPrompt).toContain('answering would require information you do not have')
   })
 
   it('omits the missing-info handoff clause when handoff_on_missing_info is off', async () => {
     h.loadAiConfig.mockResolvedValue(aiConfig({ handoffOnMissingInfo: false }))
     await dispatchInboundToAiReply(ARGS)
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
-    expect(systemPrompt).not.toContain('prefer handing off over guessing')
-    expect(systemPrompt).toContain('do not hand off for this reason alone')
+    expect(systemPrompt).not.toContain('answering would require information you do not have')
+    expect(systemPrompt).toContain('that is a normal reply, not a handoff')
   })
 })
 

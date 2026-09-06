@@ -12,7 +12,6 @@ import {
   excerptsToToolResult,
   mergeConsecutive,
   normalizeUsage,
-  parseBookAppointment,
   parseCustomField,
   parseCustomerName,
   parseLeadStage,
@@ -21,6 +20,7 @@ import {
   providerHttpError,
   runAttachmentSearch,
   runAvailabilityCheck,
+  runBookAppointment,
   toNetworkError,
   ADD_NOTE_TOOL_NAME,
   BOOK_APPOINTMENT_TOOL_NAME,
@@ -465,10 +465,9 @@ async function runAnthropicTool(
   }
 
   if (toolUse.name === BOOK_APPOINTMENT_TOOL_NAME && bookingTool) {
-    const result = parseBookAppointment(toolUse.input)
-    if ('error' in result) return JSON.stringify({ confirmed: false, error: result.error })
-    booking.appointment = result.appointment
-    return JSON.stringify({ confirmed: true })
+    const { resultJson, appointment } = await runBookAppointment(bookingTool, toolUse.input)
+    if (appointment) booking.appointment = appointment
+    return resultJson
   }
 
   if (toolUse.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {

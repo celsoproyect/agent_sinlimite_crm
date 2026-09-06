@@ -1,5 +1,13 @@
-import { describe, it, expect } from 'vitest'
-import { parseNote, parseCustomField, parseLeadStage, parseSentiment } from './shared'
+import { describe, it, expect, vi } from 'vitest'
+import {
+  isAiBookingSlotReply,
+  parseBookAppointment,
+  parseNote,
+  parseCustomField,
+  parseLeadStage,
+  parseSentiment,
+  runBookAppointment,
+} from './shared'
 
 describe('parseNote', () => {
   it('accepts a short trimmed note', () => {
@@ -85,5 +93,115 @@ describe('parseSentiment', () => {
     expect(parseSentiment({})).toEqual({
       error: 'sentiment must be one of: positive, neutral, negative.',
     })
+  })
+})
+
+describe('isAiBookingSlotReply', () => {
+  it('recognises the offered-slot buttons the AI itself sent', () => {
+    expect(isAiBookingSlotReply('booking_slot_0')).toBe(true)
+    expect(isAiBookingSlotReply('booking_slot_2')).toBe(true)
+  })
+
+  it('leaves every other interactive reply to the Flows engine', () => {
+    expect(isAiBookingSlotReply('flow_yes')).toBe(false)
+    expect(isAiBookingSlotReply(null)).toBe(false)
+    expect(isAiBookingSlotReply(undefined)).toBe(false)
+  })
+})
+
+describe('parseBookAppointment', () => {
+  it('passes a zoned timestamp through as UTC', () => {
+    expect(
+      parseBookAppointment({
+        startsAt: '2026-09-08T13:00:00.000Z',
+        endsAt: '2026-09-08T14:00:00.000Z',
+        service: 'Corte',
+      }),
+    ).toEqual({
+      appointment: {
+        startsAt: '2026-09-08T13:00:00.000Z',
+        endsAt: '2026-09-08T14:00:00.000Z',
+        service: 'Corte',
+        notes: undefined,
+      },
+    })
+  })
+
+  // The model reconstructs a timestamp from the wall-clock time it quoted
+  // the customer whenever it no longer has check_availability's ISO
+  // values in context. That bare form is business-local, and used to be
+  // parsed against the host's zone instead.
+  it('anchors a zone-less timestamp to the business timezone', () => {
+    const result = parseBookAppointment({
+      startsAt: '2026-09-08T09:00:00',
+      endsAt: '2026-09-08T10:00:00',
+      service: 'Corte',
+    })
+    expect(result).toEqual({
+      appointment: {
+        startsAt: '2026-09-08T13:00:00.000Z',
+        endsAt: '2026-09-08T14:00:00.000Z',
+        service: 'Corte',
+        notes: undefined,
+      },
+    })
+  })
+
+  it('rejects incomplete or backwards arguments', () => {
+    expect(parseBookAppointment({ endsAt: '2026-09-08T14:00:00Z', service: 'x' })).toEqual({
+      error: 'startsAt is required and must be a valid ISO timestamp.',
+    })
+    expect(
+      parseBookAppointment({
+        startsAt: '2026-09-08T14:00:00Z',
+        endsAt: '2026-09-08T13:00:00Z',
+        service: 'x',
+      }),
+    ).toEqual({ error: 'endsAt must be after startsAt.' })
+  })
+})
+
+describe('runBookAppointment', () => {
+  const ARGS = {
+    startsAt: '2026-09-08T13:00:00.000Z',
+    endsAt: '2026-09-08T14:00:00.000Z',
+    service: 'Corte',
+  }
+  const execute = async () => []
+
+  it('reports a refusal from the writer and keeps the appointment unset', async () => {
+    const create = vi.fn().mockResolvedValue({ confirmed: false, error: 'that time is already taken' })
+    const result = await runBookAppointment({ execute, create }, ARGS)
+    expect(create).toHaveBeenCalledOnce()
+    expect(JSON.parse(result.resultJson)).toEqual({
+      confirmed: false,
+      error: 'that time is already taken',
+    })
+    expect(result.appointment).toBeUndefined()
+  })
+
+  it('reports success and hands back the written appointment', async () => {
+    const create = vi.fn().mockResolvedValue({ confirmed: true })
+    const result = await runBookAppointment({ execute, create }, ARGS)
+    expect(JSON.parse(result.resultJson)).toEqual({ confirmed: true })
+    expect(result.appointment).toMatchObject({ startsAt: ARGS.startsAt, service: 'Corte' })
+  })
+
+  it('turns a throwing writer into an honest refusal instead of a crash', async () => {
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+    const create = vi.fn().mockRejectedValue(new Error('boom'))
+    const result = await runBookAppointment({ execute, create }, ARGS)
+    expect(JSON.parse(result.resultJson)).toEqual({
+      confirmed: false,
+      error: 'the booking could not be saved',
+    })
+    expect(result.appointment).toBeUndefined()
+    vi.restoreAllMocks()
+  })
+
+  it('acknowledges without writing when no writer is wired up (Playground)', async () => {
+    const result = await runBookAppointment({ execute }, ARGS)
+    expect(JSON.parse(result.resultJson)).toEqual({ confirmed: true })
+    expect(result.appointment).toMatchObject({ service: 'Corte' })
   })
 })

@@ -14,6 +14,7 @@ import { verifyMetaWebhookSignature } from '@/lib/whatsapp/webhook-signature'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { isAiBookingSlotReply } from '@/lib/ai/providers/shared'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import {
   handleTemplateWebhookChange,
@@ -913,9 +914,14 @@ async function processMessage(
   // `after()` (same reason as the webhook dispatch below);
   // `dispatchInboundToAiReply` owns its eligibility gates + try/catch and
   // never throws.
+  // Interactive taps normally belong to a Flow, so the AI stands down for
+  // them — except for the slot buttons the AI itself sent for
+  // check_availability. Without that exception, tapping an offered time
+  // dead-ended the whole booking: the customer's pick landed in the
+  // inbox, the AI was never invoked, and no appointment was ever created.
   if (
     !flowConsumed &&
-    !interactiveReplyId &&
+    (!interactiveReplyId || isAiBookingSlotReply(interactiveReplyId)) &&
     (inboundText.trim() || ['image', 'audio', 'document'].includes(contentType))
   ) {
     await dispatchInboundToAiReply({

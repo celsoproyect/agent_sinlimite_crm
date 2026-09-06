@@ -13,7 +13,6 @@ import {
   excerptsToToolResult,
   mergeConsecutive,
   normalizeUsage,
-  parseBookAppointment,
   parseCustomField,
   parseCustomerName,
   parseLeadStage,
@@ -22,6 +21,7 @@ import {
   providerHttpError,
   runAttachmentSearch,
   runAvailabilityCheck,
+  runBookAppointment,
   toNetworkError,
   ADD_NOTE_TOOL_NAME,
   BOOK_APPOINTMENT_TOOL_NAME,
@@ -486,10 +486,9 @@ async function runOpenAiTool(
   }
 
   if (toolCall.function.name === BOOK_APPOINTMENT_TOOL_NAME && bookingTool) {
-    const result = parseBookAppointment(parsed)
-    if ('error' in result) return JSON.stringify({ confirmed: false, error: result.error })
-    booking.appointment = result.appointment
-    return JSON.stringify({ confirmed: true })
+    const { resultJson, appointment } = await runBookAppointment(bookingTool, parsed)
+    if (appointment) booking.appointment = appointment
+    return resultJson
   }
 
   if (toolCall.function.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {

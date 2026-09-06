@@ -213,11 +213,11 @@ describe('generateWidgetReply — handoff', () => {
 })
 
 describe('generateWidgetReply — handoff_on_missing_info', () => {
-  it('includes the "prefer handoff over guessing" clause by default', async () => {
+  it('lists missing information as a handoff reason by default', async () => {
     const { db } = makeDb({ conv: { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 } })
     await generateWidgetReply({ db, ...ARGS_BASE })
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
-    expect(systemPrompt).toContain('prefer handing off over guessing')
+    expect(systemPrompt).toContain('answering would require information you do not have')
   })
 
   it('omits the missing-info handoff clause when handoff_on_missing_info is off', async () => {
@@ -225,6 +225,7 @@ describe('generateWidgetReply — handoff_on_missing_info', () => {
     const { db } = makeDb({ conv: { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 } })
     await generateWidgetReply({ db, ...ARGS_BASE })
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
-    expect(systemPrompt).not.toContain('prefer handing off over guessing')
+    expect(systemPrompt).not.toContain('answering would require information you do not have')
+    expect(systemPrompt).toContain('that is a normal reply, not a handoff')
   })
 })

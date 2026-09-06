@@ -149,10 +149,17 @@ export function buildSystemPrompt(args: {
 
   if (mode === 'auto_reply') {
     parts.push(
-      `You are replying automatically with no human in the loop. If the customer explicitly asks for a human, or is upset or complaining, reply with exactly ${HANDOFF_SENTINEL} and nothing else — a human agent will then take over.` +
+      'You are replying automatically with no human in the loop. ' +
+        `Handing off is the exception, not the default: reply with exactly ${HANDOFF_SENTINEL} and nothing else (a human agent then takes over and you stop replying to this customer) ONLY when one of these is true — ` +
+        '(a) the customer explicitly asks to talk to a person, or (b) the customer is clearly angry, or is complaining about a problem you cannot resolve yourself' +
         (handoffOnMissingInfo
-          ? ` Also hand off the same way if the request needs information you do not have — prefer handing off over guessing.`
-          : " If you don't have specific information to answer, say so honestly and offer to follow up — do not guess, but do not hand off for this reason alone unless the customer is upset or asks for a human."),
+          ? ', or (c) answering would require information you do not have.'
+          : '.') +
+        ' For everything else — greetings, small talk, vague or unclear messages, questions you can only answer partly, questions outside the business context below — you must answer normally and keep the conversation going. ' +
+        `Never emit ${HANDOFF_SENTINEL} just because a message is short, off-topic, or unexpected.` +
+        (handoffOnMissingInfo
+          ? ''
+          : " When you don't have the specific information asked for, say so honestly in your own words and offer to check and follow up — that is a normal reply, not a handoff."),
     )
   }
 
@@ -170,10 +177,16 @@ export function buildSystemPrompt(args: {
   }
 
   if (knowledge && knowledge.length > 0) {
+    // This fallback must agree with the handoff rule above. It used to
+    // say "not covered -> emit the sentinel" unconditionally, which
+    // quietly overrode the account's "hand off when the AI lacks
+    // information" setting: with a knowledge base attached, every
+    // message the excerpts didn't happen to cover — a greeting
+    // included — handed the thread to a human and switched the bot off.
     const fallback =
-      mode === 'auto_reply'
+      mode === 'auto_reply' && handoffOnMissingInfo
         ? `if they don't cover the question, do not guess — reply with exactly ${HANDOFF_SENTINEL} so a human can help`
-        : "if they don't cover the question, don't guess — say you'll check and follow up"
+        : "if they don't cover the question, don't guess — say you'll check and follow up, and keep answering whatever else you can"
     parts.push(
       'Knowledge base — excerpts from the business\'s own documentation, retrieved for this question. ' +
         `Prefer these for any specifics (prices, policies, facts); ${fallback}. ` +
@@ -221,8 +234,9 @@ export function buildSystemPrompt(args: {
         'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
         'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) to get real open slots, then offer those slots to the customer in your reply, in your own words — real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
         "Wait for the customer's next message to see which slot they picked — they may reply with the button text or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
-        'Once they have clearly confirmed one specific slot, call book_appointment with that exact slot and a short description of the service. ' +
-        "Never tell the customer their appointment is booked unless book_appointment actually confirmed it — if it fails, apologize and suggest checking availability again. Don't call book_appointment speculatively or for a slot the customer didn't confirm. " +
+        'Once they have clearly confirmed one specific slot — including by tapping one of the buttons, which arrives as a plain time like "14:30" — call book_appointment for it in the same turn. ' +
+        'Pass the exact startsAt/endsAt of the slot you offered. If you no longer have those exact values, call check_availability again for that date first and take them from its result; the times you quote the customer are always local business time (America/Santo_Domingo). ' +
+        "book_appointment really writes the appointment and tells you the truth: it answers confirmed:false with a reason when the slot is taken, closed, or in the past. Only tell the customer they're booked when it answered confirmed:true — otherwise say plainly what happened and offer another time. Don't call it speculatively or for a slot the customer didn't confirm. " +
         "If they ask to book on a day that's closed (per the hours above, or a holiday), say so directly instead of calling check_availability for it.",
     )
   }

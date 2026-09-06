@@ -1,5 +1,14 @@
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { applyBusinessTimeZone } from "./src/lib/business-timezone";
+
+// Pin the build/dev process to America/Santo_Domingo before anything
+// else runs. `src/instrumentation.ts` does the same for the running
+// server; this call covers the processes that never reach that hook —
+// `next build`'s prerender workers, which format dates while generating
+// static pages, and the dev server's own config process. An explicit
+// `TZ` in the environment still wins (see applyBusinessTimeZone).
+applyBusinessTimeZone();
 
 const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 

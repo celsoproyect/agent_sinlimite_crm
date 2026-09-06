@@ -9,6 +9,7 @@ import {
   type ResolvedAttachment,
   type TimeSlot,
 } from '../types'
+import { businessTime, normalizeAiTimestamp } from '@/lib/business-timezone'
 import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
 
 // ============================================================
@@ -60,10 +61,28 @@ export const SEND_ATTACHMENT_TOOL_NAME = 'send_attachment'
  *  (auto-reply) to dispatch after generation finishes. */
 export interface BookingSearchTool {
   execute: (args: { date: string }) => Promise<TimeSlot[]>
+  /** Writes the booking for `book_appointment`, returning the honest
+   *  outcome so the model learns about a rejected/failed booking while
+   *  it is still composing its reply. Omitted by callers that only offer
+   *  slots and never persist (the Playground), in which case the tool
+   *  reports success without writing. */
+  create?: (appointment: BookingAppointment) => Promise<{ confirmed: boolean; error?: string }>
 }
 
 export const CHECK_AVAILABILITY_TOOL_NAME = 'check_availability'
 export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
+
+/** Id prefix on the WhatsApp reply buttons auto-reply sends for the slots
+ *  `check_availability` offered (`booking_slot_0`…). The webhook keys off
+ *  it to recognise a tap that belongs to the AI rather than to a Flow —
+ *  see `isAiBookingSlotReply`. */
+export const BOOKING_SLOT_BUTTON_PREFIX = 'booking_slot_'
+
+/** True when an inbound interactive reply is a tap on one of the AI's own
+ *  offered-slot buttons. */
+export function isAiBookingSlotReply(interactiveReplyId: string | null | undefined): boolean {
+  return !!interactiveReplyId && interactiveReplyId.startsWith(BOOKING_SLOT_BUTTON_PREFIX)
+}
 
 /** The `set_customer_name` function/tool both adapters expose to the model
  *  when the contact's name isn't on file yet. Running it during the
@@ -297,14 +316,13 @@ export async function runAttachmentSearch(
   }
 }
 
-/** Format an ISO timestamp as local wall-clock `HH:mm` — matches how
- *  `checkAvailability` (lib/ai/booking.ts) parses business hours as local
- *  time, so this must use local getters, not `toISOString()` (UTC), or
- *  the displayed time drifts from the account's configured hours whenever
- *  the server isn't running in UTC. */
+/** Format an ISO timestamp as `HH:mm` in the business's own timezone —
+ *  the same clock `checkAvailability` reads the configured business hours
+ *  on. Explicitly zoned rather than using the host's local getters, so a
+ *  server running outside America/Santo_Domingo doesn't quote the
+ *  customer a time that drifts from the account's configured hours. */
 export function formatLocalHHMM(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  return businessTime(iso)
 }
 
 /** Serialize offered slots for the `check_availability` tool result — the
@@ -335,6 +353,45 @@ export async function runAvailabilityCheck(
   return { resultJson: offerToToolResult(slots), offer: slots }
 }
 
+/**
+ * Run `book_appointment`: validate the model's arguments, then actually
+ * write the booking via the caller's `create` executor and report the
+ * real outcome back to the model.
+ *
+ * The booking used to be persisted long after generation finished, with
+ * the tool answering `{ confirmed: true }` no matter what — so a slot
+ * that was already taken, or an insert that failed, still had the model
+ * telling the customer they were booked. Doing the write here means a
+ * refusal reaches the model in time for it to say so and offer another
+ * time. `appointment` is only returned (for the caller to act on) when
+ * the write succeeded.
+ */
+export async function runBookAppointment(
+  tool: BookingSearchTool,
+  rawArgs: unknown,
+): Promise<{ resultJson: string; appointment?: BookingAppointment }> {
+  const parsed = parseBookAppointment(rawArgs)
+  if ('error' in parsed) {
+    return { resultJson: JSON.stringify({ confirmed: false, error: parsed.error }) }
+  }
+  // No writer wired up (the Playground, which must never touch the real
+  // agenda): behave as before and just report the intent back.
+  if (!tool.create) {
+    return { resultJson: JSON.stringify({ confirmed: true }), appointment: parsed.appointment }
+  }
+  let outcome: { confirmed: boolean; error?: string }
+  try {
+    outcome = await tool.create(parsed.appointment)
+  } catch (err) {
+    console.error('[ai booking] book_appointment executor threw:', err)
+    outcome = { confirmed: false, error: 'the booking could not be saved' }
+  }
+  return {
+    resultJson: JSON.stringify(outcome),
+    appointment: outcome.confirmed ? parsed.appointment : undefined,
+  }
+}
+
 /** Validate + normalize the model's `book_appointment` tool-call
  *  arguments into a `BookingAppointment`, or return an error string (sent
  *  back to the model as the tool result, e.g. "startsAt is required") when
@@ -348,20 +405,28 @@ export function parseBookAppointment(
   const service = typeof args.service === 'string' ? args.service.trim() : ''
   const notes = typeof args.notes === 'string' && args.notes.trim() ? args.notes.trim() : undefined
 
-  if (!startsAt || Number.isNaN(new Date(startsAt).getTime())) {
+  // A timestamp the model wrote without a zone means business-local
+  // time — that's the only clock it was ever shown — so anchor it to the
+  // business offset instead of the host's. Echoing back one of
+  // check_availability's own (UTC, `Z`-suffixed) values passes through
+  // unchanged.
+  const startsAtUtc = startsAt ? normalizeAiTimestamp(startsAt) : null
+  const endsAtUtc = endsAt ? normalizeAiTimestamp(endsAt) : null
+
+  if (!startsAtUtc) {
     return { error: 'startsAt is required and must be a valid ISO timestamp.' }
   }
-  if (!endsAt || Number.isNaN(new Date(endsAt).getTime())) {
+  if (!endsAtUtc) {
     return { error: 'endsAt is required and must be a valid ISO timestamp.' }
   }
-  if (new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+  if (new Date(endsAtUtc).getTime() <= new Date(startsAtUtc).getTime()) {
     return { error: 'endsAt must be after startsAt.' }
   }
   if (!service) {
     return { error: 'service is required.' }
   }
 
-  return { appointment: { startsAt, endsAt, service, notes } }
+  return { appointment: { startsAt: startsAtUtc, endsAt: endsAtUtc, service, notes } }
 }
 
 /** Validate + normalize the model's `set_customer_name` tool-call

@@ -4,13 +4,13 @@ import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { getAttachmentRoster, searchAttachments } from './attachments'
 import { getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
-import { bookingEnabled, checkAvailability, getBusinessHoursSummary, insertAiBooking } from './booking'
+import { bookingEnabled, checkAvailability, confirmAiBooking, getBusinessHoursSummary } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import { formatLocalHHMM } from './providers/shared'
+import { BOOKING_SLOT_BUTTON_PREFIX, formatLocalHHMM } from './providers/shared'
 import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@/lib/flows/meta-send'
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
@@ -234,6 +234,13 @@ export async function dispatchInboundToAiReply(
         checkAvailability: bookingAvailable
           ? ({ date }) => checkAvailability(db, accountId, date)
           : undefined,
+        // Booking is written inside the tool call, not after the send, so
+        // a rejected slot (taken / closed / past) or a failed insert
+        // reaches the model while it can still say so to the customer.
+        bookAppointment: bookingAvailable
+          ? (appointment) =>
+              confirmAiBooking(db, { accountId, contactId, conversationId, appointment })
+          : undefined,
         captureCustomerName: needsCustomerName,
         captureNote: true,
         customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
@@ -365,6 +372,16 @@ export async function dispatchInboundToAiReply(
         messages,
         replyCount: conv.ai_reply_count ?? 0,
       })
+      // Loud on purpose: "the bot handed off and I don't know why" is the
+      // hardest thing to diagnose from the outside, and `reason` says
+      // whether the model deliberately asked for a human (the sentinel)
+      // or simply came back with nothing to send.
+      console.log('[ai auto-reply] handing off to a human', {
+        conversationId,
+        reason: handoff ? 'model emitted the handoff sentinel' : 'model returned no text',
+        handoffOnMissingInfo: config.handoffOnMissingInfo,
+        replyCount: conv.ai_reply_count ?? 0,
+      })
       // Also leave the handoff summary as a real note, so it shows up in
       // the contact sidebar's notes panel, not just the banner.
       try {
@@ -430,7 +447,7 @@ export async function dispatchInboundToAiReply(
     if (offer && offer.length > 0) {
       const buttons: InteractiveButton[] = offer
         .slice(0, 3)
-        .map((slot, i) => ({ id: `booking_slot_${i}`, title: formatLocalHHMM(slot.startsAt) }))
+        .map((slot, i) => ({ id: `${BOOKING_SLOT_BUTTON_PREFIX}${i}`, title: formatLocalHHMM(slot.startsAt) }))
       try {
         await engineSendInteractiveButtons({
           accountId,
@@ -523,22 +540,6 @@ export async function dispatchInboundToAiReply(
         })
       } catch (err) {
         console.error('[ai auto-reply] attachment send failed:', err)
-      }
-    }
-
-    // Persist an appointment confirmed via book_appointment — best-effort,
-    // same rationale as the attachment dispatch above: the customer-facing
-    // text already landed, so a failure here must not surface to them.
-    if (booking?.appointment) {
-      try {
-        await insertAiBooking(db, {
-          accountId,
-          contactId,
-          conversationId,
-          appointment: booking.appointment,
-        })
-      } catch (err) {
-        console.error('[ai auto-reply] booking insert failed:', err)
       }
     }
   } catch (err) {
