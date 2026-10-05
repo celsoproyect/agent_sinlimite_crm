@@ -29,6 +29,7 @@ export interface CurrencyOption {
  */
 export const CURRENCIES: CurrencyOption[] = [
   { code: "USD", label: "US Dollar", symbol: "$" },
+  { code: "DOP", label: "Dominican Peso", symbol: "RD$" },
   { code: "EUR", label: "Euro", symbol: "€" },
   { code: "GBP", label: "British Pound", symbol: "£" },
   { code: "INR", label: "Indian Rupee", symbol: "₹" },
