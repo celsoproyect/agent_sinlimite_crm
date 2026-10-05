@@ -454,7 +454,21 @@ export function MessageThread({
       .then(({ error }) => {
         if (error) console.error("Failed to reset unread_count:", error);
       });
+    // Blue ticks on the customer's phone (no-op for web conversations).
+    notifyWhatsAppRead(conversationId, false);
   }, [conversationId, hasUnread]);
+
+  // While the agent writes, show the customer "typing…". Meta keeps it up
+  // for 25s, so re-sending at most every 20s keeps it alive without
+  // spamming the API.
+  const lastTypingRef = useRef(0);
+  const handleTyping = useCallback(() => {
+    if (!conversationId || sessionInfo.expired) return;
+    const now = Date.now();
+    if (now - lastTypingRef.current < 20_000) return;
+    lastTypingRef.current = now;
+    notifyWhatsAppRead(conversationId, true);
+  }, [conversationId, sessionInfo.expired]);
 
   // Auto-scroll to bottom on new messages
   useEffect(() => {
@@ -1199,6 +1213,7 @@ export function MessageThread({
         conversationId={conversation.id}
         sessionExpired={sessionInfo.expired}
         onSend={handleSend}
+        onTyping={handleTyping}
         onSendMedia={handleSendMedia}
         onSendInteractive={handleSendInteractive}
         onOpenTemplates={handleOpenTemplates}
@@ -1222,4 +1237,14 @@ export function MessageThread({
       />
     </div>
   );
+}
+
+/** Fire-and-forget read receipt / typing indicator to the customer's
+ *  WhatsApp (see /api/whatsapp/read). Failures only cost the ticks. */
+function notifyWhatsAppRead(conversationId: string, typing: boolean) {
+  void fetch("/api/whatsapp/read", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ conversation_id: conversationId, typing }),
+  }).catch(() => {});
 }

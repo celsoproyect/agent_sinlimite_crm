@@ -11,7 +11,12 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { BOOKING_SLOT_BUTTON_PREFIX, slotButtonTitle } from './providers/shared'
-import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@/lib/flows/meta-send'
+import {
+  engineMarkRead,
+  engineSendText,
+  engineSendMedia,
+  engineSendInteractiveButtons,
+} from '@/lib/flows/meta-send'
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
@@ -175,6 +180,10 @@ export async function dispatchInboundToAiReply(
       )
       return
     }
+
+    // The bot is about to answer: show the customer blue ticks and
+    // "typing…" while the model thinks (Meta drops it on our reply).
+    await engineMarkRead(db, { accountId, conversationId, typing: true })
 
     // Ground the reply in the account's knowledge base (best-effort).
     const [

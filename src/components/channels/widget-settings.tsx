@@ -26,6 +26,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { SettingsPanelHead } from '@/components/settings/settings-panel-head';
+import { WidgetAppearance } from './widget-appearance';
 
 interface WidgetRow {
   widget_enabled: boolean;
@@ -185,11 +186,15 @@ export function WidgetSettings() {
           </CardContent>
         </Card>
       )}
+
+      {row.widget_enabled && (
+        <WidgetAppearance widgetKey={row.widget_key} canEdit={canEditSettings} />
+      )}
     </section>
   );
 }
 
 function snippetFor(widgetKey: string): string {
   const origin = typeof window !== 'undefined' ? window.location.origin : '';
-  return `<script src="${origin}/widget.js" data-widget-key="${widgetKey}" data-logo-url="https://your-site.com/logo.png" data-agent-name="Josefina" async></script>`;
+  return `<script src="${origin}/widget.js" data-widget-key="${widgetKey}" async></script>`;
 }

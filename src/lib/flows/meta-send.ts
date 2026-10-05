@@ -1,4 +1,5 @@
 import {
+  markMessageRead,
   sendInteractiveButtons,
   sendInteractiveList,
   sendMediaMessage,
@@ -110,6 +111,50 @@ export async function sendToContact(
     await db.from('contacts').update({ phone: workingPhone }).eq('id', contact.id)
   }
   return waMessageId
+}
+
+/**
+ * Mark the customer's latest message in a conversation as read on
+ * WhatsApp (blue ticks), optionally with a "typing…" indicator.
+ * Best-effort and never throws: a failed read receipt must not stop the
+ * reply that follows it. Uses whichever client it's given, so a caller
+ * with a user session goes through RLS.
+ */
+export async function engineMarkRead(
+  db: SupabaseClient,
+  args: { accountId: string; conversationId: string; typing?: boolean },
+): Promise<void> {
+  try {
+    const { data: last } = await db
+      .from('messages')
+      .select('message_id')
+      .eq('conversation_id', args.conversationId)
+      .eq('sender_type', 'customer')
+      .not('message_id', 'is', null)
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+    if (!last?.message_id) return
+
+    const { data: config } = await db
+      .from('whatsapp_config')
+      .select('phone_number_id, access_token')
+      .eq('account_id', args.accountId)
+      .maybeSingle()
+    if (!config) return
+
+    await markMessageRead({
+      phoneNumberId: config.phone_number_id,
+      accessToken: decrypt(config.access_token),
+      messageId: last.message_id,
+      typing: args.typing,
+    })
+  } catch (err) {
+    console.warn(
+      '[whatsapp] mark-read failed:',
+      err instanceof Error ? err.message : err,
+    )
+  }
 }
 
 interface SendTextEngineArgs {

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   getLeadPipelineStages: vi.fn(),
   generateReply: vi.fn(),
   engineSendText: vi.fn(),
+  engineMarkRead: vi.fn(),
   bookingEnabled: vi.fn(),
   checkAvailability: vi.fn(),
   confirmAiBooking: vi.fn(),
@@ -52,7 +53,10 @@ vi.mock('./booking', () => ({
   confirmAiBooking: h.confirmAiBooking,
   getBusinessHoursSummary: h.getBusinessHoursSummary,
 }))
-vi.mock('@/lib/flows/meta-send', () => ({ engineSendText: h.engineSendText }))
+vi.mock('@/lib/flows/meta-send', () => ({
+  engineSendText: h.engineSendText,
+  engineMarkRead: h.engineMarkRead,
+}))
 vi.mock('./admin-client', () => ({
   supabaseAdmin: () => ({
     from: (table: string) => {
@@ -252,6 +256,17 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     )
   })
 
+  it('marks the inbound read with a typing indicator before generating', async () => {
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineMarkRead).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ conversationId: 'conv-1', typing: true }),
+    )
+    expect(h.engineMarkRead.mock.invocationCallOrder[0]).toBeLessThan(
+      h.generateReply.mock.invocationCallOrder[0],
+    )
+  })
+
   it('grounds the reply in retrieved knowledge', async () => {
     h.retrieveKnowledge.mockResolvedValue([
       { content: 'Returns accepted within 30 days.', kbName: 'Legal' },
@@ -282,6 +297,7 @@ describe('dispatchInboundToAiReply — eligibility gates', () => {
     await dispatchInboundToAiReply(ARGS)
     expect(h.generateReply).not.toHaveBeenCalled()
     expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.engineMarkRead).not.toHaveBeenCalled()
   })
 
   it('skips when auto-reply is disabled for the account', async () => {

@@ -113,6 +113,8 @@ interface MessageComposerProps {
   conversationId: string;
   sessionExpired: boolean;
   onSend: (text: string, replyToId?: string) => void;
+  /** Called on every keystroke; the caller throttles. */
+  onTyping?: () => void;
   onSendMedia: (payload: SendMediaPayload) => void;
   onSendInteractive: (payload: InteractiveMessagePayload, replyToId?: string) => void;
   onOpenTemplates: () => void;
@@ -135,6 +137,7 @@ export function MessageComposer({
   conversationId,
   sessionExpired,
   onSend,
+  onTyping,
   onSendMedia,
   onSendInteractive,
   onOpenTemplates,
@@ -250,8 +253,9 @@ export function MessageComposer({
     (e: React.ChangeEvent<HTMLTextAreaElement>) => {
       setText(e.target.value);
       adjustHeight();
+      if (e.target.value.trim()) onTyping?.();
     },
-    [adjustHeight]
+    [adjustHeight, onTyping]
   );
 
   // Ask the AI assistant for a suggested reply and drop it into the

@@ -683,6 +683,42 @@ export async function deleteMessageTemplate(
 // Reactions
 // ============================================================
 
+export interface MarkMessageReadArgs {
+  phoneNumberId: string
+  accessToken: string
+  /** Meta's message_id of the customer's (inbound) message. */
+  messageId: string
+  /** Also show "typing…" to the customer. Meta clears it when our next
+   *  message lands, or after 25 seconds, whichever comes first. */
+  typing?: boolean
+}
+
+/**
+ * Mark an inbound message as read (the customer sees blue ticks on it and
+ * on everything they sent before it), optionally with a typing indicator.
+ */
+export async function markMessageRead(args: MarkMessageReadArgs): Promise<void> {
+  const { phoneNumberId, accessToken, messageId, typing } = args
+  const url = `${META_API_BASE}/${phoneNumberId}/messages`
+  const body: Record<string, unknown> = {
+    messaging_product: 'whatsapp',
+    status: 'read',
+    message_id: messageId,
+  }
+  if (typing) body.typing_indicator = { type: 'text' }
+  const response = await fetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify(body),
+  })
+  if (!response.ok) {
+    await throwMetaError(response, `Meta API error: ${response.status}`)
+  }
+}
+
 export interface SendReactionMessageArgs {
   phoneNumberId: string
   accessToken: string
