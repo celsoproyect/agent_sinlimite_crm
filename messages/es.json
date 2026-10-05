@@ -595,7 +595,8 @@
       "holidaysDesc": "Fechas específicas en las que el negocio no trabaja, sin importar el día de la semana.",
       "addHoliday": "Agregar",
       "removeHoliday": "Quitar fecha feriada",
-      "noHolidays": "No hay días feriados agregados"
+      "noHolidays": "No hay días feriados agregados",
+      "notSavedYet": "Aún no has guardado tu horario de atención: lo que ves abajo es solo una sugerencia. Hasta que pulses Guardar, el agente de IA no puede consultar disponibilidad ni agendar citas."
     },
     "reminders": {
       "title": "Recordatorios de citas",

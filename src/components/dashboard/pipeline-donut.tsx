@@ -95,42 +95,40 @@ function Donut({ data, currency }: { data: PipelineDonutData; currency: string }
   const segments = data.stages.map((s, i) => {
     const start = offsets[i] * Math.PI * 2 - Math.PI / 2
     const end = offsets[i + 1] * Math.PI * 2 - Math.PI / 2
-    return { path: arcPath(cx, cy, r, start, end), color: s.color, id: s.id }
+    return { path: arcPath(cx, cy, r, start, end), color: s.color, id: s.id, full: shares[i] >= 0.9999 }
   })
 
   return (
-    <div className="flex items-center justify-center">
-      <svg viewBox={`0 0 ${size} ${size}`} className="h-48 w-48" role="img" aria-label={t('ariaLabel')}>
+    <div className="relative mx-auto h-48 w-48">
+      <svg viewBox={`0 0 ${size} ${size}`} className="h-full w-full" role="img" aria-label={t('ariaLabel')}>
         {/* background ring */}
         <circle cx={cx} cy={cy} r={r} fill="none" stroke="var(--muted)" strokeWidth={ringWidth} />
-        {segments.map((seg) => (
-          <path
-            key={seg.id}
-            d={seg.path}
-            fill="none"
-            stroke={seg.color}
-            strokeWidth={ringWidth}
-            strokeLinecap="butt"
-          />
-        ))}
-        {/* center label */}
-        <text
-          x={cx}
-          y={cy - 6}
-          textAnchor="middle"
-          className="fill-muted-foreground text-[0.6875rem]"
-        >
-          {t('total')}
-        </text>
-        <text
-          x={cx}
-          y={cy + 14}
-          textAnchor="middle"
-          className="fill-foreground text-[1.125rem] font-semibold tabular-nums"
-        >
-          {formatCurrencyShort(data.totalValue, currency)}
-        </text>
+        {segments.map((seg) =>
+          // A single stage is a full 360° sweep, whose arc start and end
+          // coincide — SVG draws nothing for that, so use a circle.
+          seg.full ? (
+            <circle key={seg.id} cx={cx} cy={cy} r={r} fill="none" stroke={seg.color} strokeWidth={ringWidth} />
+          ) : (
+            <path
+              key={seg.id}
+              d={seg.path}
+              fill="none"
+              stroke={seg.color}
+              strokeWidth={ringWidth}
+              strokeLinecap="butt"
+            />
+          ),
+        )}
       </svg>
+      {/* Center label as HTML over the ring rather than SVG <text>: CSS
+          font sizes on SVG text get scaled with the viewBox, which made
+          "Total" and the amount collide. */}
+      <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center gap-0.5">
+        <span className="text-[0.6875rem] text-muted-foreground">{t('total')}</span>
+        <span className="text-lg leading-tight font-semibold text-foreground tabular-nums">
+          {formatCurrencyShort(data.totalValue, currency)}
+        </span>
+      </div>
     </div>
   )
 }

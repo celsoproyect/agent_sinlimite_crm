@@ -95,6 +95,18 @@ export interface TimeSlot {
   endsAt: string
 }
 
+/** What `check_availability` found: open slots, plus — when the customer
+ *  asked for a specific time — whether exactly that time is bookable. */
+export interface AvailabilityResult {
+  /** Set only when a specific time was asked for. */
+  requested?: { date: string; time: string; available: boolean }
+  /** Bookable slots, chronological. With a requested time: that slot first
+   *  when it's free, then the open slots nearest to it (possibly on other
+   *  days). Without one: the first open slots of the requested date, or of
+   *  the next open days when that date is closed or full. */
+  slots: TimeSlot[]
+}
+
 /** A confirmed appointment the model built via `book_appointment`, ready
  *  for auto-reply to insert into `bookings` after generation finishes —
  *  no DB write happens inside the provider adapters themselves. */
@@ -173,9 +185,19 @@ export interface ProviderResult {
   /** Set only when the `set_lead_stage` tool was offered and used this
    *  turn — only auto-reply persists this onto the account's `deals`. */
   leadStage?: string
+  /** Deal amount the model passed alongside `set_lead_stage` — the price of
+   *  what the customer is interested in. */
+  leadValue?: LeadValue
   /** Set only when the `set_sentiment` tool was offered and used this
    *  turn — only auto-reply/widget-reply persist it onto the contact. */
   sentiment?: AiSentiment
+}
+
+/** A deal amount captured by `set_lead_stage`. */
+export interface LeadValue {
+  amount: number
+  /** ISO 4217 code (e.g. DOP), when the model knew it. */
+  currency?: string
 }
 
 /** Outcome of a generation call. */
@@ -206,6 +228,9 @@ export interface GenerateResult {
   /** Set only when the `set_lead_stage` tool was offered and used this
    *  turn — only auto-reply persists this onto the account's `deals`. */
   leadStage?: string
+  /** Deal amount the model passed alongside `set_lead_stage` — the price of
+   *  what the customer is interested in. */
+  leadValue?: LeadValue
   /** Set only when the `set_sentiment` tool was offered and used this
    *  turn — only auto-reply/widget-reply persist it onto the contact. */
   sentiment?: AiSentiment

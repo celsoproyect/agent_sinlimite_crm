@@ -2,14 +2,16 @@ import {
   AiError,
   type AiSentiment,
   type AiUsage,
+  type AvailabilityResult,
   type BookingAppointment,
   type CapturedCustomField,
   type ChatMessage,
   type ContentPart,
+  type LeadValue,
   type ResolvedAttachment,
   type TimeSlot,
 } from '../types'
-import { businessTime, normalizeAiTimestamp } from '@/lib/business-timezone'
+import { businessDate, businessTime, businessWeekday, normalizeAiTimestamp } from '@/lib/business-timezone'
 import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
 
 // ============================================================
@@ -60,7 +62,7 @@ export const SEND_ATTACHMENT_TOOL_NAME = 'send_attachment'
  *  confirmed appointments into `ProviderResult.booking` for the caller
  *  (auto-reply) to dispatch after generation finishes. */
 export interface BookingSearchTool {
-  execute: (args: { date: string }) => Promise<TimeSlot[]>
+  execute: (args: { date: string; time?: string }) => Promise<AvailabilityResult>
   /** Writes the booking for `book_appointment`, returning the honest
    *  outcome so the model learns about a rejected/failed booking while
    *  it is still composing its reply. Omitted by callers that only offer
@@ -325,32 +327,78 @@ export function formatLocalHHMM(iso: string): string {
   return businessTime(iso)
 }
 
-/** Serialize offered slots for the `check_availability` tool result — the
- *  model sees plain HH:mm times (it already knows the requested date) so
- *  it can describe them back to the customer in its own words. */
-export function offerToToolResult(slots: TimeSlot[]): string {
-  if (slots.length === 0) {
-    return JSON.stringify({ available: false, note: 'No open slots that day.' })
+/** Serialize a `check_availability` result for the model. Each slot
+ *  carries its own business-local date, weekday and HH:mm (alternatives can
+ *  fall on a different day than the one asked for) plus the exact
+ *  startsAt/endsAt to pass to `book_appointment`. */
+export function offerToToolResult(result: AvailabilityResult): string {
+  const slots = result.slots.map((s) => ({
+    startsAt: s.startsAt,
+    endsAt: s.endsAt,
+    date: businessDate(s.startsAt),
+    weekday: WEEKDAY_NAMES[businessWeekday(businessDate(s.startsAt))],
+    time: formatLocalHHMM(s.startsAt),
+  }))
+  if (!result.requested) {
+    return JSON.stringify(
+      slots.length > 0
+        ? { available: true, slots }
+        : { available: false, note: 'No open slots on that date or the following two weeks.' },
+    )
   }
+  const { date, time, available } = result.requested
   return JSON.stringify({
-    available: true,
-    slots: slots.map((s) => ({
-      startsAt: s.startsAt,
-      time: formatLocalHHMM(s.startsAt),
-    })),
+    requested: { date, time, available },
+    ...(available
+      ? { note: 'The requested time is free. Its slot is the first one listed; the others are nearby alternatives.' }
+      : {
+          note:
+            slots.length > 0
+              ? 'The requested time is NOT available (taken, outside business hours, on a closed day, or already past). The slots listed are the closest open alternatives.'
+              : 'The requested time is NOT available and there are no open slots nearby.',
+        }),
+    slots,
   })
 }
 
-/** Run `check_availability`: resolve slots for the requested date via the
- *  caller-supplied executor and shape the tool-result JSON the model
- *  sees. Never writes anything — the resolved offer is only accumulated
- *  by the adapter for auto-reply to dispatch as WhatsApp buttons. */
+const WEEKDAY_NAMES = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday']
+
+/** Run `check_availability`: resolve slots for the requested date (and
+ *  optional preferred time) via the caller-supplied executor and shape the
+ *  tool-result JSON the model sees. Never writes anything — the resolved
+ *  offer is only accumulated by the adapter for auto-reply to dispatch as
+ *  WhatsApp buttons. */
 export async function runAvailabilityCheck(
   tool: BookingSearchTool,
   date: string,
+  time?: string,
 ): Promise<{ resultJson: string; offer: TimeSlot[] }> {
-  const slots = await tool.execute({ date })
-  return { resultJson: offerToToolResult(slots), offer: slots }
+  const result = await tool.execute({ date, time })
+  return { resultJson: offerToToolResult(result), offer: result.slots }
+}
+
+/** Parse `check_availability` arguments from either adapter. */
+export function parseAvailabilityArgs(rawArgs: unknown): { date: string; time?: string } {
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const date = typeof args.date === 'string' ? args.date.trim() : ''
+  const rawTime = typeof args.time === 'string' ? args.time.trim() : ''
+  // Accept "9:00" as well as "09:00"; anything else is ignored rather than
+  // failing the whole lookup.
+  const m = /^(\d{1,2}):(\d{2})$/.exec(rawTime)
+  const time = m && Number(m[1]) < 24 && Number(m[2]) < 60 ? `${m[1].padStart(2, '0')}:${m[2]}` : undefined
+  return { date, time }
+}
+
+/** Title for one offered-slot WhatsApp button (20-char cap). Just the time
+ *  when every offered slot is on the same day; otherwise prefixed with the
+ *  day/month, since alternatives can land on different dates and a bare
+ *  "09:00" tap would be ambiguous. */
+export function slotButtonTitle(slot: TimeSlot, offer: TimeSlot[]): string {
+  const sameDay = offer.every((s) => businessDate(s.startsAt) === businessDate(offer[0].startsAt))
+  const time = formatLocalHHMM(slot.startsAt)
+  if (sameDay) return time
+  const [, mm, dd] = businessDate(slot.startsAt).split('-')
+  return `${dd}/${mm} ${time}`
 }
 
 /**
@@ -479,13 +527,22 @@ export function parseCustomField(
 export function parseLeadStage(
   rawArgs: unknown,
   allowedStageNames: string[],
-): { stage: string } | { error: string } {
+): { stage: string; value?: LeadValue } | { error: string } {
   const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
   const stage = typeof args.stage === 'string' ? args.stage.trim() : ''
   if (!stage || !allowedStageNames.includes(stage)) {
     return { error: `stage must be one of: ${allowedStageNames.join(', ')}.` }
   }
-  return { stage }
+  // The amount is optional and best-effort: a missing or malformed one
+  // never fails the stage update. Accepts "3,500" as well as 3500.
+  const rawAmount =
+    typeof args.value === 'number' ? args.value : typeof args.value === 'string' ? Number(args.value.replace(/,/g, '')) : NaN
+  const rawCurrency = typeof args.currency === 'string' ? args.currency.trim().toUpperCase() : ''
+  const value: LeadValue | undefined =
+    Number.isFinite(rawAmount) && rawAmount > 0
+      ? { amount: rawAmount, ...(/^[A-Z]{3}$/.test(rawCurrency) ? { currency: rawCurrency } : {}) }
+      : undefined
+  return value ? { stage, value } : { stage }
 }
 
 const VALID_SENTIMENTS: AiSentiment[] = ['positive', 'neutral', 'negative']

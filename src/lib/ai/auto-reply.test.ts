@@ -38,7 +38,10 @@ vi.mock('./knowledge', () => ({
   retrieveKnowledge: h.retrieveKnowledge,
   getKnowledgeBaseRoster: h.getKnowledgeBaseRoster,
 }))
-vi.mock('./custom-fields', () => ({
+// applyLeadCapture stays real so the deal tests exercise the actual
+// writes against the fake db; only the roster lookups are stubbed.
+vi.mock('./custom-fields', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./custom-fields')>()),
   getCustomFieldRoster: h.getCustomFieldRoster,
   getLeadPipelineStages: h.getLeadPipelineStages,
 }))
@@ -193,7 +196,7 @@ beforeEach(() => {
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
   h.engineSendText.mockResolvedValue({ whatsapp_message_id: 'm1' })
   h.bookingEnabled.mockResolvedValue(false)
-  h.checkAvailability.mockResolvedValue([])
+  h.checkAvailability.mockResolvedValue({ slots: [] })
   h.confirmAiBooking.mockResolvedValue({ confirmed: true })
   h.getBusinessHoursSummary.mockResolvedValue(null)
 })
@@ -502,6 +505,22 @@ describe('dispatchInboundToAiReply — capture side effects', () => {
     expect(h.state.dealInserts).toEqual([])
     expect(h.state.dealUpdates).toEqual([
       expect.objectContaining({ stage_id: 'stage-2' }),
+    ])
+  })
+
+  it('records the deal amount and currency the model passed with the stage', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-1', name: 'Qualified' }])
+    h.state.existingDeals = [{ id: 'deal-9', status: 'open' }]
+    h.generateReply.mockResolvedValue({
+      text: 'Hello!',
+      handoff: false,
+      leadStage: 'Qualified',
+      leadValue: { amount: 3500, currency: 'DOP' },
+    })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.dealUpdates).toEqual([
+      expect.objectContaining({ stage_id: 'stage-1', value: 3500, currency: 'DOP' }),
     ])
   })
 

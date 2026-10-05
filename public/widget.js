@@ -8,6 +8,10 @@
  * turns the round icon-only bubble into an oval pill with "Chat with
  * {name}" text next to the icon.
  *
+ * Before the first message the visitor is asked for their name (one short,
+ * skippable form), so the conversation lands in the inbox under a real
+ * name instead of "Visitante web".
+ *
  * Self-contained, no build step, no dependency on the app's own React
  * bundle (this script runs on someone else's site, in whatever
  * environment they have). The API base is derived from the script's
@@ -31,6 +35,7 @@
   var agentName = thisScript.getAttribute('data-agent-name');
   var apiBase = new URL(thisScript.src).origin;
   var storageKey = 'sinlimiteia_widget_visitor_' + widgetKey;
+  var nameStorageKey = 'sinlimiteia_widget_name_' + widgetKey;
 
   var lang = (navigator.language || 'en').slice(0, 2).toLowerCase();
   var STRINGS = {
@@ -42,6 +47,10 @@
       greeting: "Hi! How can we help you today?",
       fallback: "Thanks for your message — we'll get back to you soon.",
       error: 'Something went wrong. Please try again.',
+      askName: "Before we start, what's your name?",
+      namePlaceholder: 'Your name',
+      start: 'Start chat',
+      skip: 'Skip',
     },
     es: {
       title: 'Chatea con nosotros',
@@ -51,6 +60,10 @@
       greeting: '¡Hola! ¿En qué podemos ayudarte?',
       fallback: 'Gracias por tu mensaje, te responderemos pronto.',
       error: 'Ocurrió un error. Intenta de nuevo.',
+      askName: 'Antes de empezar, ¿cómo te llamas?',
+      namePlaceholder: 'Tu nombre',
+      start: 'Empezar',
+      skip: 'Omitir',
     },
     ko: {
       title: '채팅 상담',
@@ -60,16 +73,25 @@
       greeting: '안녕하세요! 무엇을 도와드릴까요?',
       fallback: '메시지 감사합니다. 곧 답변드리겠습니다.',
       error: '오류가 발생했습니다. 다시 시도해 주세요.',
+      askName: '시작하기 전에 성함을 알려주세요.',
+      namePlaceholder: '이름',
+      start: '채팅 시작',
+      skip: '건너뛰기',
     },
   };
   var t = STRINGS[lang] || STRINGS.en;
 
   var visitorId = null;
+  var visitorName = null;
   try {
     visitorId = localStorage.getItem(storageKey);
+    visitorName = localStorage.getItem(nameStorageKey);
   } catch (e) {
     /* private-browsing / storage blocked — fine, a new visitor id is minted server-side per message */
   }
+  // Returning visitors (already chatted, or already answered/skipped the
+  // name question) are never asked again.
+  var nameDone = !!(visitorId || visitorName);
 
   // ------------------------------------------------------------
   // Styles — scoped under #sinlimiteia-widget-root to avoid leaking
@@ -98,7 +120,13 @@
     '#sinlimiteia-widget-form{display:flex;gap:8px;padding:10px;border-top:1px solid #e9edef;background:#fff}' +
     '#sinlimiteia-widget-input{flex:1;border:1px solid #d1d7db;border-radius:20px;padding:8px 14px;font-size:13.5px;outline:none}' +
     '#sinlimiteia-widget-send{background:#111b21;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer}' +
-    '#sinlimiteia-widget-send:disabled{opacity:.5;cursor:default}';
+    '#sinlimiteia-widget-send:disabled{opacity:.5;cursor:default}' +
+    '#sinlimiteia-widget-name{display:flex;flex-direction:column;gap:10px;padding:12px;border-top:1px solid #e9edef;background:#fff}' +
+    '#sinlimiteia-widget-name label{font-size:13.5px;color:#111}' +
+    '#sinlimiteia-widget-name input{border:1px solid #d1d7db;border-radius:20px;padding:8px 14px;font-size:13.5px;outline:none}' +
+    '#sinlimiteia-widget-name-actions{display:flex;gap:8px;justify-content:flex-end}' +
+    '#sinlimiteia-widget-name-skip{background:none;border:none;color:#667781;font-size:13px;cursor:pointer}' +
+    '#sinlimiteia-widget-name-start{background:#111b21;color:#fff;border:none;border-radius:20px;padding:8px 16px;font-size:13px;cursor:pointer}';
   document.head.appendChild(style);
 
   var bubbleIcon = logoUrl ? '<img src="' + logoUrl + '" alt="" />' : '💬';
@@ -124,6 +152,14 @@
     '<div id="sinlimiteia-widget-panel">' +
     '<div id="sinlimiteia-widget-header"><div id="sinlimiteia-widget-header-title">' + headerTitle + '</div><button id="sinlimiteia-widget-close" aria-label="close">✕</button></div>' +
     '<div id="sinlimiteia-widget-messages"></div>' +
+    '<form id="sinlimiteia-widget-name">' +
+    '<label for="sinlimiteia-widget-name-input">' + t.askName + '</label>' +
+    '<input id="sinlimiteia-widget-name-input" type="text" maxlength="120" placeholder="' + t.namePlaceholder + '" autocomplete="name" />' +
+    '<div id="sinlimiteia-widget-name-actions">' +
+    '<button id="sinlimiteia-widget-name-skip" type="button">' + t.skip + '</button>' +
+    '<button id="sinlimiteia-widget-name-start" type="submit">' + t.start + '</button>' +
+    '</div>' +
+    '</form>' +
     '<form id="sinlimiteia-widget-form">' +
     '<input id="sinlimiteia-widget-input" type="text" placeholder="' + t.placeholder + '" autocomplete="off" />' +
     '<button id="sinlimiteia-widget-send" type="submit">' + t.send + '</button>' +
@@ -138,6 +174,41 @@
   var form = document.getElementById('sinlimiteia-widget-form');
   var input = document.getElementById('sinlimiteia-widget-input');
   var sendBtn = document.getElementById('sinlimiteia-widget-send');
+  var nameForm = document.getElementById('sinlimiteia-widget-name');
+  var nameInput = document.getElementById('sinlimiteia-widget-name-input');
+  var nameSkip = document.getElementById('sinlimiteia-widget-name-skip');
+
+  // Show either the one-time name step or the message box, never both.
+  function showNameStep(show) {
+    nameForm.style.display = show ? 'flex' : 'none';
+    form.style.display = show ? 'none' : 'flex';
+  }
+  showNameStep(!nameDone);
+
+  function finishNameStep(name) {
+    nameDone = true;
+    visitorName = name || null;
+    try {
+      // An empty string still records "already asked" for a skip.
+      localStorage.setItem(nameStorageKey, visitorName || '');
+    } catch (e) {
+      /* ignore */
+    }
+    showNameStep(false);
+    input.focus();
+  }
+  nameForm.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var name = nameInput.value.trim().slice(0, 120);
+    if (!name) {
+      nameInput.focus();
+      return;
+    }
+    finishNameStep(name);
+  });
+  nameSkip.addEventListener('click', function () {
+    finishNameStep(null);
+  });
 
   var opened = false;
   function toggle() {
@@ -146,7 +217,7 @@
     if (opened && messagesEl.children.length === 0) {
       appendMessage(t.greeting, 'bot');
     }
-    if (opened) input.focus();
+    if (opened) (nameDone ? input : nameInput).focus();
   }
   bubble.addEventListener('click', toggle);
   closeBtn.addEventListener('click', toggle);
@@ -170,7 +241,7 @@
     fetch(apiBase + '/api/widget/' + encodeURIComponent(widgetKey) + '/message', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ visitorId: visitorId, text: text }),
+      body: JSON.stringify({ visitorId: visitorId, text: text, visitorName: visitorName || undefined }),
     })
       .then(function (res) {
         return res.json().then(function (data) {

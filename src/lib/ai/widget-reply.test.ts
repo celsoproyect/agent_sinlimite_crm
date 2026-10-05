@@ -8,6 +8,8 @@ const h = vi.hoisted(() => ({
   retrieveKnowledge: vi.fn(),
   getKnowledgeBaseRoster: vi.fn(),
   getCustomFieldRoster: vi.fn(),
+  getLeadPipelineStages: vi.fn(),
+  applyLeadCapture: vi.fn(),
   generateReply: vi.fn(),
 }))
 
@@ -17,7 +19,11 @@ vi.mock('./knowledge', () => ({
   retrieveKnowledge: h.retrieveKnowledge,
   getKnowledgeBaseRoster: h.getKnowledgeBaseRoster,
 }))
-vi.mock('./custom-fields', () => ({ getCustomFieldRoster: h.getCustomFieldRoster }))
+vi.mock('./custom-fields', () => ({
+  getCustomFieldRoster: h.getCustomFieldRoster,
+  getLeadPipelineStages: h.getLeadPipelineStages,
+  applyLeadCapture: h.applyLeadCapture,
+}))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
 
 import { generateWidgetReply } from './widget-reply'
@@ -126,6 +132,7 @@ const ARGS_BASE = {
   conversationId: 'conv-1',
   contactId: 'contact-1',
   contactName: 'Juan Perez',
+  ownerUserId: 'owner-1',
 }
 
 beforeEach(() => {
@@ -134,6 +141,8 @@ beforeEach(() => {
   h.retrieveKnowledge.mockResolvedValue([])
   h.getKnowledgeBaseRoster.mockResolvedValue([])
   h.getCustomFieldRoster.mockResolvedValue([])
+  h.getLeadPipelineStages.mockResolvedValue([])
+  h.applyLeadCapture.mockReset()
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
 })
 
@@ -190,11 +199,36 @@ describe('generateWidgetReply — capture side effects', () => {
     ])
   })
 
-  it('does not expose set_lead_stage / leadStage capture on the widget path', async () => {
+  it('files a captured lead stage and amount into the lead pipeline', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-1', name: 'Qualified' }])
+    h.generateReply.mockResolvedValue({
+      text: 'Hello!',
+      handoff: false,
+      leadStage: 'Qualified',
+      leadValue: { amount: 3500, currency: 'DOP' },
+    })
     const { db } = makeDb({ conv: { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 } })
     await generateWidgetReply({ db, ...ARGS_BASE })
     const call = h.generateReply.mock.calls[0][0] as Record<string, unknown>
-    expect(call).not.toHaveProperty('leadStageNames')
+    expect(call.leadStageNames).toEqual(['Qualified'])
+    expect(h.applyLeadCapture).toHaveBeenCalledWith(
+      db,
+      expect.objectContaining({
+        pipelineId: 'pipe-1',
+        ownerUserId: 'owner-1',
+        stage: 'Qualified',
+        value: { amount: 3500, currency: 'DOP' },
+        title: 'Juan Perez',
+      }),
+    )
+  })
+
+  it('does not offer set_lead_stage when no lead pipeline is configured', async () => {
+    const { db } = makeDb({ conv: { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 } })
+    await generateWidgetReply({ db, ...ARGS_BASE })
+    const call = h.generateReply.mock.calls[0][0] as Record<string, unknown>
+    expect(call.leadStageNames).toBeUndefined()
   })
 })
 

@@ -94,7 +94,7 @@ function SettingsPageInner() {
         </p>
       </div>
 
-      <div className="mt-6 grid gap-6 lg:grid-cols-[236px_minmax(0,1fr)] lg:items-start">
+      <div className="mt-6 grid gap-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
         <SettingsRail active={section} onSelect={go} hints={hints} />
         <div className="min-w-0">{panel[section]}</div>
       </div>

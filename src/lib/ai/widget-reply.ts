@@ -2,7 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
-import { getCustomFieldRoster } from './custom-fields'
+import { applyLeadCapture, getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -19,6 +19,8 @@ interface WidgetReplyArgs {
    *  their name and, if so, where to persist it once captured. */
   contactId: string
   contactName: string
+  /** Account owner — `deals.user_id` for a lead the AI opens. */
+  ownerUserId: string
 }
 
 export type WidgetReplyOutcome =
@@ -38,7 +40,7 @@ export type WidgetReplyOutcome =
  * Kept out entirely rather than half-wired.
  */
 export async function generateWidgetReply(args: WidgetReplyArgs): Promise<WidgetReplyOutcome> {
-  const { db, accountId, conversationId, contactId, contactName } = args
+  const { db, accountId, conversationId, contactId, contactName, ownerUserId } = args
   // "Visitante web" is the placeholder findOrCreateWidgetContact falls
   // back to when the visitor never supplied a name — the signal nobody's
   // captured a real one yet.
@@ -85,12 +87,14 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const acctLimit = checkRateLimit(`ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
-  const [knowledge, knowledgeBases, customFieldRoster] = await Promise.all([
+  const [knowledge, knowledgeBases, customFieldRoster, leadStageRoster] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
     getCustomFieldRoster(db, accountId),
+    config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),
   ])
   const customFieldNames = customFieldRoster.map((f) => f.field_name)
+  const leadStageNames = leadStageRoster.map((s) => s.name)
 
   const systemPrompt = buildSystemPrompt({
     userPrompt: config.systemPrompt,
@@ -104,10 +108,11 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     handoffOnMissingInfo: config.handoffOnMissingInfo,
     noteCaptureAvailable: true,
     customFieldNames,
+    leadStageNames,
     sentimentCaptureAvailable: true,
   })
 
-  const { text, handoff, usage, customerName, note, customFields, sentiment } = await generateReply({
+  const { text, handoff, usage, customerName, note, customFields, leadStage, leadValue, sentiment } = await generateReply({
     config,
     systemPrompt,
     messages,
@@ -119,6 +124,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     captureCustomerName: needsCustomerName,
     captureNote: true,
     customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
+    leadStageNames: leadStageNames.length > 0 ? leadStageNames : undefined,
     captureSentiment: true,
   })
 
@@ -162,6 +168,21 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
         console.error('[widget ai reply] custom field upsert failed:', err)
       }
     }
+  }
+
+  if (leadStage && config.leadPipelineId) {
+    await applyLeadCapture(db, {
+      accountId,
+      contactId,
+      conversationId,
+      ownerUserId,
+      pipelineId: config.leadPipelineId,
+      stageRoster: leadStageRoster,
+      stage: leadStage,
+      value: leadValue,
+      title: customerName || (needsCustomerName ? 'Visitante web' : contactName),
+      renameTitle: !!customerName,
+    })
   }
 
   if (sentiment) {

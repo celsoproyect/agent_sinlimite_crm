@@ -52,7 +52,7 @@ export function SettingsRail({
       className={cn(
         'flex gap-1 overflow-x-auto pb-2 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden',
         'border-b border-border',
-        'lg:sticky lg:top-0 lg:flex-col lg:overflow-visible lg:border-b-0 lg:pb-0',
+        'lg:sticky lg:top-0 lg:min-w-0 lg:flex-col lg:overflow-visible lg:border-b-0 lg:pb-0',
       )}
     >
       {RAIL_GROUPS.map(({ label, group }) => {
@@ -82,18 +82,20 @@ export function SettingsRail({
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
                     'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors',
-                    'lg:w-full',
+                    // Desktop: wrap long translated labels inside the
+                    // column instead of spilling over the panel beside it.
+                    'lg:w-full lg:whitespace-normal',
                     isActive
                       ? 'bg-primary-soft text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',
                   )}
                 >
                   <Icon className="size-4 shrink-0" />
-                  <span className="flex-1">{t(`sections.${s}`)}</span>
+                  <span className="min-w-0 flex-1 leading-snug">{t(`sections.${s}`)}</span>
                   {hints?.[s] != null ? (
                     <span
                       className={cn(
-                        'hidden items-center gap-1.5 text-xs lg:inline-flex',
+                        'hidden shrink-0 items-center gap-1.5 text-xs lg:inline-flex',
                         isActive ? 'text-primary' : 'text-muted-foreground',
                       )}
                     >

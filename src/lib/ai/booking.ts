@@ -6,7 +6,7 @@ import {
   businessToday,
   businessWeekday,
 } from '@/lib/business-timezone'
-import type { BookingAppointment, TimeSlot } from './types'
+import type { AvailabilityResult, BookingAppointment, TimeSlot } from './types'
 
 type Weekday =
   | 'monday'
@@ -139,125 +139,195 @@ export async function getBusinessHoursSummary(
   }
 }
 
-/**
- * The account's slot geometry for one calendar date: the business-hours
- * window (as real UTC instants), slot/buffer length, and the existing
- * bookings that overlap it. Returns null when the business is closed
- * that day (weekday off, holiday, or malformed hours) so both the
- * "offer slots" and the "validate a booking" paths agree on what
- * "closed" means instead of each re-deriving it.
- */
-async function loadDayGeometry(
-  db: SupabaseClient,
-  accountId: string,
-  dateISO: string,
-): Promise<
-  | {
-      dayStart: number
-      dayEnd: number
-      stepMs: number
-      bufferMs: number
-      busy: { start: number; end: number }[]
-    }
-  | null
-> {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return null
+interface DayWindow {
+  dayStart: number
+  dayEnd: number
+  stepMs: number
+  bufferMs: number
+}
 
-  const settings = await loadBookingSettings(db, accountId)
-  if (!settings) return null
+type Busy = { start: number; end: number }[]
+
+/**
+ * The business-hours window for one calendar date, as real UTC instants,
+ * or null when the business is closed that day (weekday off, holiday, or
+ * malformed hours). Shared by the "offer slots" and "validate a booking"
+ * paths so both agree on what "closed" means.
+ */
+function dayWindow(settings: BookingSettingsRow, dateISO: string): DayWindow | null {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return null
   const slotMinutes = settings.slotMinutes && settings.slotMinutes > 0 ? settings.slotMinutes : 30
   const bufferMinutes = settings.bufferMinutes && settings.bufferMinutes > 0 ? settings.bufferMinutes : 0
 
-  if (settings.holidays?.includes(dateISO)) {
-    console.log('[ai booking] closed for holiday', { accountId, dateISO })
-    return null
-  }
+  if (settings.holidays?.includes(dateISO)) return null
 
   const weekday = WEEKDAY_BY_JS_INDEX[businessWeekday(dateISO)]
   const hours = settings.hours?.[weekday]
-  if (!hours) {
-    console.log('[ai booking] closed that weekday', { accountId, dateISO, weekday })
-    return null // closed that day
-  }
+  if (!hours) return null
 
   const dayStart = businessLocalToInstant(dateISO, hours.open)
   const dayEnd = businessLocalToInstant(dateISO, hours.close)
   if (Number.isNaN(dayStart.getTime()) || Number.isNaN(dayEnd.getTime()) || dayEnd <= dayStart) {
     return null
   }
-
-  // Widen the window by a day on each side and filter in memory: a
-  // booking that STARTED before opening can still run into the day, and
-  // `starts_at >= dayStart` alone would miss it and hand the customer a
-  // slot that is already taken.
-  const { data: existing, error: bookingsErr } = await db
-    .from('bookings')
-    .select('starts_at, ends_at')
-    .eq('account_id', accountId)
-    .neq('status', 'cancelled')
-    .gte('starts_at', new Date(dayStart.getTime() - 86_400_000).toISOString())
-    .lt('starts_at', dayEnd.toISOString())
-  if (bookingsErr) return null
-
-  const busy = (existing ?? [])
-    .map((b: { starts_at: string; ends_at: string }) => ({
-      start: new Date(b.starts_at).getTime(),
-      end: new Date(b.ends_at).getTime(),
-    }))
-    .filter((b) => b.end > dayStart.getTime())
-
   return {
     dayStart: dayStart.getTime(),
     dayEnd: dayEnd.getTime(),
     stepMs: slotMinutes * 60_000,
     bufferMs: bufferMinutes * 60_000,
-    busy,
   }
 }
 
+/** Non-cancelled bookings overlapping [fromISO, toISO) (business-local
+ *  dates, `toISO` exclusive), or null on a query failure. */
+async function loadBusy(
+  db: SupabaseClient,
+  accountId: string,
+  fromISO: string,
+  toISO: string,
+): Promise<Busy | null> {
+  const from = businessLocalToInstant(fromISO, '00:00').getTime()
+  const to = businessLocalToInstant(toISO, '00:00').getTime()
+  // Widen the window by a day on the left and filter in memory: a
+  // booking that STARTED before the range can still run into it, and
+  // `starts_at >= from` alone would miss it and hand the customer a slot
+  // that is already taken.
+  const { data, error } = await db
+    .from('bookings')
+    .select('starts_at, ends_at')
+    .eq('account_id', accountId)
+    .neq('status', 'cancelled')
+    .gte('starts_at', new Date(from - 86_400_000).toISOString())
+    .lt('starts_at', new Date(to).toISOString())
+  if (error) return null
+  return (data ?? [])
+    .map((b: { starts_at: string; ends_at: string }) => ({
+      start: new Date(b.starts_at).getTime(),
+      end: new Date(b.ends_at).getTime(),
+    }))
+    .filter((b) => b.end > from)
+}
+
+function overlapsBusy(start: number, end: number, busy: Busy, bufferMs: number): boolean {
+  return busy.some((b) => start < b.end + bufferMs && end + bufferMs > b.start)
+}
+
+function addDays(dateISO: string, days: number): string {
+  const d = new Date(`${dateISO}T12:00:00Z`)
+  d.setUTCDate(d.getUTCDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function maxDate(a: string, b: string): string {
+  return a > b ? a : b
+}
+
+/** Free, not-yet-started slots on one day's grid (opening time + n × slot). */
+function freeSlotsOnDay(window: DayWindow, busy: Busy, now: number): TimeSlot[] {
+  const slots: TimeSlot[] = []
+  for (let t = window.dayStart; t + window.stepMs <= window.dayEnd; t += window.stepMs) {
+    if (t < now) continue
+    if (overlapsBusy(t, t + window.stepMs, busy, window.bufferMs)) continue
+    slots.push({ startsAt: new Date(t).toISOString(), endsAt: new Date(t + window.stepMs).toISOString() })
+  }
+  return slots
+}
+
+/** How far before/after the requested date `checkAvailability` looks for
+ *  alternatives when the requested day or time can't be booked. */
+const SEARCH_DAYS_BEFORE = 7
+const SEARCH_DAYS_AFTER = 14
+
 /**
- * Compute open appointment slots for one calendar date, crossing the
- * account's configured business hours against existing (non-cancelled)
- * `bookings`. Best-effort like knowledge/attachment retrieval — any
- * failure degrades to `[]` rather than throwing into the auto-reply path.
+ * Find bookable appointment slots, crossing the account's configured
+ * business hours against existing (non-cancelled) `bookings`.
  *
- * `dateISO` and the configured open/close times are business-local wall
- * clock (America/Santo_Domingo); they are converted to real instants
- * explicitly, so the result no longer depends on the host's `TZ`.
+ * When the customer named a specific time, it reports whether exactly that
+ * time is free and, either way, the open slots nearest to it — same day or
+ * a nearby one — so the agent can offer real alternatives instead of a
+ * dead end. Without a time it returns the first open slots of that date,
+ * rolling forward to the next open days when the date is closed or full.
+ * Best-effort like knowledge retrieval: any failure degrades to no slots
+ * rather than throwing into the auto-reply path.
+ *
+ * `dateISO`, `preferredTime` and the configured open/close times are
+ * business-local wall clock (America/Santo_Domingo), converted to real
+ * instants explicitly so the result never depends on the host's `TZ`.
  */
 export async function checkAvailability(
   db: SupabaseClient,
   accountId: string,
   dateISO: string,
+  preferredTime?: string,
   k = 3,
-): Promise<TimeSlot[]> {
+): Promise<AvailabilityResult> {
+  const time = preferredTime && /^\d{2}:\d{2}$/.test(preferredTime) ? preferredTime : undefined
+  const empty: AvailabilityResult = time
+    ? { requested: { date: dateISO, time, available: false }, slots: [] }
+    : { slots: [] }
   try {
-    const day = await loadDayGeometry(db, accountId, dateISO)
-    if (!day) return []
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO)) return empty
+    const settings = await loadBookingSettings(db, accountId)
+    if (!settings) return empty
 
     const now = Date.now()
-    const slots: TimeSlot[] = []
+    const today = businessToday()
+    const from = maxDate(today, time ? addDays(dateISO, -SEARCH_DAYS_BEFORE) : dateISO)
+    const to = addDays(dateISO, SEARCH_DAYS_AFTER + 1)
+    const busy = await loadBusy(db, accountId, from, to)
+    if (!busy) return empty
 
-    for (let t = day.dayStart; t + day.stepMs <= day.dayEnd; t += day.stepMs) {
-      if (t < now) continue
-      const slotStart = t
-      const slotEnd = t + day.stepMs
-      const overlapsExisting = day.busy.some(
-        (b) => slotStart < b.end + day.bufferMs && slotEnd + day.bufferMs > b.start,
-      )
-      if (!overlapsExisting) {
-        slots.push({
-          startsAt: new Date(slotStart).toISOString(),
-          endsAt: new Date(slotEnd).toISOString(),
-        })
-        if (slots.length >= k) break
+    if (!time) {
+      const slots: TimeSlot[] = []
+      for (let d = from; d < to && slots.length < k; d = addDays(d, 1)) {
+        const window = dayWindow(settings, d)
+        if (window) slots.push(...freeSlotsOnDay(window, busy, now).slice(0, k - slots.length))
       }
+      console.log('[ai booking] checkAvailability', { accountId, dateISO, slotsFound: slots.length })
+      return { slots }
     }
-    console.log('[ai booking] checkAvailability: found slots', { accountId, dateISO, slotsFound: slots.length })
-    return slots
+
+    // Exactly the requested time, when it fits inside that day's hours and
+    // nothing overlaps it. Not snapped to the slot grid — 10:15 is fine if
+    // it's free.
+    const target = businessLocalToInstant(dateISO, time).getTime()
+    const requestedWindow = dayWindow(settings, dateISO)
+    const requestedSlot: TimeSlot | null =
+      requestedWindow &&
+      target >= now &&
+      target >= requestedWindow.dayStart &&
+      target + requestedWindow.stepMs <= requestedWindow.dayEnd &&
+      !overlapsBusy(target, target + requestedWindow.stepMs, busy, requestedWindow.bufferMs)
+        ? {
+            startsAt: new Date(target).toISOString(),
+            endsAt: new Date(target + requestedWindow.stepMs).toISOString(),
+          }
+        : null
+
+    const candidates: TimeSlot[] = []
+    for (let d = from; d < to; d = addDays(d, 1)) {
+      const window = dayWindow(settings, d)
+      if (window) candidates.push(...freeSlotsOnDay(window, busy, now))
+    }
+    const distance = (s: TimeSlot) => Math.abs(new Date(s.startsAt).getTime() - target)
+    const nearest = candidates
+      .filter((s) => s.startsAt !== requestedSlot?.startsAt)
+      .sort((a, b) => distance(a) - distance(b) || a.startsAt.localeCompare(b.startsAt))
+      .slice(0, requestedSlot ? k - 1 : k)
+      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))
+
+    const slots = requestedSlot ? [requestedSlot, ...nearest] : nearest
+    console.log('[ai booking] checkAvailability', {
+      accountId,
+      dateISO,
+      time,
+      requestedAvailable: !!requestedSlot,
+      slotsFound: slots.length,
+    })
+    return { requested: { date: dateISO, time, available: !!requestedSlot }, slots }
   } catch (err) {
     console.error('[ai booking] checkAvailability failed:', err)
-    return []
+    return empty
   }
 }
 
@@ -287,12 +357,15 @@ async function validateSlot(
 
   if (start < Date.now()) return 'that time is in the past'
 
-  const day = await loadDayGeometry(db, accountId, businessDate(startsAt))
-  if (!day) return 'the business is closed that day'
-  if (start < day.dayStart || end > day.dayEnd) return 'that time is outside business hours'
+  const settings = await loadBookingSettings(db, accountId)
+  const date = businessDate(startsAt)
+  const window = settings ? dayWindow(settings, date) : null
+  if (!window) return 'the business is closed that day'
+  if (start < window.dayStart || end > window.dayEnd) return 'that time is outside business hours'
 
-  const taken = day.busy.some((b) => start < b.end + day.bufferMs && end + day.bufferMs > b.start)
-  if (taken) return 'that time is already taken'
+  const busy = await loadBusy(db, accountId, date, addDays(date, 1))
+  if (!busy) return 'the booking could not be checked'
+  if (overlapsBusy(start, end, busy, window.bufferMs)) return 'that time is already taken'
 
   return null
 }

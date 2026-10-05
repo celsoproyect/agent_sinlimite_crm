@@ -133,7 +133,7 @@ export async function POST(request: Request) {
         ? ({ query }) => searchAttachments(supabase, accountId, query)
         : undefined,
       checkAvailability: bookingAvailable
-        ? ({ date }) => checkAvailability(supabase, accountId, date)
+        ? ({ date, time }) => checkAvailability(supabase, accountId, date, time)
         : undefined,
     })
 

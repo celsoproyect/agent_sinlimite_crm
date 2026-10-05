@@ -3,14 +3,14 @@ import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { getAttachmentRoster, searchAttachments } from './attachments'
-import { getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
+import { applyLeadCapture, getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
 import { bookingEnabled, checkAvailability, confirmAiBooking, getBusinessHoursSummary } from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
-import { BOOKING_SLOT_BUTTON_PREFIX, formatLocalHHMM } from './providers/shared'
+import { BOOKING_SLOT_BUTTON_PREFIX, slotButtonTitle } from './providers/shared'
 import { engineSendText, engineSendMedia, engineSendInteractiveButtons } from '@/lib/flows/meta-send'
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
@@ -218,7 +218,7 @@ export async function dispatchInboundToAiReply(
       sentimentCaptureAvailable: true,
     })
 
-    const { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, sentiment } =
+    const { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, leadValue, sentiment } =
       await generateReply({
         config,
         systemPrompt,
@@ -232,7 +232,7 @@ export async function dispatchInboundToAiReply(
           ? ({ query }) => searchAttachments(db, accountId, query)
           : undefined,
         checkAvailability: bookingAvailable
-          ? ({ date }) => checkAvailability(db, accountId, date)
+          ? ({ date, time }) => checkAvailability(db, accountId, date, time)
           : undefined,
         // Booking is written inside the tool call, not after the send, so
         // a rejected slot (taken / closed / past) or a failed insert
@@ -298,41 +298,18 @@ export async function dispatchInboundToAiReply(
     }
 
     if (leadStage && config.leadPipelineId) {
-      const stageId = leadStageRoster.find((s) => s.name === leadStage)?.id
-      if (stageId) {
-        try {
-          // Same "primary deal" selection as the contact sidebar: the most
-          // recent open deal in this pipeline, falling back to the most
-          // recent deal overall — so the AI advances an existing deal
-          // instead of creating a duplicate whenever one already exists.
-          const { data: existingDeals } = await db
-            .from('deals')
-            .select('id, status')
-            .eq('contact_id', contactId)
-            .eq('pipeline_id', config.leadPipelineId)
-            .order('created_at', { ascending: false })
-          const primaryDeal = existingDeals?.find((d) => d.status === 'open') ?? existingDeals?.[0]
-          if (primaryDeal) {
-            await db
-              .from('deals')
-              .update({ stage_id: stageId, updated_at: new Date().toISOString() })
-              .eq('id', primaryDeal.id)
-          } else {
-            await db.from('deals').insert({
-              user_id: configOwnerUserId,
-              account_id: accountId,
-              pipeline_id: config.leadPipelineId,
-              stage_id: stageId,
-              contact_id: contactId,
-              conversation_id: conversationId,
-              title: contactRow?.name || contactRow?.phone || 'Lead',
-              value: 0,
-            })
-          }
-        } catch (err) {
-          console.error('[ai auto-reply] lead stage update failed:', err)
-        }
-      }
+      await applyLeadCapture(db, {
+        accountId,
+        contactId,
+        conversationId,
+        ownerUserId: configOwnerUserId,
+        pipelineId: config.leadPipelineId,
+        stageRoster: leadStageRoster,
+        stage: leadStage,
+        value: leadValue,
+        title: customerName || contactRow?.name || contactRow?.phone || 'Lead',
+        renameTitle: !!customerName,
+      })
     }
 
     if (sentiment) {
@@ -442,12 +419,15 @@ export async function dispatchInboundToAiReply(
     // to a plain text send if the interactive send fails for any reason
     // (e.g. the model's reply exceeds WhatsApp's body length) so the
     // customer isn't left without a reply.
-    const offer = booking?.offer
+    // No slot buttons once the appointment is actually booked this turn —
+    // check_availability ran first, so `offer` is set, but asking the
+    // customer to pick again would contradict the confirmation.
+    const offer = booking?.appointment ? undefined : booking?.offer
     let sentInteractive = false
     if (offer && offer.length > 0) {
       const buttons: InteractiveButton[] = offer
         .slice(0, 3)
-        .map((slot, i) => ({ id: `${BOOKING_SLOT_BUTTON_PREFIX}${i}`, title: formatLocalHHMM(slot.startsAt) }))
+        .map((slot, i) => ({ id: `${BOOKING_SLOT_BUTTON_PREFIX}${i}`, title: slotButtonTitle(slot, offer) }))
       try {
         await engineSendInteractiveButtons({
           accountId,

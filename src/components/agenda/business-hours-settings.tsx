@@ -78,6 +78,11 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
   const [newHoliday, setNewHoliday] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
+  // False when the account has never saved any hours: the rows below are
+  // then only suggested defaults, and the AI agent has no booking tools
+  // until something is actually saved — say so instead of letting the
+  // defaults pass for a real schedule.
+  const [hasSavedHours, setHasSavedHours] = useState(true);
 
   useEffect(() => {
     if (!open || !accountId) return;
@@ -96,6 +101,7 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
       setDays(fromSettings(settings));
       setHolidays([...(settings?.holidays ?? [])].sort());
       setNewHoliday("");
+      setHasSavedHours(!!settings?.hours && Object.keys(settings.hours).length > 0);
       setLoading(false);
     })();
     return () => {
@@ -124,13 +130,18 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
     }
     const settings: BookingSettings = { slotMinutes, bufferMinutes, hours, holidays };
 
-    const { error } = await supabase
+    // `.select()` so a write that RLS silently filtered out (0 rows, no
+    // error) is reported as a failure instead of a false "saved" toast.
+    const { data: saved, error } = await supabase
       .from("accounts")
       .update({ booking_settings: settings })
-      .eq("id", accountId);
+      .eq("id", accountId)
+      .select("id");
 
     setSaving(false);
-    if (error) {
+    if (error || !saved || saved.length === 0) {
+      if (error) console.error("[business hours] save failed:", error);
+      else console.error("[business hours] save matched no account row", { accountId });
       toast.error(t("toastFailedSave"));
       return;
     }
@@ -153,6 +164,11 @@ export function BusinessHoursSettings({ open, onOpenChange }: BusinessHoursSetti
           </div>
         ) : (
           <div className="space-y-4 py-2">
+            {!hasSavedHours && (
+              <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-700 dark:text-amber-300">
+                {t("notSavedYet")}
+              </p>
+            )}
             <div className="grid grid-cols-2 gap-3">
               <div className="grid gap-2">
                 <Label className="text-muted-foreground">{t("slotMinutes")}</Label>

@@ -232,19 +232,34 @@ export function buildSystemPrompt(args: {
         ? `The business's opening hours: ${businessHoursSummary} You can answer a general "what are your hours" / "are you open on X" question directly from this, in your own words — no tool call needed for that. `
         : '') +
         'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
-        'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) to get real open slots, then offer those slots to the customer in your reply, in your own words — real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
-        "Wait for the customer's next message to see which slot they picked — they may reply with the button text or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
-        'Once they have clearly confirmed one specific slot — including by tapping one of the buttons, which arrives as a plain time like "14:30" — call book_appointment for it in the same turn. ' +
-        'Pass the exact startsAt/endsAt of the slot you offered. If you no longer have those exact values, call check_availability again for that date first and take them from its result; the times you quote the customer are always local business time (America/Santo_Domingo). ' +
-        "book_appointment really writes the appointment and tells you the truth: it answers confirmed:false with a reason when the slot is taken, closed, or in the past. Only tell the customer they're booked when it answered confirmed:true — otherwise say plainly what happened and offer another time. Don't call it speculatively or for a slot the customer didn't confirm. " +
-        "If they ask to book on a day that's closed (per the hours above, or a holiday), say so directly instead of calling check_availability for it.",
+        'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) and, whenever they named a time, that time too as 24-hour HH:mm (e.g. "8pm" -> "20:00"). Call it even if that day or time looks closed or already taken — it returns the closest real alternatives. ' +
+        'If the result says requested.available is true and you already know which service they want, book it right away: call book_appointment with the startsAt/endsAt of that first slot in the same turn, without asking them to confirm again — they already told you the time. If you still need the service, ask for it and then book that same slot. ' +
+        'If requested.available is false, tell the customer briefly that that time is not available (closed that day, outside hours, already taken, or already past) and offer the returned slots — up to 3 — as the closest alternatives, naming each one\'s day and time from the result (they may be on a different day than the one asked for). Real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
+        'If they named only a day and no time, offer the returned slots the same way. ' +
+        "Wait for the customer's next message to see which slot they picked — they may reply with the button text (a time like \"14:30\", or a date and time like \"15/09 09:00\") or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
+        'Once they have clearly chosen one specific slot, call book_appointment for it in the same turn. ' +
+        'Pass the exact startsAt/endsAt of that slot. If you no longer have those exact values, call check_availability again for that date and time first and take them from its result; the times you quote the customer are always local business time (America/Santo_Domingo). ' +
+        "book_appointment really writes the appointment and tells you the truth: it answers confirmed:false with a reason when the slot is taken, closed, or in the past. Only tell the customer they're booked when it answered confirmed:true — otherwise say plainly what happened, call check_availability again with the time they wanted, and offer the alternatives it returns. Don't call it for a time the customer didn't ask for or choose.",
+    )
+  } else if (mode === 'auto_reply') {
+    // Drafts are reviewed by an agent who can book by hand, so this only
+    // binds the unattended bot. Without the booking tools the model has no way to put anything on
+    // the agenda, yet left unsaid it happily improvised "your appointment
+    // is requested for today at 8pm" — on a closed day, outside hours,
+    // with nothing written anywhere.
+    parts.push(
+      'You cannot schedule, reserve, or confirm appointments in this conversation — no booking system is connected, and nothing you say puts anything on the business\'s agenda. ' +
+        'If the customer wants an appointment, never tell them it is booked, scheduled, reserved, requested, or confirmed, and never agree to a specific date or time, because you cannot check whether the business is open then. ' +
+        'Instead, tell them plainly that you cannot book it from this chat and that the team will need to confirm the date and time with them' +
+        (noteCaptureAvailable ? ', and call add_note with the service and the date/time they asked for so the team can follow up.' : '.'),
     )
   }
 
   if (needsCustomerName) {
     parts.push(
       "You don't have this customer's name on file yet. Ask for it in a natural, friendly way, in the customer's own language — right after greeting them, or woven into your first reply if they've already asked something (answer their question first, don't block on the name). " +
-        'Once they tell you their name, call set_customer_name with exactly what they gave you — call it at most once per conversation, and never ask again after that, even if they ignore the question or give a business name instead of a personal one.',
+        'Once they tell you their name, call set_customer_name with exactly what they gave you — call it at most once per conversation. ' +
+        "If they skip the question, ask one more time later at a natural moment (for example when they want to book, order, or be contacted) — never more than that, and never refuse to help because you don't have it. If they give a business name instead of a personal one, accept it.",
     )
   }
 
@@ -267,7 +282,8 @@ export function buildSystemPrompt(args: {
     parts.push(
       'You also have a set_lead_stage tool for this business\'s sales pipeline, with these stages in order: ' +
         `${leadStageNames.join(', ')}. ` +
-        "Call it when the conversation clearly moves the customer into one of these stages (e.g. they show real interest, or confirm/decline). Don't call it speculatively on a vague first message, and never use a stage name outside this list.",
+        "Call it when the conversation clearly moves the customer into one of these stages (e.g. they show real interest, or confirm/decline). Don't call it speculatively on a vague first message, and never use a stage name outside this list. " +
+        "Whenever you know the price of the product or service they want (from the catalog or the knowledge base), also pass it as value with its currency, so the deal carries the real amount — call it again with the new price if they switch to a different product or service.",
     )
   }
 

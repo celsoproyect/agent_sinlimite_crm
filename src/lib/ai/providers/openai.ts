@@ -2,6 +2,7 @@ import {
   AiError,
   type AiUsage,
   type BookingOutcome,
+  type LeadValue,
   type CapturedCustomField,
   type ChatMessage,
   type ProviderResult,
@@ -20,6 +21,7 @@ import {
   parseSentiment,
   providerHttpError,
   runAttachmentSearch,
+  parseAvailabilityArgs,
   runAvailabilityCheck,
   runBookAppointment,
   toNetworkError,
@@ -123,11 +125,15 @@ function buildTools(
       function: {
         name: CHECK_AVAILABILITY_TOOL_NAME,
         description:
-          'Look up open appointment slots for a given calendar date, to offer the customer a real time to book.',
+          'Look up open appointment slots. Pass the date, and the time too whenever the customer named one: the result then says whether exactly that time is free and lists the closest open alternatives (possibly on nearby days).',
         parameters: {
           type: 'object',
           properties: {
             date: { type: 'string', description: 'The date to check, as YYYY-MM-DD.' },
+            time: {
+              type: 'string',
+              description: 'Optional. The time the customer asked for, as 24-hour HH:mm in business local time (e.g. 20:00 for 8 pm).',
+            },
           },
           required: ['date'],
         },
@@ -210,11 +216,20 @@ function buildTools(
       function: {
         name: CAPTURE_LEAD_STAGE_TOOL_NAME,
         description:
-          "Move this customer's lead into a specific stage of the business's sales pipeline, when the conversation clearly signals it.",
+          "Move this customer's lead into a specific stage of the business's sales pipeline, when the conversation clearly signals it — and record the deal amount when you know the price of what they want.",
         parameters: {
           type: 'object',
           properties: {
             stage: { type: 'string', enum: leadStageNames, description: 'Which pipeline stage to set.' },
+            value: {
+              type: 'number',
+              description:
+                'Optional. Deal amount: the price of the product/service the customer is interested in, as a plain number (e.g. 3500), taken from the catalog or knowledge base. Omit it if you do not know the price.',
+            },
+            currency: {
+              type: 'string',
+              description: 'Optional. ISO 4217 currency code of that price, e.g. DOP or USD.',
+            },
           },
           required: ['stage'],
         },
@@ -324,7 +339,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const nameCapture: { name?: string } = {}
   const noteCapture: { text?: string } = {}
   const customFields: CapturedCustomField[] = []
-  const leadStageCapture: { stage?: string } = {}
+  const leadStageCapture: { stage?: string; value?: LeadValue } = {}
   const sentimentCapture: { sentiment?: ProviderResult['sentiment'] } = {}
 
   async function callOpenAi(withTools: boolean): Promise<OpenAiResponse> {
@@ -420,6 +435,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
       note: noteCapture.text,
       customFields: customFields.length > 0 ? customFields : undefined,
       leadStage: leadStageCapture.stage,
+      leadValue: leadStageCapture.value,
       sentiment: sentimentCapture.sentiment,
     }
   }
@@ -440,7 +456,7 @@ async function runOpenAiTool(
   nameCapture: { name?: string },
   noteCapture: { text?: string },
   customFields: CapturedCustomField[],
-  leadStageCapture: { stage?: string },
+  leadStageCapture: { stage?: string; value?: LeadValue },
   sentimentCapture: { sentiment?: ProviderResult['sentiment'] },
 ): Promise<string> {
   let parsed: Record<string, unknown> = {}
@@ -474,10 +490,10 @@ async function runOpenAiTool(
   }
 
   if (toolCall.function.name === CHECK_AVAILABILITY_TOOL_NAME && bookingTool) {
-    const date = typeof parsed.date === 'string' ? parsed.date : ''
+    const { date, time } = parseAvailabilityArgs(parsed)
     if (!date) return JSON.stringify({ available: false })
     try {
-      const { resultJson, offer } = await runAvailabilityCheck(bookingTool, date)
+      const { resultJson, offer } = await runAvailabilityCheck(bookingTool, date, time)
       if (offer.length > 0) booking.offer = offer
       return resultJson
     } catch {
@@ -516,6 +532,7 @@ async function runOpenAiTool(
     const result = parseLeadStage(parsed, leadStageNames)
     if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
     leadStageCapture.stage = result.stage
+    if (result.value) leadStageCapture.value = result.value
     return JSON.stringify({ recorded: true })
   }
 

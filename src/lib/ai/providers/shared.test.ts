@@ -1,5 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 import {
+  parseAvailabilityArgs,
+  slotButtonTitle,
   isAiBookingSlotReply,
   parseBookAppointment,
   parseNote,
@@ -167,7 +169,7 @@ describe('runBookAppointment', () => {
     endsAt: '2026-09-08T14:00:00.000Z',
     service: 'Corte',
   }
-  const execute = async () => []
+  const execute = async () => ({ slots: [] })
 
   it('reports a refusal from the writer and keeps the appointment unset', async () => {
     const create = vi.fn().mockResolvedValue({ confirmed: false, error: 'that time is already taken' })
@@ -203,5 +205,40 @@ describe('runBookAppointment', () => {
     const result = await runBookAppointment({ execute }, ARGS)
     expect(JSON.parse(result.resultJson)).toEqual({ confirmed: true })
     expect(result.appointment).toMatchObject({ service: 'Corte' })
+  })
+})
+
+describe('parseAvailabilityArgs', () => {
+  it('normalizes the optional time and drops garbage', () => {
+    expect(parseAvailabilityArgs({ date: '2026-09-08', time: '9:30' })).toEqual({ date: '2026-09-08', time: '09:30' })
+    expect(parseAvailabilityArgs({ date: '2026-09-08', time: '8pm' })).toEqual({ date: '2026-09-08', time: undefined })
+    expect(parseAvailabilityArgs(undefined)).toEqual({ date: '', time: undefined })
+  })
+})
+
+describe('slotButtonTitle', () => {
+  const mon9 = { startsAt: '2026-09-14T13:00:00.000Z', endsAt: '2026-09-14T14:00:00.000Z' }
+  const mon10 = { startsAt: '2026-09-14T14:00:00.000Z', endsAt: '2026-09-14T15:00:00.000Z' }
+  const tue9 = { startsAt: '2026-09-15T13:00:00.000Z', endsAt: '2026-09-15T14:00:00.000Z' }
+
+  it('shows just the time when every slot is on the same day', () => {
+    expect(slotButtonTitle(mon9, [mon9, mon10])).toBe('09:00')
+  })
+
+  it('prefixes day/month when the slots span several days', () => {
+    expect(slotButtonTitle(tue9, [mon9, mon10, tue9])).toBe('15/09 09:00')
+  })
+})
+
+describe('parseLeadStage — deal amount', () => {
+  it('keeps a valid amount and currency, and tolerates thousands separators', () => {
+    expect(parseLeadStage({ stage: 'Qualified', value: '3,500', currency: 'dop' }, ['Qualified'])).toEqual({
+      stage: 'Qualified',
+      value: { amount: 3500, currency: 'DOP' },
+    })
+  })
+
+  it('ignores a missing or bogus amount without failing the stage', () => {
+    expect(parseLeadStage({ stage: 'Qualified', value: 'n/a' }, ['Qualified'])).toEqual({ stage: 'Qualified' })
   })
 })

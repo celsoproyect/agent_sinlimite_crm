@@ -68,3 +68,30 @@ describe('buildSystemPrompt — handoff rules', () => {
     )
   })
 })
+
+describe('buildSystemPrompt — booking rules', () => {
+  it('forbids promising an appointment when the booking tools are not wired', () => {
+    const prompt = buildSystemPrompt({
+      userPrompt: null,
+      mode: 'auto_reply',
+      bookingAvailable: false,
+      noteCaptureAvailable: true,
+    })
+    expect(prompt).toContain('You cannot schedule, reserve, or confirm appointments')
+    expect(prompt).toContain('never tell them it is booked, scheduled, reserved, requested, or confirmed')
+    expect(prompt).toContain('call add_note')
+    expect(prompt).not.toContain('book_appointment')
+  })
+
+  it('teaches the booking tools instead when they are wired', () => {
+    const prompt = buildSystemPrompt({
+      userPrompt: null,
+      mode: 'auto_reply',
+      bookingAvailable: true,
+      businessHoursSummary: 'Weekly hours — Monday-Saturday: 09:00-18:00; Sunday: closed.',
+    })
+    expect(prompt).toContain('book_appointment')
+    expect(prompt).toContain('Sunday: closed')
+    expect(prompt).not.toContain('You cannot schedule, reserve, or confirm appointments')
+  })
+})

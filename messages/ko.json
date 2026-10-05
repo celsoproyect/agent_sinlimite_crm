@@ -595,7 +595,8 @@
       "holidaysDesc": "요일과 상관없이 영업하지 않는 특정 날짜입니다.",
       "addHoliday": "추가",
       "removeHoliday": "공휴일 삭제",
-      "noHolidays": "추가된 공휴일이 없습니다"
+      "noHolidays": "추가된 공휴일이 없습니다",
+      "notSavedYet": "아직 영업시간을 저장하지 않았습니다. 아래 일정은 제안일 뿐입니다. 저장을 누르기 전까지 AI 에이전트는 예약 가능 시간을 확인하거나 예약할 수 없습니다."
     },
     "reminders": {
       "title": "예약 리마인더",

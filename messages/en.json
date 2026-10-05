@@ -595,7 +595,8 @@
       "holidaysDesc": "Specific dates the business is closed, regardless of the weekday.",
       "addHoliday": "Add",
       "removeHoliday": "Remove holiday date",
-      "noHolidays": "No holidays added"
+      "noHolidays": "No holidays added",
+      "notSavedYet": "You haven't saved business hours yet — the schedule below is only a suggestion. Until you click Save, the AI agent can't check availability or book appointments."
     },
     "reminders": {
       "title": "Appointment reminders",

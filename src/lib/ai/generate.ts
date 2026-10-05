@@ -4,6 +4,7 @@ import {
   type AiSentiment,
   type AiUsage,
   type BookingOutcome,
+  type LeadValue,
   type CapturedCustomField,
   type ChatMessage,
   type GenerateResult,
@@ -121,6 +122,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     note?: string
     customFields?: CapturedCustomField[]
     leadStage?: string
+    leadValue?: LeadValue
     sentiment?: AiSentiment
   }
   switch (config.provider) {
@@ -147,6 +149,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     result.customFields,
     result.leadStage,
     result.sentiment,
+    result.leadValue,
   )
 }
 
@@ -167,8 +170,9 @@ export function parseGeneration(
   customFields?: CapturedCustomField[],
   leadStage?: string,
   sentiment?: AiSentiment,
+  leadValue?: LeadValue,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
   const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, sentiment }
+  return { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, leadValue, sentiment }
 }

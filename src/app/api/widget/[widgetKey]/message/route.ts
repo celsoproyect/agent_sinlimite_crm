@@ -122,6 +122,7 @@ export async function POST(
       conversationId,
       contactId: contact.id,
       contactName: contact.name,
+      ownerUserId: account.owner_user_id,
     })
 
     return json({
@@ -149,7 +150,20 @@ async function findOrCreateWidgetContact(
     .eq('account_id', accountId)
     .eq('phone', phone)
     .maybeSingle()
-  if (existing) return existing
+  if (existing) {
+    // A returning visitor who only now gave their name (the widget asks
+    // once, before the first message) replaces the placeholder — never a
+    // real name already captured by the AI or typed in by an agent.
+    if (visitorName && existing.name === 'Visitante web') {
+      const { error: renameErr } = await db
+        .from('contacts')
+        .update({ name: visitorName, updated_at: new Date().toISOString() })
+        .eq('id', existing.id)
+      if (renameErr) console.error('[widget message] contact rename failed:', renameErr)
+      else return { ...existing, name: visitorName }
+    }
+    return existing
+  }
 
   const { data: created, error } = await db
     .from('contacts')

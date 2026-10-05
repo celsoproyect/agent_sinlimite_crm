@@ -858,9 +858,9 @@ describe('generateReply — handoff/capture tool loop', () => {
 
 describe('generateReply — booking tool loop', () => {
   it('resolves an offered slot and returns it in booking.offer (OpenAI)', async () => {
-    const checkAvailability = vi.fn().mockResolvedValue([
+    const checkAvailability = vi.fn().mockResolvedValue({ slots: [
       { startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' },
-    ])
+    ] })
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
@@ -906,7 +906,15 @@ describe('generateReply — booking tool loop', () => {
     const toolMsg = secondBody.messages.find((m: { role: string }) => m.role === 'tool')
     expect(JSON.parse(toolMsg.content)).toEqual({
       available: true,
-      slots: [{ startsAt: '2026-08-24T14:00:00.000Z', time: expect.any(String) }],
+      slots: [
+        {
+          startsAt: '2026-08-24T14:00:00.000Z',
+          endsAt: '2026-08-24T14:30:00.000Z',
+          date: '2026-08-24',
+          weekday: 'Monday',
+          time: '10:00',
+        },
+      ],
     })
   })
 
@@ -1008,9 +1016,9 @@ describe('generateReply — booking tool loop', () => {
   })
 
   it('resolves an offered slot and returns it in booking.offer (Anthropic)', async () => {
-    const checkAvailability = vi.fn().mockResolvedValue([
+    const checkAvailability = vi.fn().mockResolvedValue({ slots: [
       { startsAt: '2026-08-24T14:00:00.000Z', endsAt: '2026-08-24T14:30:00.000Z' },
-    ])
+    ] })
     const fetchMock = vi
       .fn()
       .mockResolvedValueOnce(
