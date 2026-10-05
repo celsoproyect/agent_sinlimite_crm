@@ -2091,7 +2091,13 @@
       "saving": "저장 중…",
       "saveChanges": "변경 사항 저장",
       "saved": "브랜딩이 업데이트되었습니다",
-      "saveFailed": "브랜딩 저장에 실패했습니다"
+      "saveFailed": "브랜딩 저장에 실패했습니다",
+      "logoDark": "Dark mode logo",
+      "logoDarkHint": "Used in dark mode and as the browser tab icon. Best: a light or white logo.",
+      "logoLight": "Light mode logo",
+      "logoLightHint": "Used while light mode is on. Best: a dark or full-color logo. Leave it empty to reuse the dark mode logo.",
+      "logoLightMigration": "Apply migration 061 in Supabase to upload a light mode logo.",
+      "removeLogo": "Remove"
     },
     "account": {
       "title": "계정",

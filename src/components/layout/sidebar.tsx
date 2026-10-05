@@ -6,6 +6,7 @@ import { useEffect } from "react";
 import { cn } from "@/lib/utils";
 import { useAuth } from "@/hooks/use-auth";
 import { useBranding } from "@/hooks/use-branding";
+import { BrandLogo } from "@/components/layout/brand-logo";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import {
@@ -152,7 +153,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
   const pathname = usePathname();
   const { profile, profileLoading, account, accountRole, isSuperAdmin, signOut } =
     useAuth();
-  const { companyName, logoUrl } = useBranding();
+  const { companyName, logoUrl, logoLightUrl } = useBranding();
   const totalUnread = useTotalUnread();
   const unreadNotifications = useUnreadNotifications();
   // Only surface the account-name strip when it actually carries
@@ -246,8 +247,9 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
                 lockup with a transparent background, not a square icon —
                 size by height and let width follow so it isn't
                 letterboxed inside a square box. */}
-            <img
-              src={logoUrl}
+            <BrandLogo
+              logoUrl={logoUrl}
+              logoLightUrl={logoLightUrl}
               alt={companyName}
               width={200}
               height={107}

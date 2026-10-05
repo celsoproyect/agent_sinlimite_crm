@@ -2091,7 +2091,13 @@
       "saving": "Saving…",
       "saveChanges": "Save changes",
       "saved": "Branding updated",
-      "saveFailed": "Failed to save branding"
+      "saveFailed": "Failed to save branding",
+      "logoDark": "Dark mode logo",
+      "logoDarkHint": "Used in dark mode and as the browser tab icon. Best: a light or white logo.",
+      "logoLight": "Light mode logo",
+      "logoLightHint": "Used while light mode is on. Best: a dark or full-color logo. Leave it empty to reuse the dark mode logo.",
+      "logoLightMigration": "Apply migration 061 in Supabase to upload a light mode logo.",
+      "removeLogo": "Remove"
     },
     "account": {
       "title": "Account",

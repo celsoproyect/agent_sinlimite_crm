@@ -117,32 +117,35 @@ html[data-mode="dark"] {
 }
 
 html[data-mode="light"] {
-  --background: oklch(0.99 0.002 260);
-  --foreground: oklch(0.21 0.01 260);
+  /* A soft gray canvas with white cards on top. An all-white palette
+   * (canvas, cards and sidebar at ~99% lightness) left screens looking
+   * flat and empty: nothing separated a card from the page behind it. */
+  --background: oklch(0.965 0.006 260);
+  --foreground: oklch(0.21 0.015 260);
   --card: oklch(1 0 0);
-  --card-2: oklch(0.985 0.002 260);
-  --card-foreground: oklch(0.21 0.01 260);
+  --card-2: oklch(0.975 0.005 260);
+  --card-foreground: oklch(0.21 0.015 260);
   --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.21 0.01 260);
-  --secondary: oklch(0.967 0.003 260);
-  --secondary-foreground: oklch(0.25 0.01 260);
-  --muted: oklch(0.967 0.003 260);
-  --muted-foreground: oklch(0.44 0.015 260);
-  --accent: oklch(0.96 0.004 260);
-  --accent-foreground: oklch(0.25 0.01 260);
+  --popover-foreground: oklch(0.21 0.015 260);
+  --secondary: oklch(0.945 0.007 260);
+  --secondary-foreground: oklch(0.25 0.015 260);
+  --muted: oklch(0.945 0.007 260);
+  --muted-foreground: oklch(0.47 0.02 260);
+  --accent: oklch(0.94 0.008 260);
+  --accent-foreground: oklch(0.25 0.015 260);
   --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0.004 260);
-  --input: oklch(0.922 0.004 260);
+  --border: oklch(0.9 0.008 260);
+  --input: oklch(0.88 0.008 260);
   --chart-2: oklch(0.6 0.1 260);
   --chart-3: oklch(0.7 0.06 260);
   --chart-4: oklch(0.8 0.04 260);
   --chart-5: oklch(0.87 0.03 260);
   --radius: 0.625rem;
-  --sidebar: oklch(0.985 0.002 260);
-  --sidebar-foreground: oklch(0.21 0.01 260);
-  --sidebar-accent: oklch(0.96 0.004 260);
-  --sidebar-accent-foreground: oklch(0.25 0.01 260);
-  --sidebar-border: oklch(0.922 0.004 260);
+  --sidebar: oklch(1 0 0);
+  --sidebar-foreground: oklch(0.21 0.015 260);
+  --sidebar-accent: oklch(0.945 0.007 260);
+  --sidebar-accent-foreground: oklch(0.25 0.015 260);
+  --sidebar-border: oklch(0.9 0.008 260);
 }
 
 /* ---- ACCENT: primary color ---- */
@@ -223,6 +226,17 @@ html[data-theme="rose"] {
   }
   body {
     @apply bg-background text-foreground;
+  }
+  /* Light mode: lift cards off the gray canvas with a soft shadow. */
+  html[data-mode="light"] [data-slot="card"] {
+    box-shadow:
+      0 1px 2px oklch(0.3 0.02 260 / 0.06),
+      0 6px 16px -6px oklch(0.3 0.02 260 / 0.08);
+  }
+  /* Branding logo per mode (BrandLogo). No data-mode means dark. */
+  html[data-mode="light"] .brand-logo-dark,
+  html:not([data-mode="light"]) .brand-logo-light {
+    display: none;
   }
   html {
     @apply font-sans;

@@ -17,6 +17,10 @@
   - Spanish only. Its look comes from `accounts.widget_config` (migration 060), normalized by `src/lib/widget/config.ts`, served by `GET /api/widget/[key]/config` and edited in Canales → Widget web → Apariencia.
   - Preview page: `/widget-preview.html?key=…`.
   - The visitor is asked their name after the first message, and the transcript is kept in localStorage.
+- **Branding and color mode:**
+  - Mode lives in `html[data-mode]` (light/dark; no attribute means dark), set by the boot script in `layout.tsx` and `use-theme.tsx`. Tailwind's `dark:` variant targets a `.dark` class that is never set, so those classes never apply; style per mode through the tokens in `globals.css`.
+  - Light mode is a gray canvas (`--background`) with white cards and a soft card shadow, so surfaces don't blend into the page.
+  - `platform_settings.logo_url` is the dark-mode logo, also used for the favicon. `logo_light_url` (migration 061, nullable) is the light-mode logo. Render logos with `BrandLogo` (`src/components/layout/brand-logo.tsx`): it outputs both images and CSS hides the wrong one, so there's no flash. Uploads happen in /super-admin → Marca.
 - **Migrations:** the Supabase CLI here lacks privileges (`db push` fails with 403). New `supabase/migrations/*.sql` must be pasted into the Supabase SQL Editor by the owner, and code should tolerate the column being missing (`42703`) until then.
 - **Inbox:** the colored dot on each conversation row is its status (open, pending or closed). It is not an unread marker, and the owner wants it kept that way. Unread is shown by the numeric badge.
 - **Checks before committing:** `npx tsc --noEmit -p .`, `npx eslint src`, `npx vitest run`.

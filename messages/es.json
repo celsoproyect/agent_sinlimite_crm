@@ -2091,7 +2091,13 @@
       "saving": "Guardando…",
       "saveChanges": "Guardar cambios",
       "saved": "Marca actualizada",
-      "saveFailed": "Error al guardar la marca"
+      "saveFailed": "Error al guardar la marca",
+      "logoDark": "Logo para modo oscuro",
+      "logoDarkHint": "Se usa en el modo oscuro y como ícono de la pestaña. Ideal: logo claro o blanco.",
+      "logoLight": "Logo para modo claro",
+      "logoLightHint": "Se usa cuando el modo claro está activo. Ideal: logo oscuro o a color. Si lo dejas vacío se usa el del modo oscuro.",
+      "logoLightMigration": "Falta aplicar la migración 061 en Supabase para poder subir el logo del modo claro.",
+      "removeLogo": "Quitar"
     },
     "account": {
       "title": "Cuenta",
