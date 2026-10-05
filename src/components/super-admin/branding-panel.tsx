@@ -21,6 +21,9 @@ const ALLOWED_MIME = new Set([
   'image/webp',
   'image/svg+xml',
 ]);
+// The favicon is redrawn by src/app/icon.tsx (satori), which can't
+// decode WebP.
+const FAVICON_MIME = new Set(['image/png', 'image/jpeg', 'image/svg+xml']);
 
 export function BrandingPanel() {
   const t = useTranslations('SuperAdmin.branding');
@@ -36,23 +39,35 @@ export function BrandingPanel() {
   const [pendingLight, setPendingLight] = useState<File | null>(null);
   // false until migration 061 adds platform_settings.logo_light_url.
   const [lightSupported, setLightSupported] = useState(true);
+  const [faviconUrl, setFaviconUrl] = useState<string | null>(null);
+  const [savedFaviconUrl, setSavedFaviconUrl] = useState<string | null>(null);
+  const [pendingFavicon, setPendingFavicon] = useState<File | null>(null);
+  // false until migration 062 adds platform_settings.favicon_url.
+  const [faviconSupported, setFaviconSupported] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      let { data, error } = await supabase
-        .from('platform_settings')
-        .select('company_name, logo_url, logo_light_url')
-        .eq('id', true)
-        .maybeSingle();
-      if (error?.code === '42703') {
-        if (!cancelled) setLightSupported(false);
+      // Newest columns first; each 42703 means one more migration is
+      // still pending, so drop that column and retry.
+      const attempts = [
+        'company_name, logo_url, logo_light_url, favicon_url',
+        'company_name, logo_url, logo_light_url',
+        'company_name, logo_url',
+      ];
+      let data: unknown = null;
+      let error: { code?: string } | null = null;
+      for (const [i, columns] of attempts.entries()) {
         ({ data, error } = await supabase
           .from('platform_settings')
-          .select('company_name, logo_url')
+          .select(columns)
           .eq('id', true)
           .maybeSingle());
+        if (error?.code !== '42703') break;
+        if (cancelled) return;
+        if (i === 0) setFaviconSupported(false);
+        if (i === 1) setLightSupported(false);
       }
       if (cancelled) return;
       if (!error && data) {
@@ -60,6 +75,7 @@ export function BrandingPanel() {
           company_name: string | null;
           logo_url: string | null;
           logo_light_url?: string | null;
+          favicon_url?: string | null;
         };
         const name = row.company_name || DEFAULT_BRANDING.companyName;
         setCompanyName(name);
@@ -67,6 +83,8 @@ export function BrandingPanel() {
         setLogoUrl(row.logo_url || DEFAULT_BRANDING.logoUrl);
         setLogoLightUrl(row.logo_light_url || null);
         setSavedLightUrl(row.logo_light_url || null);
+        setFaviconUrl(row.favicon_url || null);
+        setSavedFaviconUrl(row.favicon_url || null);
       }
       setLoading(false);
     })();
@@ -76,7 +94,7 @@ export function BrandingPanel() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const uploadLogo = async (file: File, kind: 'dark' | 'light') => {
+  const uploadLogo = async (file: File, kind: 'dark' | 'light' | 'favicon') => {
     const ext = file.name.split('.').pop()?.toLowerCase() || 'png';
     const path = `logo-${kind}-${Date.now()}.${ext}`;
     const { error: uploadError } = await supabase.storage
@@ -106,6 +124,9 @@ export function BrandingPanel() {
       const nextLightUrl = pendingLight
         ? await uploadLogo(pendingLight, 'light')
         : logoLightUrl;
+      const nextFaviconUrl = pendingFavicon
+        ? await uploadLogo(pendingFavicon, 'favicon')
+        : faviconUrl;
 
       // RLS (migration 040) rejects this write unless the caller's
       // profile has is_super_admin = true — this page is UI-level
@@ -117,6 +138,7 @@ export function BrandingPanel() {
           company_name: trimmedName,
           logo_url: nextLogoUrl,
           ...(lightSupported ? { logo_light_url: nextLightUrl } : {}),
+          ...(faviconSupported ? { favicon_url: nextFaviconUrl } : {}),
           updated_at: new Date().toISOString(),
         })
         .eq('id', true)
@@ -127,6 +149,9 @@ export function BrandingPanel() {
       setLogoUrl(nextLogoUrl);
       setLogoLightUrl(nextLightUrl);
       setSavedLightUrl(nextLightUrl);
+      setFaviconUrl(nextFaviconUrl);
+      setSavedFaviconUrl(nextFaviconUrl);
+      setPendingFavicon(null);
       setSavedName(trimmedName);
       setPendingDark(null);
       setPendingLight(null);
@@ -143,7 +168,9 @@ export function BrandingPanel() {
     (companyName.trim() !== savedName.trim() ||
       pendingDark !== null ||
       pendingLight !== null ||
-      logoLightUrl !== savedLightUrl);
+      logoLightUrl !== savedLightUrl ||
+      pendingFavicon !== null ||
+      faviconUrl !== savedFaviconUrl);
 
   if (loading) {
     return (
@@ -190,6 +217,24 @@ export function BrandingPanel() {
               <p className="text-xs text-muted-foreground sm:col-span-2">
                 {t('logoHint')}
               </p>
+              <LogoSlot
+                label={t('favicon')}
+                hint={faviconSupported ? t('faviconHint') : t('faviconMigration')}
+                surface="tab"
+                url={faviconUrl ?? '/logo-mark.png'}
+                pending={pendingFavicon}
+                onPick={setPendingFavicon}
+                allowed={FAVICON_MIME}
+                onRemove={
+                  faviconUrl || pendingFavicon
+                    ? () => {
+                        setPendingFavicon(null);
+                        setFaviconUrl(null);
+                      }
+                    : undefined
+                }
+                disabled={saving || !faviconSupported}
+              />
             </div>
 
             <div className="space-y-2">
@@ -242,15 +287,18 @@ function LogoSlot({
   onPick,
   onRemove,
   disabled,
+  allowed = ALLOWED_MIME,
 }: {
   label: string;
   hint: string;
-  surface: 'dark' | 'light';
+  /** 'tab' previews a small square, like the browser tab icon. */
+  surface: 'dark' | 'light' | 'tab';
   url: string;
   pending: File | null;
   onPick: (file: File | null) => void;
   onRemove?: () => void;
   disabled: boolean;
+  allowed?: Set<string>;
 }) {
   const t = useTranslations('SuperAdmin.branding');
   const inputRef = useRef<HTMLInputElement>(null);
@@ -268,7 +316,7 @@ function LogoSlot({
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file) return;
-    if (!ALLOWED_MIME.has(file.type)) {
+    if (!allowed.has(file.type)) {
       toast.error(t('unsupportedImage'));
       return;
     }
@@ -282,27 +330,43 @@ function LogoSlot({
   return (
     <div className="space-y-2">
       <Label className="text-foreground">{label}</Label>
-      <div
-        className={cn(
-          'flex h-28 items-center justify-center rounded-xl border p-3',
-          surface === 'dark'
-            ? 'border-slate-700 bg-slate-900'
-            : 'border-slate-200 bg-white',
-        )}
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL or local blob preview */}
-        <img
-          src={previewUrl ?? url}
-          alt={label}
-          className="max-h-full max-w-full object-contain"
-        />
-      </div>
+      {surface === 'tab' ? (
+        <div className="flex h-28 items-center gap-4 rounded-xl border border-border bg-muted/40 p-3">
+          {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL or local blob preview */}
+          <img
+            src={previewUrl ?? url}
+            alt={label}
+            className="size-16 rounded-lg border border-border bg-white object-contain p-1"
+          />
+          <div className="flex min-w-0 items-center gap-2 rounded-t-lg border border-b-0 border-border bg-card px-3 py-2 text-xs text-foreground">
+            {/* eslint-disable-next-line @next/next/no-img-element -- same preview, at tab size */}
+            <img src={previewUrl ?? url} alt="" className="size-4 object-contain" />
+            <span className="truncate">{t('faviconTab')}</span>
+          </div>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'flex h-28 items-center justify-center rounded-xl border p-3',
+            surface === 'dark'
+              ? 'border-slate-700 bg-slate-900'
+              : 'border-slate-200 bg-white',
+          )}
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element -- Supabase Storage URL or local blob preview */}
+          <img
+            src={previewUrl ?? url}
+            alt={label}
+            className="max-h-full max-w-full object-contain"
+          />
+        </div>
+      )}
       <p className="text-xs text-muted-foreground">{hint}</p>
       <div className="flex flex-wrap gap-2">
         <input
           ref={inputRef}
           type="file"
-          accept="image/png,image/jpeg,image/webp,image/svg+xml"
+          accept={[...allowed].join(',')}
           className="hidden"
           onChange={onChange}
         />

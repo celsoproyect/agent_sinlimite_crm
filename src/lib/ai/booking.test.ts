@@ -43,9 +43,13 @@ function makeDb(opts: FakeOpts = {}) {
               }),
             }),
           }),
-          insert: async (row: Record<string, unknown>) => {
+          insert: (row: Record<string, unknown>) => {
             inserts.push({ table, row })
-            return { error: null }
+            return {
+              select: () => ({
+                single: async () => ({ data: { id: '3f9a2c1e-0000-4000-8000-000000000000' }, error: null }),
+              }),
+            }
           },
         }
       }
@@ -173,6 +177,7 @@ describe('confirmAiBooking', () => {
     const { db, inserts } = makeDb()
     expect(await confirmAiBooking(db, { ...ARGS, appointment: APPOINTMENT })).toEqual({
       confirmed: true,
+      reference: 'CITA-3F9A2C',
     })
     expect(inserts.map((i) => i.table)).toEqual(['bookings', 'messages'])
     expect(inserts[0].row).toMatchObject({
@@ -181,7 +186,7 @@ describe('confirmAiBooking', () => {
       starts_at: APPOINTMENT.startsAt,
       created_by: null,
     })
-    expect(inserts[1].row.content_text).toBe('Booked Corte for 2026-09-08 11:00')
+    expect(inserts[1].row.content_text).toBe('Booked Corte for 2026-09-08 11:00 (CITA-3F9A2C)')
   })
 
   it('refuses a slot that is already taken, without writing', async () => {

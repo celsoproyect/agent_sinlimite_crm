@@ -938,6 +938,8 @@ describe('generateReply — booking tool loop', () => {
                         startsAt: '2026-08-24T14:00:00.000Z',
                         endsAt: '2026-08-24T14:30:00.000Z',
                         service: 'Haircut',
+                        customerName: 'Ana',
+                        customerPhone: '8095551234',
                       }),
                     },
                   },
@@ -966,6 +968,8 @@ describe('generateReply — booking tool loop', () => {
         endsAt: '2026-08-24T14:30:00.000Z',
         service: 'Haircut',
         notes: undefined,
+        customerName: 'Ana',
+        customerPhone: '8095551234',
       },
     })
     expect(checkAvailability).not.toHaveBeenCalled()
@@ -1065,6 +1069,8 @@ describe('generateReply — booking tool loop', () => {
                 startsAt: '2026-08-24T14:00:00.000Z',
                 endsAt: '2026-08-24T14:30:00.000Z',
                 service: 'Haircut',
+                customerName: 'Ana',
+                customerPhone: '8095551234',
               },
             },
           ],
@@ -1087,6 +1093,8 @@ describe('generateReply — booking tool loop', () => {
         endsAt: '2026-08-24T14:30:00.000Z',
         service: 'Haircut',
         notes: undefined,
+        customerName: 'Ana',
+        customerPhone: '8095551234',
       },
     })
   })

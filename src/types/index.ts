@@ -453,6 +453,10 @@ export interface Booking {
   /** Null when the AI booking tool created it rather than a human agent. */
   created_by?: string | null;
   notes?: string | null;
+  /** Name and phone the customer gave for this appointment (migration
+   *  062). The AI agent finds the booking again by this phone. */
+  customer_name?: string | null;
+  customer_phone?: string | null;
   created_at: string;
   updated_at: string;
   contact?: Contact;

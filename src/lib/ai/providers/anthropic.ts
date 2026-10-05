@@ -23,6 +23,9 @@ import {
   parseAvailabilityArgs,
   runAvailabilityCheck,
   runBookAppointment,
+  runManageAppointmentTool,
+  BOOK_APPOINTMENT_PARAMETERS,
+  MANAGE_APPOINTMENT_TOOLS,
   toNetworkError,
   ADD_NOTE_TOOL_NAME,
   BOOK_APPOINTMENT_TOOL_NAME,
@@ -111,6 +114,7 @@ function buildTools(
   knowledgeBaseNames: string[] | null,
   attachmentsEnabled: boolean,
   bookingEnabled: boolean,
+  bookingManageEnabled: boolean,
   nameCaptureEnabled: boolean,
   noteCaptureEnabled: boolean,
   customFieldNames: string[] | null,
@@ -172,17 +176,13 @@ function buildTools(
       name: BOOK_APPOINTMENT_TOOL_NAME,
       description:
         'Confirm a real appointment booking once the customer has clearly accepted a specific offered time. Only call this after check_availability offered the slot and the customer confirmed it.',
-      input_schema: {
-        type: 'object',
-        properties: {
-          startsAt: { type: 'string', description: 'ISO 8601 start timestamp, exactly one of the offered slots.' },
-          endsAt: { type: 'string', description: 'ISO 8601 end timestamp for that same slot.' },
-          service: { type: 'string', description: 'What the appointment is for.' },
-          notes: { type: 'string', description: 'Optional extra notes from the customer.' },
-        },
-        required: ['startsAt', 'endsAt', 'service'],
-      },
+      input_schema: BOOK_APPOINTMENT_PARAMETERS,
     })
+    if (bookingManageEnabled) {
+      for (const tool of MANAGE_APPOINTMENT_TOOLS) {
+        tools.push({ name: tool.name, description: tool.description, input_schema: tool.parameters })
+      }
+    }
   }
   if (nameCaptureEnabled) {
     tools.push({
@@ -301,6 +301,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
     !!bookingTool,
+    !!bookingTool?.manage,
     nameCaptureEnabled,
     noteCaptureEnabled,
     customFieldNames,
@@ -483,6 +484,14 @@ async function runAnthropicTool(
     const { resultJson, appointment } = await runBookAppointment(bookingTool, toolUse.input)
     if (appointment) booking.appointment = appointment
     return resultJson
+  }
+
+  if (bookingTool?.manage) {
+    const managed = await runManageAppointmentTool(bookingTool.manage, toolUse.name ?? '', toolUse.input)
+    if (managed) {
+      if (managed.appointment) booking.appointment = managed.appointment
+      return managed.resultJson
+    }
   }
 
   if (toolUse.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {

@@ -135,6 +135,13 @@
     },
     "emptyState": {
       "title": "Aún no hay suficientes datos"
+    },
+    "bookings": {
+      "title": "Citas agendadas",
+      "viewAll": "Ver agenda",
+      "today": "Hoy",
+      "next7": "Próximos 7 días",
+      "empty": "No hay citas próximas."
     }
   },
   "Inbox": {
@@ -541,7 +548,9 @@
       "settings": "Horario de atención",
       "reminders": "Recordatorios",
       "prevWeek": "Semana anterior",
-      "nextWeek": "Semana siguiente"
+      "nextWeek": "Semana siguiente",
+      "viewWeek": "Semana",
+      "viewList": "Lista"
     },
     "todayPanel": {
       "title": "Hoy",
@@ -610,7 +619,7 @@
       "disabled": "Desactivado",
       "delete": "Eliminar regla",
       "messagePlaceholder": "p. ej. Hola {{contact_name}}, este es un recordatorio de tu {{service}} el {{date}} a las {{time}}.",
-      "placeholderHelp": "Marcadores disponibles: {{contact_name}}, {{service}}, {{date}}, {{time}}",
+      "placeholderHelp": "Marcadores disponibles: {{contact_name}}, {{service}}, {{date}}, {{time}}, {{reference}}",
       "fallbackTemplate": "Plantilla de respaldo",
       "noTemplate": "Ninguna",
       "clearTemplate": "Borrar",
@@ -627,6 +636,35 @@
       "confirmDelete": "¿Eliminar esta regla de recordatorio?",
       "validationMessageRequired": "El mensaje es obligatorio",
       "validationOffsetRequired": "El desfase debe ser mayor que cero"
+    },
+    "stats": {
+      "today": "Citas de hoy",
+      "upcoming": "Próximos 7 días",
+      "month": "Este mes",
+      "cancelled": "Canceladas este mes"
+    },
+    "list": {
+      "range": {
+        "today": "Hoy",
+        "tomorrow": "Mañana",
+        "week": "Esta semana",
+        "next30": "Próximos 30 días",
+        "month": "Este mes",
+        "custom": "Fechas personalizadas"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "status": "Estado",
+      "statusFilter": {
+        "active": "Activas",
+        "all": "Todas",
+        "confirmed": "Confirmadas",
+        "completed": "Completadas",
+        "cancelled": "Canceladas"
+      },
+      "search": "Buscar nombre, teléfono, servicio o referencia",
+      "empty": "No hay citas con estos filtros.",
+      "count": "{count, plural, one {# cita} other {# citas}}"
     }
   },
   "Channels": {
@@ -2097,7 +2135,11 @@
       "logoLight": "Logo para modo claro",
       "logoLightHint": "Se usa cuando el modo claro está activo. Ideal: logo oscuro o a color. Si lo dejas vacío se usa el del modo oscuro.",
       "logoLightMigration": "Falta aplicar la migración 061 en Supabase para poder subir el logo del modo claro.",
-      "removeLogo": "Quitar"
+      "removeLogo": "Quitar",
+      "favicon": "Icono de la pestaña (favicon)",
+      "faviconHint": "PNG, JPG o SVG cuadrado, mínimo 64×64. Si no subes uno, la pestaña usa el logo.",
+      "faviconMigration": "Aplica la migración 062 para habilitar el favicon.",
+      "faviconTab": "Pestaña del navegador"
     },
     "account": {
       "title": "Cuenta",

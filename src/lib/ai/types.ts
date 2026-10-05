@@ -115,6 +115,24 @@ export interface BookingAppointment {
   endsAt: string
   service: string
   notes?: string
+  /** Name and phone the customer gave for the appointment. The phone is
+   *  how they find it again to change or cancel it. */
+  customerName?: string
+  customerPhone?: string
+  /** "CITA-3F9A2C", set once the booking is saved. */
+  reference?: string
+}
+
+/** An existing appointment as `find_appointments` shows it to the model. */
+export interface ManagedBooking {
+  reference: string
+  service: string
+  startsAt: string
+  endsAt: string
+  /** Business-local date (YYYY-MM-DD) and HH:mm. */
+  date: string
+  time: string
+  customerName: string | null
 }
 
 /** What the model did with the booking tools this turn, if anything. */

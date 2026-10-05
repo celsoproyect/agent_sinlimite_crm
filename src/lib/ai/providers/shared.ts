@@ -8,6 +8,7 @@ import {
   type ChatMessage,
   type ContentPart,
   type LeadValue,
+  type ManagedBooking,
   type ResolvedAttachment,
   type TimeSlot,
 } from '../types'
@@ -68,11 +69,195 @@ export interface BookingSearchTool {
    *  it is still composing its reply. Omitted by callers that only offer
    *  slots and never persist (the Playground), in which case the tool
    *  reports success without writing. */
-  create?: (appointment: BookingAppointment) => Promise<{ confirmed: boolean; error?: string }>
+  create?: (appointment: BookingAppointment) => Promise<{ confirmed: boolean; error?: string; reference?: string }>
+  /** Present to expose `find_appointments` / `reschedule_appointment` /
+   *  `cancel_appointment` (auto-reply only — they write to the real
+   *  agenda). */
+  manage?: BookingManageTool
+}
+
+/** Executors for the tools that act on an appointment that already
+ *  exists. The customer identifies it by the phone number they booked
+ *  with, plus the reference code when they have it. */
+export interface BookingManageTool {
+  find: (args: { phone: string }) => Promise<ManagedBooking[]>
+  reschedule: (args: { phone: string; reference?: string; startsAt: string; endsAt: string }) => Promise<{
+    rescheduled: boolean
+    error?: string
+    appointments?: ManagedBooking[]
+    appointment?: BookingAppointment
+  }>
+  cancel: (args: { phone: string; reference?: string }) => Promise<{
+    cancelled: boolean
+    error?: string
+    appointments?: ManagedBooking[]
+    reference?: string
+  }>
 }
 
 export const CHECK_AVAILABILITY_TOOL_NAME = 'check_availability'
 export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
+export const FIND_APPOINTMENTS_TOOL_NAME = 'find_appointments'
+export const RESCHEDULE_APPOINTMENT_TOOL_NAME = 'reschedule_appointment'
+export const CANCEL_APPOINTMENT_TOOL_NAME = 'cancel_appointment'
+
+/** `book_appointment`'s parameters, shared by both adapters. */
+export const BOOK_APPOINTMENT_PARAMETERS: Record<string, unknown> = {
+  type: 'object',
+  properties: {
+    startsAt: { type: 'string', description: 'ISO 8601 start timestamp, exactly one of the offered slots.' },
+    endsAt: { type: 'string', description: 'ISO 8601 end timestamp for that same slot.' },
+    service: { type: 'string', description: 'What the appointment is for.' },
+    customerName: { type: 'string', description: "The customer's full name, as they gave it for the appointment." },
+    customerPhone: {
+      type: 'string',
+      description: 'The phone number the customer gave for the appointment. It is how they find it again later.',
+    },
+    notes: { type: 'string', description: 'Optional extra notes from the customer.' },
+  },
+  required: ['startsAt', 'endsAt', 'service', 'customerName', 'customerPhone'],
+}
+
+/** The tools that act on an existing appointment, in a provider-neutral
+ *  shape (name, description, JSON-schema parameters) each adapter wraps
+ *  in its own envelope. */
+export const MANAGE_APPOINTMENT_TOOLS: {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}[] = [
+  {
+    name: FIND_APPOINTMENTS_TOOL_NAME,
+    description:
+      "Look up the customer's upcoming appointments by the phone number they booked with. Use it when they ask about, want to change or want to cancel an appointment.",
+    parameters: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', description: 'The phone number the customer booked with.' },
+      },
+      required: ['phone'],
+    },
+  },
+  {
+    name: RESCHEDULE_APPOINTMENT_TOOL_NAME,
+    description:
+      'Move an existing appointment to a new time. The old time is freed; no new appointment is created. Only call it after check_availability offered the new slot and the customer accepted it. Never use book_appointment to change an appointment.',
+    parameters: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', description: 'The phone number the customer booked with.' },
+        reference: {
+          type: 'string',
+          description: 'The appointment reference (e.g. CITA-3F9A2C), from find_appointments. Required when the customer has more than one.',
+        },
+        startsAt: { type: 'string', description: 'ISO 8601 start timestamp of the new slot, exactly as offered.' },
+        endsAt: { type: 'string', description: 'ISO 8601 end timestamp of that same slot.' },
+      },
+      required: ['phone', 'startsAt', 'endsAt'],
+    },
+  },
+  {
+    name: CANCEL_APPOINTMENT_TOOL_NAME,
+    description: 'Cancel an existing appointment, once the customer clearly asked to cancel it (not to move it).',
+    parameters: {
+      type: 'object',
+      properties: {
+        phone: { type: 'string', description: 'The phone number the customer booked with.' },
+        reference: {
+          type: 'string',
+          description: 'The appointment reference (e.g. CITA-3F9A2C), from find_appointments. Required when the customer has more than one.',
+        },
+      },
+      required: ['phone'],
+    },
+  },
+]
+
+/** Minimum digits for something to count as a phone number. */
+const MIN_PHONE_DIGITS = 7
+
+function cleanPhone(raw: unknown): string {
+  return typeof raw === 'string' ? raw.trim() : ''
+}
+
+function phoneIsValid(phone: string): boolean {
+  return phone.replace(/\D/g, '').length >= MIN_PHONE_DIGITS
+}
+
+/**
+ * Run one of the existing-appointment tools, or return null when `name`
+ * isn't one of them. A successful reschedule hands back the moved
+ * appointment so the caller treats the turn like a booking (no slot
+ * buttons on top of the confirmation).
+ */
+export async function runManageAppointmentTool(
+  tool: BookingManageTool,
+  name: string,
+  rawArgs: unknown,
+): Promise<{ resultJson: string; appointment?: BookingAppointment } | null> {
+  if (
+    name !== FIND_APPOINTMENTS_TOOL_NAME &&
+    name !== RESCHEDULE_APPOINTMENT_TOOL_NAME &&
+    name !== CANCEL_APPOINTMENT_TOOL_NAME
+  ) {
+    return null
+  }
+  const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+  const phone = cleanPhone(args.phone)
+  if (!phoneIsValid(phone)) {
+    return {
+      resultJson: JSON.stringify({
+        error: 'phone is required: ask the customer for the phone number they booked with.',
+      }),
+    }
+  }
+  const reference = typeof args.reference === 'string' && args.reference.trim() ? args.reference.trim() : undefined
+
+  try {
+    if (name === FIND_APPOINTMENTS_TOOL_NAME) {
+      const appointments = await tool.find({ phone })
+      return {
+        resultJson: JSON.stringify(
+          appointments.length > 0
+            ? { appointments }
+            : { appointments: [], note: 'No upcoming appointment was found for that phone number.' },
+        ),
+      }
+    }
+
+    if (name === CANCEL_APPOINTMENT_TOOL_NAME) {
+      return { resultJson: JSON.stringify(await tool.cancel({ phone, reference })) }
+    }
+
+    const startsAt = typeof args.startsAt === 'string' ? normalizeAiTimestamp(args.startsAt) : null
+    const endsAt = typeof args.endsAt === 'string' ? normalizeAiTimestamp(args.endsAt) : null
+    if (!startsAt || !endsAt || new Date(endsAt).getTime() <= new Date(startsAt).getTime()) {
+      return {
+        resultJson: JSON.stringify({
+          rescheduled: false,
+          error: 'startsAt and endsAt must be one of the slots check_availability offered.',
+        }),
+      }
+    }
+    const { appointment, ...rest } = await tool.reschedule({ phone, reference, startsAt, endsAt })
+    return {
+      resultJson: JSON.stringify(
+        appointment
+          ? {
+              ...rest,
+              reference: appointment.reference,
+              date: businessDate(appointment.startsAt),
+              time: businessTime(appointment.startsAt),
+            }
+          : rest,
+      ),
+      appointment,
+    }
+  } catch (err) {
+    console.error(`[ai booking] ${name} executor threw:`, err)
+    return { resultJson: JSON.stringify({ error: 'the appointment could not be looked up' }) }
+  }
+}
 
 /** Id prefix on the WhatsApp reply buttons auto-reply sends for the slots
  *  `check_availability` offered (`booking_slot_0`…). The webhook keys off
@@ -427,7 +612,7 @@ export async function runBookAppointment(
   if (!tool.create) {
     return { resultJson: JSON.stringify({ confirmed: true }), appointment: parsed.appointment }
   }
-  let outcome: { confirmed: boolean; error?: string }
+  let outcome: { confirmed: boolean; error?: string; reference?: string }
   try {
     outcome = await tool.create(parsed.appointment)
   } catch (err) {
@@ -436,7 +621,7 @@ export async function runBookAppointment(
   }
   return {
     resultJson: JSON.stringify(outcome),
-    appointment: outcome.confirmed ? parsed.appointment : undefined,
+    appointment: outcome.confirmed ? { ...parsed.appointment, reference: outcome.reference } : undefined,
   }
 }
 
@@ -452,6 +637,8 @@ export function parseBookAppointment(
   const endsAt = typeof args.endsAt === 'string' ? args.endsAt : ''
   const service = typeof args.service === 'string' ? args.service.trim() : ''
   const notes = typeof args.notes === 'string' && args.notes.trim() ? args.notes.trim() : undefined
+  const customerName = typeof args.customerName === 'string' ? args.customerName.trim().slice(0, 100) : ''
+  const customerPhone = cleanPhone(args.customerPhone).slice(0, 40)
 
   // A timestamp the model wrote without a zone means business-local
   // time — that's the only clock it was ever shown — so anchor it to the
@@ -473,8 +660,16 @@ export function parseBookAppointment(
   if (!service) {
     return { error: 'service is required.' }
   }
+  if (!customerName) {
+    return { error: 'customerName is required: ask the customer for their full name before booking.' }
+  }
+  if (!phoneIsValid(customerPhone)) {
+    return { error: 'customerPhone is required: ask the customer for their phone number before booking.' }
+  }
 
-  return { appointment: { startsAt: startsAtUtc, endsAt: endsAtUtc, service, notes } }
+  return {
+    appointment: { startsAt: startsAtUtc, endsAt: endsAtUtc, service, notes, customerName, customerPhone },
+  }
 }
 
 /** Validate + normalize the model's `set_customer_name` tool-call

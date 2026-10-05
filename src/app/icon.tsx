@@ -4,8 +4,9 @@ import path from "node:path";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_BRANDING } from "@/lib/branding";
 
-// Renders the browser-tab favicon from this deployment's branding logo
-// (`platform_settings.logo_url`, migration 040) instead of a fixed
+// Renders the browser-tab favicon from this deployment's uploaded favicon
+// (`platform_settings.favicon_url`, migration 062), else its branding
+// logo (`platform_settings.logo_url`, migration 040), instead of a fixed
 // brand mark, so a super admin's uploaded logo shows up in the tab
 // without a redeploy — mirrors the title logic in `src/app/layout.tsx`.
 //
@@ -33,12 +34,23 @@ async function loadLogoDataUri(): Promise<string> {
   let logoUrl: string = DEFAULT_BRANDING.logoUrl;
   try {
     const supabase = await createClient();
-    const { data } = await supabase
+    const withFavicon = await supabase
       .from("platform_settings")
-      .select("logo_url")
+      .select("logo_url, favicon_url")
       .eq("id", true)
       .maybeSingle();
-    if (data?.logo_url) logoUrl = data.logo_url;
+    let data: { logo_url?: string | null; favicon_url?: string | null } | null = withFavicon.data;
+    if (withFavicon.error?.code === "42703") {
+      // Migration 062 not applied yet: no favicon column.
+      const legacy = await supabase
+        .from("platform_settings")
+        .select("logo_url")
+        .eq("id", true)
+        .maybeSingle();
+      data = legacy.data;
+    }
+    if (data?.favicon_url) logoUrl = data.favicon_url;
+    else if (data?.logo_url) logoUrl = data.logo_url;
   } catch {
     // Keep the default — this must never block the icon from rendering.
   }

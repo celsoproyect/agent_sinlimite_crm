@@ -135,6 +135,22 @@ describe('GET /api/bookings/reminders/cron', () => {
     expect(sendUpdates).toEqual([{ id: 'send-1', payload: { status: 'sent', channel: 'text' } }])
   })
 
+  it('reaches a contact with no phone through the booking conversation', async () => {
+    dueRows = [
+      {
+        ...BASE_ROW,
+        contact_phone: '',
+        message_text: 'Ref {{reference}}',
+        booking_id: '3f9a2c1e-0000-4000-8000-000000000000',
+      },
+    ]
+    const json = await (await GET(req('cron-secret'))).json()
+    expect(json).toEqual({ processed: 1, sent: 1, failed: 0 })
+    expect(engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-1', text: 'Ref CITA-3F9A2C' }),
+    )
+  })
+
   it('resolves a conversation when the booking has none', async () => {
     dueRows = [{ ...BASE_ROW, conversation_id: null }]
     await GET(req('cron-secret'))

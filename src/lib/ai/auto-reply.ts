@@ -4,7 +4,15 @@ import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { getAttachmentRoster, searchAttachments } from './attachments'
 import { applyLeadCapture, getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
-import { bookingEnabled, checkAvailability, confirmAiBooking, getBusinessHoursSummary } from './booking'
+import {
+  bookingEnabled,
+  cancelAiBooking,
+  checkAvailability,
+  confirmAiBooking,
+  findCustomerBookings,
+  getBusinessHoursSummary,
+  rescheduleAiBooking,
+} from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -219,6 +227,8 @@ export async function dispatchInboundToAiReply(
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
       businessHoursSummary,
+      bookingManageAvailable: bookingAvailable,
+      customerWhatsappPhone: contactRow?.phone || null,
       needsCustomerName,
       handoffOnMissingInfo: config.handoffOnMissingInfo,
       noteCaptureAvailable: true,
@@ -249,6 +259,13 @@ export async function dispatchInboundToAiReply(
         bookAppointment: bookingAvailable
           ? (appointment) =>
               confirmAiBooking(db, { accountId, contactId, conversationId, appointment })
+          : undefined,
+        manageAppointments: bookingAvailable
+          ? {
+              find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone }),
+              reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a }),
+              cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a }),
+            }
           : undefined,
         captureCustomerName: needsCustomerName,
         captureNote: true,

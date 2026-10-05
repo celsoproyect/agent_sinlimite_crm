@@ -135,6 +135,13 @@
     },
     "emptyState": {
       "title": "Not enough data yet"
+    },
+    "bookings": {
+      "title": "Appointments",
+      "viewAll": "Open agenda",
+      "today": "Today",
+      "next7": "Next 7 days",
+      "empty": "No upcoming appointments."
     }
   },
   "Inbox": {
@@ -541,7 +548,9 @@
       "settings": "Business hours",
       "reminders": "Reminders",
       "prevWeek": "Previous week",
-      "nextWeek": "Next week"
+      "nextWeek": "Next week",
+      "viewWeek": "Week",
+      "viewList": "List"
     },
     "todayPanel": {
       "title": "Today",
@@ -610,7 +619,7 @@
       "disabled": "Disabled",
       "delete": "Delete rule",
       "messagePlaceholder": "e.g. Hi {{contact_name}}, this is a reminder of your {{service}} on {{date}} at {{time}}.",
-      "placeholderHelp": "Available placeholders: {{contact_name}}, {{service}}, {{date}}, {{time}}",
+      "placeholderHelp": "Available placeholders: {{contact_name}}, {{service}}, {{date}}, {{time}}, {{reference}}",
       "fallbackTemplate": "Fallback template",
       "noTemplate": "None",
       "clearTemplate": "Clear",
@@ -627,6 +636,35 @@
       "confirmDelete": "Delete this reminder rule?",
       "validationMessageRequired": "The message is required",
       "validationOffsetRequired": "The offset must be greater than zero"
+    },
+    "stats": {
+      "today": "Today",
+      "upcoming": "Next 7 days",
+      "month": "This month",
+      "cancelled": "Cancelled this month"
+    },
+    "list": {
+      "range": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "week": "This week",
+        "next30": "Next 30 days",
+        "month": "This month",
+        "custom": "Custom dates"
+      },
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "statusFilter": {
+        "active": "Active",
+        "all": "All",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "search": "Search name, phone, service or reference",
+      "empty": "No appointments match these filters.",
+      "count": "{count, plural, one {# appointment} other {# appointments}}"
     }
   },
   "Channels": {
@@ -2097,7 +2135,11 @@
       "logoLight": "Light mode logo",
       "logoLightHint": "Used while light mode is on. Best: a dark or full-color logo. Leave it empty to reuse the dark mode logo.",
       "logoLightMigration": "Apply migration 061 in Supabase to upload a light mode logo.",
-      "removeLogo": "Remove"
+      "removeLogo": "Remove",
+      "favicon": "Browser tab icon (favicon)",
+      "faviconHint": "Square PNG, JPG or SVG, at least 64×64. Without one, the tab uses the logo.",
+      "faviconMigration": "Apply migration 062 to enable the favicon upload.",
+      "faviconTab": "Browser tab"
     },
     "account": {
       "title": "Account",

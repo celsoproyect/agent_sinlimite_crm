@@ -9,6 +9,8 @@ import {
   parseLeadStage,
   parseSentiment,
   runBookAppointment,
+  runManageAppointmentTool,
+  type BookingManageTool,
 } from './shared'
 
 describe('parseNote', () => {
@@ -118,6 +120,8 @@ describe('parseBookAppointment', () => {
         startsAt: '2026-09-08T13:00:00.000Z',
         endsAt: '2026-09-08T14:00:00.000Z',
         service: 'Corte',
+        customerName: 'Ana Pérez',
+        customerPhone: '809-555-1234',
       }),
     ).toEqual({
       appointment: {
@@ -125,6 +129,8 @@ describe('parseBookAppointment', () => {
         endsAt: '2026-09-08T14:00:00.000Z',
         service: 'Corte',
         notes: undefined,
+        customerName: 'Ana Pérez',
+        customerPhone: '809-555-1234',
       },
     })
   })
@@ -138,6 +144,8 @@ describe('parseBookAppointment', () => {
       startsAt: '2026-09-08T09:00:00',
       endsAt: '2026-09-08T10:00:00',
       service: 'Corte',
+      customerName: 'Ana Pérez',
+      customerPhone: '809-555-1234',
     })
     expect(result).toEqual({
       appointment: {
@@ -145,6 +153,8 @@ describe('parseBookAppointment', () => {
         endsAt: '2026-09-08T14:00:00.000Z',
         service: 'Corte',
         notes: undefined,
+        customerName: 'Ana Pérez',
+        customerPhone: '809-555-1234',
       },
     })
   })
@@ -161,6 +171,16 @@ describe('parseBookAppointment', () => {
       }),
     ).toEqual({ error: 'endsAt must be after startsAt.' })
   })
+
+  it('requires the customer name and a real phone number', () => {
+    const base = { startsAt: '2026-09-08T13:00:00Z', endsAt: '2026-09-08T14:00:00Z', service: 'Corte' }
+    expect(parseBookAppointment({ ...base, customerPhone: '8095551234' })).toEqual({
+      error: 'customerName is required: ask the customer for their full name before booking.',
+    })
+    expect(parseBookAppointment({ ...base, customerName: 'Ana', customerPhone: '123' })).toEqual({
+      error: 'customerPhone is required: ask the customer for their phone number before booking.',
+    })
+  })
 })
 
 describe('runBookAppointment', () => {
@@ -168,6 +188,8 @@ describe('runBookAppointment', () => {
     startsAt: '2026-09-08T13:00:00.000Z',
     endsAt: '2026-09-08T14:00:00.000Z',
     service: 'Corte',
+    customerName: 'Ana Pérez',
+    customerPhone: '8095551234',
   }
   const execute = async () => ({ slots: [] })
 
@@ -183,10 +205,15 @@ describe('runBookAppointment', () => {
   })
 
   it('reports success and hands back the written appointment', async () => {
-    const create = vi.fn().mockResolvedValue({ confirmed: true })
+    const create = vi.fn().mockResolvedValue({ confirmed: true, reference: 'CITA-3F9A2C' })
     const result = await runBookAppointment({ execute, create }, ARGS)
-    expect(JSON.parse(result.resultJson)).toEqual({ confirmed: true })
-    expect(result.appointment).toMatchObject({ startsAt: ARGS.startsAt, service: 'Corte' })
+    expect(JSON.parse(result.resultJson)).toEqual({ confirmed: true, reference: 'CITA-3F9A2C' })
+    expect(result.appointment).toMatchObject({
+      startsAt: ARGS.startsAt,
+      service: 'Corte',
+      customerPhone: '8095551234',
+      reference: 'CITA-3F9A2C',
+    })
   })
 
   it('turns a throwing writer into an honest refusal instead of a crash', async () => {
@@ -240,5 +267,83 @@ describe('parseLeadStage — deal amount', () => {
 
   it('ignores a missing or bogus amount without failing the stage', () => {
     expect(parseLeadStage({ stage: 'Qualified', value: 'n/a' }, ['Qualified'])).toEqual({ stage: 'Qualified' })
+  })
+})
+
+describe('runManageAppointmentTool', () => {
+  const found = [
+    {
+      reference: 'CITA-3F9A2C',
+      service: 'Corte',
+      startsAt: '2026-09-08T13:00:00.000Z',
+      endsAt: '2026-09-08T14:00:00.000Z',
+      date: '2026-09-08',
+      time: '09:00',
+      customerName: 'Ana',
+    },
+  ]
+  const makeTool = (): BookingManageTool => ({
+    find: vi.fn().mockResolvedValue(found),
+    reschedule: vi.fn().mockResolvedValue({
+      rescheduled: true,
+      appointment: {
+        startsAt: '2026-09-09T14:00:00.000Z',
+        endsAt: '2026-09-09T15:00:00.000Z',
+        service: 'Corte',
+        reference: 'CITA-3F9A2C',
+      },
+    }),
+    cancel: vi.fn().mockResolvedValue({ cancelled: true, reference: 'CITA-3F9A2C' }),
+  })
+
+  it('ignores tools that are not its own', async () => {
+    expect(await runManageAppointmentTool(makeTool(), 'book_appointment', {})).toBeNull()
+  })
+
+  it('asks for the phone before looking anything up', async () => {
+    const tool = makeTool()
+    const result = await runManageAppointmentTool(tool, 'find_appointments', { phone: '12' })
+    expect(JSON.parse(result!.resultJson).error).toMatch(/phone is required/)
+    expect(tool.find).not.toHaveBeenCalled()
+  })
+
+  it('lists the appointments found for a phone', async () => {
+    const tool = makeTool()
+    const result = await runManageAppointmentTool(tool, 'find_appointments', { phone: '+1 809 555 1234' })
+    expect(tool.find).toHaveBeenCalledWith({ phone: '+1 809 555 1234' })
+    expect(JSON.parse(result!.resultJson)).toEqual({ appointments: found })
+  })
+
+  it('moves the appointment and hands it back with its local time', async () => {
+    const tool = makeTool()
+    const result = await runManageAppointmentTool(tool, 'reschedule_appointment', {
+      phone: '8095551234',
+      reference: 'CITA-3F9A2C',
+      startsAt: '2026-09-09T10:00:00',
+      endsAt: '2026-09-09T11:00:00',
+    })
+    expect(tool.reschedule).toHaveBeenCalledWith({
+      phone: '8095551234',
+      reference: 'CITA-3F9A2C',
+      startsAt: '2026-09-09T14:00:00.000Z',
+      endsAt: '2026-09-09T15:00:00.000Z',
+    })
+    expect(JSON.parse(result!.resultJson)).toEqual({
+      rescheduled: true,
+      reference: 'CITA-3F9A2C',
+      date: '2026-09-09',
+      time: '10:00',
+    })
+    expect(result!.appointment?.reference).toBe('CITA-3F9A2C')
+  })
+
+  it('cancels by phone and reference', async () => {
+    const tool = makeTool()
+    const result = await runManageAppointmentTool(tool, 'cancel_appointment', {
+      phone: '8095551234',
+      reference: 'cita-3f9a2c',
+    })
+    expect(tool.cancel).toHaveBeenCalledWith({ phone: '8095551234', reference: 'cita-3f9a2c' })
+    expect(JSON.parse(result!.resultJson)).toEqual({ cancelled: true, reference: 'CITA-3F9A2C' })
   })
 })

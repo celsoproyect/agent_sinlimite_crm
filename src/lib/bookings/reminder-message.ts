@@ -21,9 +21,11 @@ export interface ReminderMessageVars {
   service: string
   /** ISO 8601 — e.g. booking.starts_at. */
   startsAt: string
+  /** Booking reference ("CITA-3F9A2C"), for {{reference}}. */
+  reference?: string
 }
 
-const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time)\s*\}\}/g
+const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time|reference)\s*\}\}/g
 
 export function renderReminderMessage(text: string, vars: ReminderMessageVars): string {
   const { date, time } = splitIsoDateTime(vars.startsAt)
@@ -32,6 +34,7 @@ export function renderReminderMessage(text: string, vars: ReminderMessageVars): 
     service: vars.service,
     date,
     time,
+    ...(vars.reference ? { reference: vars.reference } : {}),
   }
   return text.replace(TOKEN_PATTERN, (match, key: string) => values[key] ?? match)
 }

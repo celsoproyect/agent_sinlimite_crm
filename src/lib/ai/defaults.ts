@@ -82,6 +82,13 @@ export function buildSystemPrompt(args: {
    *  call `check_availability` with. Ignored when `bookingAvailable` is
    *  false. */
   businessHoursSummary?: string | null
+  /** True when `find_appointments` / `reschedule_appointment` /
+   *  `cancel_appointment` are wired up (auto-reply only). */
+  bookingManageAvailable?: boolean
+  /** The phone WhatsApp gave for this customer, if any — offered to the
+   *  customer as the default phone for an appointment. Empty for
+   *  username-only WhatsApp users. */
+  customerWhatsappPhone?: string | null
   /** True when the contact has no real name on file yet — adds the
    *  instruction to ask for it and call `set_customer_name` once given. */
   needsCustomerName?: boolean
@@ -113,6 +120,8 @@ export function buildSystemPrompt(args: {
     attachmentNames,
     bookingAvailable,
     businessHoursSummary,
+    bookingManageAvailable,
+    customerWhatsappPhone,
     needsCustomerName,
     handoffOnMissingInfo,
     noteCaptureAvailable,
@@ -239,8 +248,23 @@ export function buildSystemPrompt(args: {
         "Wait for the customer's next message to see which slot they picked — they may reply with the button text (a time like \"14:30\", or a date and time like \"15/09 09:00\") or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
         'Once they have clearly chosen one specific slot, call book_appointment for it in the same turn. ' +
         'Pass the exact startsAt/endsAt of that slot. If you no longer have those exact values, call check_availability again for that date and time first and take them from its result; the times you quote the customer are always local business time (America/Santo_Domingo). ' +
-        "book_appointment really writes the appointment and tells you the truth: it answers confirmed:false with a reason when the slot is taken, closed, or in the past. Only tell the customer they're booked when it answered confirmed:true — otherwise say plainly what happened, call check_availability again with the time they wanted, and offer the alternatives it returns. Don't call it for a time the customer didn't ask for or choose.",
+        "book_appointment really writes the appointment and tells you the truth: it answers confirmed:false with a reason when the slot is taken, closed, or in the past. Only tell the customer they're booked when it answered confirmed:true — otherwise say plainly what happened, call check_availability again with the time they wanted, and offer the alternatives it returns. Don't call it for a time the customer didn't ask for or choose. " +
+        "Before booking you must have the customer's full name and a contact phone number, and pass both to book_appointment (customerName, customerPhone). If you don't have them yet, ask for both together in one short message — you can do that while you check the time — and only book once they've given them. " +
+        (customerWhatsappPhone
+          ? `This customer is writing from the WhatsApp number ${customerWhatsappPhone}; you may ask whether that's the number to use for the appointment instead of asking them to type it. `
+          : '') +
+        'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time, and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment.',
     )
+    if (bookingManageAvailable) {
+      parts.push(
+        'When the customer wants to change (reschedule) or cancel an appointment they already have, never create a new one with book_appointment — that would leave the old one in place. Instead: ' +
+          '1) ask for the phone number they booked with (and the reference code if they have it), then call find_appointments with that phone; ' +
+          '2) if it returns more than one appointment, ask which one, naming each by service, date and time; if it returns none, tell them you could not find an appointment with that number and ask them to check it; ' +
+          '3) to change it, call check_availability for the new date/time they want exactly as for a new booking, and once they accept a slot call reschedule_appointment with the phone, the reference and the startsAt/endsAt of that slot. It moves the same appointment, so the old time is freed. Confirm the new date and time and repeat the reference; ' +
+          '4) to cancel it, make sure they really want to cancel (not move it), then call cancel_appointment with the phone and the reference. ' +
+          'Only say an appointment was changed or cancelled when the tool answered rescheduled:true or cancelled:true. When a customer asks what appointments they have, use find_appointments the same way.',
+      )
+    }
   } else if (mode === 'auto_reply') {
     // Drafts are reviewed by an agent who can book by hand, so this only
     // binds the unattended bot. Without the booking tools the model has no way to put anything on

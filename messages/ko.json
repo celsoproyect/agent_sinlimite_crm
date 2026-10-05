@@ -135,6 +135,13 @@
     },
     "emptyState": {
       "title": "아직 데이터가 충분하지 않습니다"
+    },
+    "bookings": {
+      "title": "Appointments",
+      "viewAll": "Open agenda",
+      "today": "Today",
+      "next7": "Next 7 days",
+      "empty": "No upcoming appointments."
     }
   },
   "Inbox": {
@@ -541,7 +548,9 @@
       "settings": "영업시간",
       "reminders": "리마인더",
       "prevWeek": "이전 주",
-      "nextWeek": "다음 주"
+      "nextWeek": "다음 주",
+      "viewWeek": "Week",
+      "viewList": "List"
     },
     "todayPanel": {
       "title": "오늘",
@@ -610,7 +619,7 @@
       "disabled": "사용 안 함",
       "delete": "규칙 삭제",
       "messagePlaceholder": "예: 안녕하세요 {{contact_name}}님, {{date}} {{time}}에 예정된 {{service}} 예약을 안내드립니다.",
-      "placeholderHelp": "사용 가능한 자리표시자: {{contact_name}}, {{service}}, {{date}}, {{time}}",
+      "placeholderHelp": "사용 가능한 자리표시자: {{contact_name}}, {{service}}, {{date}}, {{time}}, {{reference}}",
       "fallbackTemplate": "대체 템플릿",
       "noTemplate": "없음",
       "clearTemplate": "지우기",
@@ -627,6 +636,35 @@
       "confirmDelete": "이 리마인더 규칙을 삭제하시겠습니까?",
       "validationMessageRequired": "메시지는 필수입니다",
       "validationOffsetRequired": "시간 간격은 0보다 커야 합니다"
+    },
+    "stats": {
+      "today": "Today",
+      "upcoming": "Next 7 days",
+      "month": "This month",
+      "cancelled": "Cancelled this month"
+    },
+    "list": {
+      "range": {
+        "today": "Today",
+        "tomorrow": "Tomorrow",
+        "week": "This week",
+        "next30": "Next 30 days",
+        "month": "This month",
+        "custom": "Custom dates"
+      },
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "statusFilter": {
+        "active": "Active",
+        "all": "All",
+        "confirmed": "Confirmed",
+        "completed": "Completed",
+        "cancelled": "Cancelled"
+      },
+      "search": "Search name, phone, service or reference",
+      "empty": "No appointments match these filters.",
+      "count": "{count, plural, one {# appointment} other {# appointments}}"
     }
   },
   "Channels": {
@@ -2097,7 +2135,11 @@
       "logoLight": "Light mode logo",
       "logoLightHint": "Used while light mode is on. Best: a dark or full-color logo. Leave it empty to reuse the dark mode logo.",
       "logoLightMigration": "Apply migration 061 in Supabase to upload a light mode logo.",
-      "removeLogo": "Remove"
+      "removeLogo": "Remove",
+      "favicon": "Browser tab icon (favicon)",
+      "faviconHint": "Square PNG, JPG or SVG, at least 64×64. Without one, the tab uses the logo.",
+      "faviconMigration": "Apply migration 062 to enable the favicon upload.",
+      "faviconTab": "Browser tab"
     },
     "account": {
       "title": "계정",

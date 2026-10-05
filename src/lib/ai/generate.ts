@@ -40,6 +40,9 @@ export interface GenerateArgs {
    *  truth in the same turn. Omit (as the Playground does) to have the
    *  tool acknowledge without touching the agenda. */
   bookAppointment?: BookingSearchTool['create']
+  /** Executors for `find_appointments` / `reschedule_appointment` /
+   *  `cancel_appointment`. Omit to run without them. */
+  manageAppointments?: BookingSearchTool['manage']
   /** True to expose the `set_customer_name` tool — the caller decides
    *  this (typically "the contact has no real name on file yet"). No
    *  executor needed: the adapter only validates and reports the name. */
@@ -73,6 +76,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     searchAttachments,
     checkAvailability,
     bookAppointment,
+    manageAppointments,
     captureCustomerName,
     captureNote,
     customFieldNames,
@@ -88,7 +92,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     ? { execute: searchAttachments }
     : undefined
   const booking: BookingSearchTool | undefined = checkAvailability
-    ? { execute: checkAvailability, create: bookAppointment }
+    ? { execute: checkAvailability, create: bookAppointment, manage: manageAppointments }
     : undefined
   const nameCapture = !!captureCustomerName
   const noteCapture = !!captureNote
