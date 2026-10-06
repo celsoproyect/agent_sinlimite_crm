@@ -20,13 +20,26 @@ export async function POST(): Promise<NextResponse> {
       .single()
 
     if (error || !account?.telegram_bot_token) {
-      return NextResponse.json({ error: 'Save a bot token first' }, { status: 400 })
+      return NextResponse.json({ error: 'Primero guarda el token del bot.' }, { status: 400 })
     }
 
-    const chat = await getLatestTelegramChat(account.telegram_bot_token)
+    let chat: Awaited<ReturnType<typeof getLatestTelegramChat>>
+    try {
+      chat = await getLatestTelegramChat(account.telegram_bot_token)
+    } catch (err) {
+      // getUpdates is refused while a webhook is set (the Telegram
+      // assistant registers one).
+      if (err instanceof Error && /webhook is active/i.test(err.message)) {
+        return NextResponse.json(
+          { error: 'Apaga el asistente de Telegram, detecta el chat y vuelve a encenderlo.' },
+          { status: 409 },
+        )
+      }
+      throw err
+    }
     if (!chat) {
       return NextResponse.json(
-        { error: 'No messages found. Send any message to your bot in Telegram, then try again.' },
+        { error: 'El bot no ha recibido mensajes. Abre tu bot en Telegram, envíale cualquier mensaje (por ejemplo "hola") y vuelve a intentarlo.' },
         { status: 404 },
       )
     }

@@ -11,6 +11,7 @@ const h = vi.hoisted(() => ({
   getLeadPipelineStages: vi.fn(),
   applyLeadCapture: vi.fn(),
   generateReply: vi.fn(),
+  bookingEnabled: vi.fn(),
 }))
 
 vi.mock('./config', () => ({ loadAiConfig: h.loadAiConfig }))
@@ -25,6 +26,15 @@ vi.mock('./custom-fields', () => ({
   applyLeadCapture: h.applyLeadCapture,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+vi.mock('./booking', () => ({
+  bookingEnabled: h.bookingEnabled,
+  getBusinessHoursSummary: () => Promise.resolve(null),
+  checkAvailability: vi.fn(),
+  confirmAiBooking: vi.fn(),
+  findCustomerBookings: vi.fn(),
+  rescheduleAiBooking: vi.fn(),
+  cancelAiBooking: vi.fn(),
+}))
 
 import { generateWidgetReply } from './widget-reply'
 
@@ -143,6 +153,8 @@ beforeEach(() => {
   h.getCustomFieldRoster.mockResolvedValue([])
   h.getLeadPipelineStages.mockResolvedValue([])
   h.applyLeadCapture.mockReset()
+  h.bookingEnabled.mockResolvedValue(false)
+  h.generateReply.mockReset()
   h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false })
 })
 
@@ -261,5 +273,30 @@ describe('generateWidgetReply — handoff_on_missing_info', () => {
     const systemPrompt = h.generateReply.mock.calls[0][0].systemPrompt as string
     expect(systemPrompt).not.toContain('answering would require information you do not have')
     expect(systemPrompt).toContain('that is a normal reply, not a handoff')
+  })
+})
+
+describe('generateWidgetReply — booking', () => {
+  const conv = { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 }
+
+  it('wires the booking tools and asks for a text list of slots when hours are saved', async () => {
+    h.bookingEnabled.mockResolvedValue(true)
+    const { db } = makeDb({ conv })
+    await generateWidgetReply({ db, ...ARGS_BASE })
+    const call = h.generateReply.mock.calls[0][0]
+    expect(call.checkAvailability).toBeTypeOf('function')
+    expect(call.bookAppointment).toBeTypeOf('function')
+    expect(call.manageAppointments).toBeDefined()
+    expect(call.systemPrompt).toContain('This chat has no buttons')
+    expect(call.systemPrompt).not.toContain('Real WhatsApp buttons')
+  })
+
+  it('leaves booking out and forbids promising appointments without saved hours', async () => {
+    const { db } = makeDb({ conv })
+    await generateWidgetReply({ db, ...ARGS_BASE })
+    const call = h.generateReply.mock.calls[0][0]
+    expect(call.checkAvailability).toBeUndefined()
+    expect(call.bookAppointment).toBeUndefined()
+    expect(call.systemPrompt).toContain('You cannot schedule, reserve, or confirm appointments')
   })
 })

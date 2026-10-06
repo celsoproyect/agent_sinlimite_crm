@@ -84,7 +84,7 @@ export async function POST(
 
     const limit = checkRateLimit(`telegram-admin:${accountId}`, RATE_LIMITS.telegramAdminChat)
     if (!limit.success) {
-      await sendTelegramMessage({ botToken, chatId: chatIdStr, text: '⏳ Muchas preguntas seguidas — esperá un momento y probá de nuevo.' })
+      await sendTelegramMessage({ botToken, chatId: chatIdStr, text: '⏳ Muchas preguntas seguidas — espera un momento y vuelve a intentarlo.' })
       return ok()
     }
 
@@ -120,7 +120,7 @@ export async function POST(
       await sendTelegramMessage({
         botToken,
         chatId: chatIdStr,
-        text: 'No pude procesar esa consulta en este momento. Probá de nuevo en un rato.',
+        text: 'No pude procesar esa consulta en este momento. Intenta de nuevo en un rato.',
       })
       return ok()
     }

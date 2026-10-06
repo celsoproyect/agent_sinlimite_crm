@@ -305,3 +305,46 @@ export async function retrieveKnowledgeFromKb(
 
   return Array.from(picked.values()).slice(0, k)
 }
+
+/**
+ * Re-chunk and re-embed every document in the account. Stops at the
+ * first failing document (usually an embeddings rate-limit) and reports
+ * how far it got.
+ */
+export async function reindexKnowledge(
+  db: SupabaseClient,
+  accountId: string,
+  config: EmbeddingsConfig,
+): Promise<{ reindexed: number; total: number; error?: string }> {
+  const { data: docs, error } = await db
+    .from('ai_knowledge_documents')
+    .select('id, content, knowledge_base_id, metadata')
+    .eq('account_id', accountId)
+  if (error) throw new Error(`Failed to load documents: ${error.message}`)
+
+  const total = (docs ?? []).length
+  let reindexed = 0
+  for (const doc of docs ?? []) {
+    const fileExt =
+      doc.metadata && typeof doc.metadata === 'object'
+        ? (doc.metadata as Record<string, unknown>).file_ext
+        : null
+    try {
+      await ingestDocument(
+        db,
+        accountId,
+        config,
+        doc.id,
+        doc.knowledge_base_id,
+        doc.content,
+        typeof fileExt === 'string' ? fileExt : null,
+      )
+      reindexed += 1
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      console.error(`[ai/knowledge] reindex of doc ${doc.id} failed:`, message)
+      return { reindexed, total, error: message }
+    }
+  }
+  return { reindexed, total }
+}

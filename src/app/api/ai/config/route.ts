@@ -1,4 +1,4 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import {
   getCurrentAccount,
   requireSuperAdmin,
@@ -8,6 +8,9 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { encrypt, decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { embedTexts } from '@/lib/ai/embeddings'
+import { reindexKnowledge } from '@/lib/ai/knowledge'
+import { supabaseAdmin } from '@/lib/flows/admin-client'
+import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { findEmbeddingModel, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
 import { AiError, type AiProvider } from '@/lib/ai/types'
 
@@ -187,7 +190,7 @@ export async function POST(request: Request) {
     // Reuse the stored key when the form didn't send a fresh one.
     const { data: existing } = await supabase
       .from('ai_configs')
-      .select('id, provider, model, api_key')
+      .select('id, provider, model, api_key, embeddings_model')
       .eq('account_id', accountId)
       .maybeSingle()
 
@@ -310,6 +313,36 @@ export async function POST(request: Request) {
           { status: 500 },
         )
       }
+    }
+
+    // Documents uploaded before the key existed (or under another model)
+    // have no usable vectors, and semantic search would silently miss
+    // them. Re-embed everything in the background.
+    const modelChanged =
+      !!rawEmbeddingsModel &&
+      rawEmbeddingsModel !== (existing?.embeddings_model || DEFAULT_EMBEDDINGS_MODEL)
+    if (rawEmbeddingsKey || modelChanged) {
+      const admin = supabaseAdmin()
+      after(async () => {
+        try {
+          const { key, model } = await loadEmbeddingsKey(admin, accountId)
+          if (!key) return
+          const result = await reindexKnowledge(admin, accountId, {
+            embeddingsApiKey: key,
+            embeddingsModel: model,
+          })
+          if (result.error) {
+            console.error(
+              `[ai/config POST] knowledge reindex stopped at ${result.reindexed}/${result.total}: ${result.error}`,
+            )
+          }
+        } catch (err) {
+          console.error(
+            '[ai/config POST] knowledge reindex failed:',
+            err instanceof Error ? err.message : err,
+          )
+        }
+      })
     }
 
     return NextResponse.json({ success: true })

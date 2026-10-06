@@ -16,7 +16,7 @@ export async function POST(): Promise<NextResponse> {
       .single()
 
     if (error || !account?.telegram_bot_token || !account?.telegram_chat_id) {
-      return NextResponse.json({ error: 'Save a bot token and detect a chat first' }, { status: 400 })
+      return NextResponse.json({ error: 'Primero guarda el token y detecta el chat.' }, { status: 400 })
     }
 
     await sendTelegramMessage({

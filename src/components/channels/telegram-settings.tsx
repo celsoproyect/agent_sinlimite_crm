@@ -82,9 +82,16 @@ export function TelegramSettings() {
   async function handleSaveToken() {
     if (!accountId || !row) return;
     setSaving(true);
+    const nextToken = tokenInput.trim() || null;
+    // A new bot can't message the old chat until it is detected again;
+    // re-saving the same token keeps the chat.
+    const tokenChanged = nextToken !== row.telegram_bot_token;
     const { data, error } = await supabase
       .from('accounts')
-      .update({ telegram_bot_token: tokenInput.trim() || null, telegram_chat_id: null })
+      .update({
+        telegram_bot_token: nextToken,
+        ...(tokenChanged ? { telegram_chat_id: null, telegram_notify_enabled: false } : {}),
+      })
       .eq('id', accountId)
       .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id, telegram_admin_chat_enabled')
       .single();
@@ -95,19 +102,20 @@ export function TelegramSettings() {
       return;
     }
     setRow(data as TelegramRow);
-    setChatName(null);
+    if (tokenChanged) setChatName(null);
     toast.success(t('tokenSaved'));
   }
 
   async function handleToggle(next: boolean) {
     if (!accountId || !row) return;
     setSaving(true);
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('accounts')
       .update({ telegram_notify_enabled: next })
-      .eq('id', accountId);
+      .eq('id', accountId)
+      .select('id');
     setSaving(false);
-    if (error) {
+    if (error || !data?.length) {
       console.error('[TelegramSettings] toggle error:', error);
       toast.error(t('saveFailed'));
       return;
@@ -126,16 +134,21 @@ export function TelegramSettings() {
         toast.error(json.error || t('detectFailed'));
         return;
       }
-      const { error } = await supabase
+      // Detecting a chat is the last setup step, so notifications turn on
+      // with it; the switch below can still turn them off.
+      const { data, error } = await supabase
         .from('accounts')
-        .update({ telegram_chat_id: json.chat_id })
-        .eq('id', accountId);
-      if (error) {
+        .update({ telegram_chat_id: json.chat_id, telegram_notify_enabled: true })
+        .eq('id', accountId)
+        .select('id');
+      if (error || !data?.length) {
         console.error('[TelegramSettings] persist chat id error:', error);
         toast.error(t('saveFailed'));
         return;
       }
-      setRow((prev) => (prev ? { ...prev, telegram_chat_id: json.chat_id } : prev));
+      setRow((prev) =>
+        prev ? { ...prev, telegram_chat_id: json.chat_id, telegram_notify_enabled: true } : prev,
+      );
       setChatName(json.name);
       toast.success(t('detectSuccess', { name: json.name }));
     } catch (err) {

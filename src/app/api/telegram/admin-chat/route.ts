@@ -16,7 +16,8 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 // ============================================================
 
 function appUrl(): string {
-  const raw = process.env.NEXT_PUBLIC_APP_URL || ''
+  // The Docker image only bakes NEXT_PUBLIC_SITE_URL, so fall back to it.
+  const raw = process.env.NEXT_PUBLIC_APP_URL || process.env.NEXT_PUBLIC_SITE_URL || ''
   return raw.replace(/\/+$/, '')
 }
 
@@ -37,7 +38,7 @@ export async function POST(): Promise<NextResponse> {
     }
     const base = appUrl()
     if (!base) {
-      return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL is not configured' }, { status: 500 })
+      return NextResponse.json({ error: 'NEXT_PUBLIC_APP_URL / NEXT_PUBLIC_SITE_URL is not configured' }, { status: 500 })
     }
 
     const secretToken = crypto.randomBytes(32).toString('hex')

@@ -2,8 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { loadEmbeddingsKey } from '@/lib/ai/config'
-import { ingestDocument } from '@/lib/ai/knowledge'
-import { AiError } from '@/lib/ai/types'
+import { reindexKnowledge } from '@/lib/ai/knowledge'
 
 /**
  * POST /api/ai/knowledge/reindex  (admin+)
@@ -18,18 +17,6 @@ export async function POST() {
     const { supabase, accountId, userId } = await requireRole('admin')
     const limit = checkRateLimit(`ai-kb-reindex:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
-
-    const { data: docs, error } = await supabase
-      .from('ai_knowledge_documents')
-      .select('id, content, knowledge_base_id, metadata')
-      .eq('account_id', accountId)
-    if (error) {
-      console.error('[ai/knowledge/reindex] fetch error:', error)
-      return NextResponse.json(
-        { error: 'Failed to load documents' },
-        { status: 500 },
-      )
-    }
 
     const { key: embeddingsApiKey, corrupt, model } = await loadEmbeddingsKey(
       supabase,
@@ -50,41 +37,23 @@ export async function POST() {
       )
     }
 
-    let reindexed = 0
-    for (const doc of docs ?? []) {
-      try {
-        const fileExt =
-          doc.metadata && typeof doc.metadata === 'object'
-            ? (doc.metadata as Record<string, unknown>).file_ext
-            : null
-        await ingestDocument(
-          supabase,
-          accountId,
-          { embeddingsApiKey, embeddingsModel: model },
-          doc.id,
-          doc.knowledge_base_id,
-          doc.content,
-          typeof fileExt === 'string' ? fileExt : null,
-        )
-        reindexed += 1
-      } catch (err) {
-        // One bad document (e.g. a mid-run embeddings rate-limit) should
-        // not abort the whole batch.
-        const message = err instanceof AiError ? err.message : String(err)
-        console.error(`[ai/knowledge/reindex] doc ${doc.id} failed:`, message)
-        return NextResponse.json(
-          {
-            success: false,
-            reindexed,
-            total: (docs ?? []).length,
-            error: `Reindexed ${reindexed}, then hit an error: ${message}`,
-          },
-          { status: 200 },
-        )
-      }
+    const result = await reindexKnowledge(supabase, accountId, {
+      embeddingsApiKey,
+      embeddingsModel: model,
+    })
+    if (result.error) {
+      return NextResponse.json(
+        {
+          success: false,
+          reindexed: result.reindexed,
+          total: result.total,
+          error: `Reindexed ${result.reindexed}, then hit an error: ${result.error}`,
+        },
+        { status: 200 },
+      )
     }
 
-    return NextResponse.json({ success: true, reindexed })
+    return NextResponse.json({ success: true, reindexed: result.reindexed })
   } catch (err) {
     return toErrorResponse(err)
   }

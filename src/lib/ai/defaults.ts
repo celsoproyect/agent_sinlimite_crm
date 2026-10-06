@@ -85,6 +85,10 @@ export function buildSystemPrompt(args: {
   /** True when `find_appointments` / `reschedule_appointment` /
    *  `cancel_appointment` are wired up (auto-reply only). */
   bookingManageAvailable?: boolean
+  /** False when the channel can't render the WhatsApp slot buttons (the
+   *  web widget is text only) — the model then lists the slots itself.
+   *  Defaults to true. */
+  bookingSlotButtons?: boolean
   /** The phone WhatsApp gave for this customer, if any — offered to the
    *  customer as the default phone for an appointment. Empty for
    *  username-only WhatsApp users. */
@@ -121,6 +125,7 @@ export function buildSystemPrompt(args: {
     bookingAvailable,
     businessHoursSummary,
     bookingManageAvailable,
+    bookingSlotButtons = true,
     customerWhatsappPhone,
     needsCustomerName,
     handoffOnMissingInfo,
@@ -226,6 +231,11 @@ export function buildSystemPrompt(args: {
           "list these names in your reply and ask which one they'd like to see — do not call send_attachment yet, and do not describe details (price, etc.) for items the customer hasn't picked.",
       )
     }
+    // The owner keeps prices in the catalog; a knowledge-base document
+    // can lag behind it, so the catalog is the source of truth.
+    parts.push(
+      'Prices: the catalog is the source of truth. If a price in the knowledge-base excerpts differs from what send_attachment returns for the same item, use the catalog price and never quote both.',
+    )
     parts.push(
       'You also have a send_attachment tool that looks up one specific product/service by name/description in the catalog above and returns its full details (description, price, currency) plus its image/document. ' +
         "Call it once the customer has named or clearly picked a specific item — either they asked for it directly, or they answered your \"which one?\" question. " +
@@ -243,7 +253,10 @@ export function buildSystemPrompt(args: {
         'You also have check_availability and book_appointment tools for scheduling real appointments. ' +
         'When the customer wants to book something, call check_availability with the date they mean (resolve relative dates using the current date/time above) and, whenever they named a time, that time too as 24-hour HH:mm (e.g. "8pm" -> "20:00"). Call it even if that day or time looks closed or already taken — it returns the closest real alternatives. ' +
         'If the result says requested.available is true and you already know which service they want, book it right away: call book_appointment with the startsAt/endsAt of that first slot in the same turn, without asking them to confirm again — they already told you the time. If you still need the service, ask for it and then book that same slot. ' +
-        'If requested.available is false, tell the customer briefly that that time is not available (closed that day, outside hours, already taken, or already past) and offer the returned slots — up to 3 — as the closest alternatives, naming each one\'s day and time from the result (they may be on a different day than the one asked for). Real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. ' +
+        'If requested.available is false, tell the customer briefly that that time is not available (closed that day, outside hours, already taken, or already past) and offer the returned slots — up to 3 — as the closest alternatives, naming each one\'s day and time from the result (they may be on a different day than the one asked for). ' +
+        (bookingSlotButtons
+          ? 'Real WhatsApp buttons for each slot will be sent alongside your message, so do not invent a numbered list of times yourself. '
+          : 'This chat has no buttons, so list those slots yourself as a short numbered list (day, date and time of each), taken exactly from the result. ') +
         'If they named only a day and no time, offer the returned slots the same way. ' +
         "Wait for the customer's next message to see which slot they picked — they may reply with the button text (a time like \"14:30\", or a date and time like \"15/09 09:00\") or describe it in natural language (e.g. \"the second one\" or \"3pm works\"); interpret their intent yourself. " +
         'Once they have clearly chosen one specific slot, call book_appointment for it in the same turn. ' +

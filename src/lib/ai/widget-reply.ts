@@ -3,6 +3,15 @@ import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
 import { applyLeadCapture, getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
+import {
+  bookingEnabled,
+  cancelAiBooking,
+  checkAvailability,
+  confirmAiBooking,
+  findCustomerBookings,
+  getBusinessHoursSummary,
+  rescheduleAiBooking,
+} from './booking'
 import { generateReply } from './generate'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
@@ -34,10 +43,11 @@ export type WidgetReplyOutcome =
  * `dispatchInboundToAiReply` this throws on a real provider/DB failure
  * instead of swallowing it; the route decides what the visitor sees.
  *
- * v1 scope: text-only. No attachments, no booking tools — both are
- * WhatsApp-shaped UX (interactive buttons, media messages) that would
- * either silently do nothing or need a parallel widget-side renderer.
- * Kept out entirely rather than half-wired.
+ * Text only: no attachments (media messages need a widget-side
+ * renderer). Booking works when the account saved its hours: the same
+ * tools as WhatsApp, but the model lists the offered slots in its text
+ * because the widget has no buttons, and it always asks for the phone
+ * since a web visitor has none on file.
  */
 export async function generateWidgetReply(args: WidgetReplyArgs): Promise<WidgetReplyOutcome> {
   const { db, accountId, conversationId, contactId, contactName, ownerUserId } = args
@@ -87,9 +97,11 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const acctLimit = checkRateLimit(`ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
-  const [knowledge, knowledgeBases, customFieldRoster, leadStageRoster] = await Promise.all([
+  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
+    bookingEnabled(db, accountId),
+    getBusinessHoursSummary(db, accountId),
     getCustomFieldRoster(db, accountId),
     config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),
   ])
@@ -103,7 +115,10 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     knowledgeBases,
     toolAvailable: true,
     attachmentsAvailable: false,
-    bookingAvailable: false,
+    bookingAvailable,
+    businessHoursSummary,
+    bookingManageAvailable: bookingAvailable,
+    bookingSlotButtons: false,
     needsCustomerName,
     handoffOnMissingInfo: config.handoffOnMissingInfo,
     noteCaptureAvailable: true,
@@ -121,6 +136,19 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
       knowledgeBaseName
         ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
         : Promise.resolve([]),
+    checkAvailability: bookingAvailable
+      ? ({ date, time }) => checkAvailability(db, accountId, date, time)
+      : undefined,
+    bookAppointment: bookingAvailable
+      ? (appointment) => confirmAiBooking(db, { accountId, contactId, conversationId, appointment })
+      : undefined,
+    manageAppointments: bookingAvailable
+      ? {
+          find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone }),
+          reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a }),
+          cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a }),
+        }
+      : undefined,
     captureCustomerName: needsCustomerName,
     captureNote: true,
     customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
