@@ -538,6 +538,16 @@
       "toastRenameFailed": "No se pudo renombrar el campo.",
       "toastDeleteFailed": "No se pudo eliminar el campo.",
       "toastDeleted": "Se eliminó \"{name}\"."
+    },
+    "photo": {
+      "upload": "Subir foto",
+      "change": "Cambiar foto",
+      "remove": "Quitar foto",
+      "saved": "Foto guardada",
+      "removed": "Foto quitada",
+      "saveFailed": "No se pudo guardar la foto",
+      "unsupported": "Usa una imagen PNG, JPG o WebP",
+      "tooLarge": "La foto debe pesar 5 MB o menos"
     }
   },
   "Agenda": {
@@ -797,11 +807,18 @@
       "toastFailedMoveDeal": "Error al mover el negocio",
       "toastFailedCreatePipeline": "Error al crear el embudo",
       "toastPipelineCreated": "Embudo creado",
-      "toastNotLinkedToAccount": "Tu perfil no está vinculado a una cuenta."
+      "toastNotLinkedToAccount": "Tu perfil no está vinculado a una cuenta.",
+      "viewBoard": "Tablero",
+      "viewClosed": "Cerrados",
+      "toastDealWon": "¡Negocio ganado! Lo encuentras en Cerrados.",
+      "toastDealLost": "Negocio marcado como perdido. Lo encuentras en Cerrados.",
+      "toastDealReopened": "Negocio reabierto y devuelto al tablero."
     },
     "board": {
       "dropDealHere": "Suelta un negocio aquí",
-      "addDeal": "Agregar negocio"
+      "addDeal": "Agregar negocio",
+      "dropToWin": "Suelta aquí para marcar como ganado",
+      "dropToLose": "Suelta aquí para marcar como perdido"
     },
     "card": {
       "noContact": "Sin contacto",
@@ -872,22 +889,74 @@
       "toastMoveOrDeleteDeals": "Primero mueve o elimina los negocios de esta etapa",
       "toastFailedDeleteStage": "Error al eliminar la etapa",
       "toastFailedDeletePipeline": "Error al eliminar el embudo",
-      "toastDeleted": "Embudo eliminado"
+      "toastDeleted": "Embudo eliminado",
+      "stageKind": "Tipo de etapa",
+      "kindOpen": "Abierta",
+      "kindWon": "Ganado",
+      "kindLost": "Perdido",
+      "stageKindHint": "Las etapas Ganado y Perdido cierran el negocio: sale del tablero y pasa a Cerrados.",
+      "autoLoseDays": "Cerrar como perdido tras inactividad",
+      "autoLoseOff": "Apagado",
+      "days": "días",
+      "autoLoseHint": "Los negocios abiertos sin mensajes ni cambios durante estos días se cierran como perdidos (motivo: Sin respuesta). Recomendado: 30. Vacío = apagado."
     },
     "analytics": {
       "totalDeals": "Total de negocios",
-      "totalDealsTooltip": "Cuenta de todos los negocios de este embudo que no están marcados como perdidos. Los negocios ganados se siguen incluyendo.",
+      "totalDealsTooltip": "Negocios abiertos en el tablero. Los ganados y perdidos están en Cerrados.",
       "pipelineValue": "Valor del embudo",
-      "pipelineValueTooltip": "Suma de los valores monetarios de todos los negocios de este embudo, excluyendo los marcados como perdidos.",
+      "pipelineValueTooltip": "Suma del valor de los negocios abiertos.",
       "avgDealSize": "Tamaño promedio del negocio",
-      "avgDealSizeTooltip": "Valor del embudo dividido entre el total de negocios — el valor promedio de un negocio no perdido.",
+      "avgDealSizeTooltip": "Valor del embudo dividido entre los negocios abiertos.",
       "weightedValue": "Valor ponderado",
-      "weightedValueTooltip": "Ingreso esperado: el valor de cada negocio abierto × la probabilidad de su etapa. La primera etapa ≈ 10 %, las etapas avanzan hasta el 90 %, Ganado = 100 %. Los negocios perdidos se excluyen.",
+      "weightedValueTooltip": "Ingreso esperado: el valor de cada negocio abierto × la probabilidad de su etapa. La primera etapa ≈ 10 % y sube hasta 90 % en la última etapa abierta.",
       "wonThisMonth": "Ganados este mes",
-      "wonThisMonthTooltip": "Negocios marcados como ganados desde el primer día del mes actual.",
+      "wonThisMonthTooltip": "Negocios cerrados como ganados desde el primer día del mes actual (hora de Santo Domingo).",
       "lostThisMonth": "Perdidos este mes",
-      "lostThisMonthTooltip": "Negocios marcados como perdidos desde el primer día del mes actual.",
+      "lostThisMonthTooltip": "Negocios cerrados como perdidos desde el primer día del mes actual (hora de Santo Domingo).",
       "howCalculated": "Cómo se calcula {label}"
+    },
+    "closed": {
+      "lostDialogTitle": "¿Por qué se perdió?",
+      "reason": "Motivo",
+      "reasons": {
+        "price": "Precio",
+        "no_response": "Sin respuesta",
+        "competitor": "Eligió a la competencia",
+        "not_interested": "No le interesa",
+        "timing": "No es el momento",
+        "other": "Otro"
+      },
+      "note": "Nota (opcional)",
+      "notePlaceholder": "Detalles que ayuden a recuperarlo más adelante…",
+      "cancel": "Cancelar",
+      "markLost": "Marcar como perdido",
+      "summaryWon": "Ganados",
+      "summaryLost": "Perdidos",
+      "summaryWinRate": "Tasa de cierre",
+      "summaryWinRateSub": "Ganados sobre el total cerrado",
+      "summaryTopReason": "Motivo principal de pérdida",
+      "count": "{count, plural, one {# negocio} other {# negocios}}",
+      "noLost": "Sin pérdidas",
+      "range": {
+        "month": "Este mes",
+        "lastMonth": "Mes pasado",
+        "last30": "Últimos 30 días",
+        "last90": "Últimos 90 días",
+        "year": "Este año",
+        "all": "Todo",
+        "custom": "Personalizado"
+      },
+      "from": "Desde",
+      "to": "Hasta",
+      "status": "Estado",
+      "statusAll": "Todos",
+      "won": "Ganado",
+      "lost": "Perdido",
+      "reasonAll": "Todos los motivos",
+      "search": "Buscar por negocio, contacto, teléfono o nota…",
+      "empty": "No hay negocios cerrados con estos filtros.",
+      "noContact": "Sin contacto",
+      "reopen": "Reabrir"
     }
   },
   "Broadcasts": {
@@ -1181,6 +1250,14 @@
         "time_based": {
           "label": "Basado en tiempo",
           "hint": "En un horario recurrente"
+        },
+        "deal_won": {
+          "label": "Negocio ganado",
+          "hint": "Cuando un negocio se marca como ganado (ideal para un mensaje post-venta con Esperar)"
+        },
+        "deal_lost": {
+          "label": "Negocio perdido",
+          "hint": "Cuando un negocio se marca como perdido (ideal para re-contactar con Esperar)"
         }
       },
       "trigger": "Disparador",

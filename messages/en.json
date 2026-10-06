@@ -538,6 +538,16 @@
       "toastRenameFailed": "Could not rename field.",
       "toastDeleteFailed": "Could not delete field.",
       "toastDeleted": "Deleted \"{name}\"."
+    },
+    "photo": {
+      "upload": "Upload photo",
+      "change": "Change photo",
+      "remove": "Remove photo",
+      "saved": "Photo saved",
+      "removed": "Photo removed",
+      "saveFailed": "Could not save the photo",
+      "unsupported": "Use a PNG, JPG or WebP image",
+      "tooLarge": "The photo must be 5 MB or less"
     }
   },
   "Agenda": {
@@ -797,11 +807,18 @@
       "toastFailedMoveDeal": "Failed to move deal",
       "toastFailedCreatePipeline": "Failed to create pipeline",
       "toastPipelineCreated": "Pipeline created",
-      "toastNotLinkedToAccount": "Your profile is not linked to an account."
+      "toastNotLinkedToAccount": "Your profile is not linked to an account.",
+      "viewBoard": "Board",
+      "viewClosed": "Closed",
+      "toastDealWon": "Deal won! You'll find it under Closed.",
+      "toastDealLost": "Deal marked as lost. You'll find it under Closed.",
+      "toastDealReopened": "Deal reopened and back on the board."
     },
     "board": {
       "dropDealHere": "Drop a deal here",
-      "addDeal": "Add Deal"
+      "addDeal": "Add Deal",
+      "dropToWin": "Drop here to mark as won",
+      "dropToLose": "Drop here to mark as lost"
     },
     "card": {
       "noContact": "No contact",
@@ -872,22 +889,74 @@
       "toastMoveOrDeleteDeals": "Move or delete deals in this stage first",
       "toastFailedDeleteStage": "Failed to delete stage",
       "toastFailedDeletePipeline": "Failed to delete pipeline",
-      "toastDeleted": "Pipeline deleted"
+      "toastDeleted": "Pipeline deleted",
+      "stageKind": "Stage type",
+      "kindOpen": "Open",
+      "kindWon": "Won",
+      "kindLost": "Lost",
+      "stageKindHint": "Won and Lost stages close the deal: it leaves the board and moves to Closed.",
+      "autoLoseDays": "Close as lost after inactivity",
+      "autoLoseOff": "Off",
+      "days": "days",
+      "autoLoseHint": "Open deals with no messages or changes for this many days are closed as lost (reason: No response). Recommended: 30. Empty = off."
     },
     "analytics": {
       "totalDeals": "Total Deals",
-      "totalDealsTooltip": "Count of every deal in this pipeline that isn't marked as Lost. Won deals are still included.",
+      "totalDealsTooltip": "Open deals on the board. Won and lost deals live under Closed.",
       "pipelineValue": "Pipeline Value",
-      "pipelineValueTooltip": "Sum of the dollar values of all deals in this pipeline, excluding deals marked as Lost.",
+      "pipelineValueTooltip": "Sum of the values of the open deals.",
       "avgDealSize": "Avg Deal Size",
-      "avgDealSizeTooltip": "Pipeline Value divided by Total Deals — the average value of a single non-lost deal.",
+      "avgDealSizeTooltip": "Pipeline Value divided by the number of open deals.",
       "weightedValue": "Weighted Value",
-      "weightedValueTooltip": "Expected revenue: each open deal's value × its stage probability. First stage ≈ 10%, stages progress up to 90%, Won = 100%. Lost deals are excluded.",
+      "weightedValueTooltip": "Expected revenue: each open deal's value × its stage probability. The first stage ≈ 10%, rising to 90% at the last open stage.",
       "wonThisMonth": "Won This Month",
-      "wonThisMonthTooltip": "Deals marked as Won since the first day of the current month.",
+      "wonThisMonthTooltip": "Deals closed as won since the first day of the current month (Santo Domingo time).",
       "lostThisMonth": "Lost This Month",
-      "lostThisMonthTooltip": "Deals marked as Lost since the first day of the current month.",
+      "lostThisMonthTooltip": "Deals closed as lost since the first day of the current month (Santo Domingo time).",
       "howCalculated": "How {label} is calculated"
+    },
+    "closed": {
+      "lostDialogTitle": "Why was it lost?",
+      "reason": "Reason",
+      "reasons": {
+        "price": "Price",
+        "no_response": "No response",
+        "competitor": "Went with a competitor",
+        "not_interested": "Not interested",
+        "timing": "Bad timing",
+        "other": "Other"
+      },
+      "note": "Note (optional)",
+      "notePlaceholder": "Details that help win it back later…",
+      "cancel": "Cancel",
+      "markLost": "Mark as lost",
+      "summaryWon": "Won",
+      "summaryLost": "Lost",
+      "summaryWinRate": "Win rate",
+      "summaryWinRateSub": "Won out of all closed",
+      "summaryTopReason": "Top lost reason",
+      "count": "{count, plural, one {# deal} other {# deals}}",
+      "noLost": "No lost deals",
+      "range": {
+        "month": "This month",
+        "lastMonth": "Last month",
+        "last30": "Last 30 days",
+        "last90": "Last 90 days",
+        "year": "This year",
+        "all": "All time",
+        "custom": "Custom"
+      },
+      "from": "From",
+      "to": "To",
+      "status": "Status",
+      "statusAll": "All",
+      "won": "Won",
+      "lost": "Lost",
+      "reasonAll": "All reasons",
+      "search": "Search by deal, contact, phone or note…",
+      "empty": "No closed deals match these filters.",
+      "noContact": "No contact",
+      "reopen": "Reopen"
     }
   },
   "Broadcasts": {
@@ -1181,6 +1250,14 @@
         "time_based": {
           "label": "Time-Based",
           "hint": "On a recurring schedule"
+        },
+        "deal_won": {
+          "label": "Deal won",
+          "hint": "When a deal is marked as won (great for a post-sale message with Wait)"
+        },
+        "deal_lost": {
+          "label": "Deal lost",
+          "hint": "When a deal is marked as lost (great for a win-back message with Wait)"
         }
       },
       "trigger": "Trigger",

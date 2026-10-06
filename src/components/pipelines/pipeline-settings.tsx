@@ -17,7 +17,8 @@ import {
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 import { createClient } from "@/lib/supabase/client";
-import type { Pipeline, PipelineStage } from "@/types";
+import type { Pipeline, PipelineStage, StageKind } from "@/types";
+import { stageKind } from "@/lib/deals/reasons";
 import {
   Dialog,
   DialogContent,
@@ -79,6 +80,11 @@ export function PipelineSettings({
   const [saving, setSaving] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [autoLoseDays, setAutoLoseDays] = useState("");
+
+  // Columns from migration 063 — only edited once they exist.
+  const hasStageKind = stages.some((s) => s.kind !== undefined);
+  const hasAutoLose = "auto_lose_days" in pipeline;
 
   // Reset form state when the dialog opens or its prop inputs change
   // — legitimate prop-driven sync.
@@ -86,6 +92,7 @@ export function PipelineSettings({
   useEffect(() => {
     if (!open) return;
     setName(pipeline.name);
+    setAutoLoseDays(pipeline.auto_lose_days ? String(pipeline.auto_lose_days) : "");
     setLocalStages([...stages].sort((a, b) => a.position - b.position));
     setShowDeleteConfirm(false);
   }, [open, pipeline, stages]);
@@ -116,12 +123,21 @@ export function PipelineSettings({
       name: s.name,
       color: s.color,
       position: i,
+      ...(hasStageKind ? { kind: stageKind(s) } : {}),
     }));
+
+    const days = parseInt(autoLoseDays, 10);
+    const pipelinePatch = {
+      name: name.trim(),
+      ...(hasAutoLose
+        ? { auto_lose_days: Number.isFinite(days) && days > 0 ? Math.min(days, 365) : null }
+        : {}),
+    };
 
     const [renameRes, stagesRes] = await Promise.all([
       supabase
         .from("pipelines")
-        .update({ name: name.trim() })
+        .update(pipelinePatch)
         .eq("id", pipeline.id),
       supabase.from("pipeline_stages").upsert(stageRows, { onConflict: "id" }),
     ]);
@@ -149,6 +165,8 @@ export function PipelineSettings({
         name: trimmed,
         color: newStageColor,
         position: localStages.length,
+        // A new "Ganado"/"Perdido" column closes deals from the start.
+        ...(hasStageKind ? { kind: stageKind({ name: trimmed }) } : {}),
       })
       .select()
       .single();
@@ -274,6 +292,15 @@ export function PipelineSettings({
                             updated[index] = { ...updated[index], color: v };
                             setLocalStages(updated);
                           }}
+                          onKindChange={
+                            hasStageKind
+                              ? (v) => {
+                                  const updated = [...localStages];
+                                  updated[index] = { ...updated[index], kind: v };
+                                  setLocalStages(updated);
+                                }
+                              : undefined
+                          }
                           onRemove={() => handleRemoveStage(stage.id)}
                           colors={STAGE_COLORS}
                           t={t}
@@ -325,6 +352,29 @@ export function PipelineSettings({
                 </div>
               </div>
 
+              {hasStageKind && (
+                <p className="-mt-2 text-xs text-muted-foreground">{t("stageKindHint")}</p>
+              )}
+
+              {hasAutoLose && (
+                <div className="grid gap-2">
+                  <Label className="text-muted-foreground">{t("autoLoseDays")}</Label>
+                  <div className="flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={1}
+                      max={365}
+                      value={autoLoseDays}
+                      onChange={(e) => setAutoLoseDays(e.target.value)}
+                      placeholder={t("autoLoseOff")}
+                      className="w-28 border-border bg-muted text-foreground"
+                    />
+                    <span className="text-sm text-muted-foreground">{t("days")}</span>
+                  </div>
+                  <p className="text-xs text-muted-foreground">{t("autoLoseHint")}</p>
+                </div>
+              )}
+
               <Button
                 variant="outline"
                 onClick={onCreateNewPipeline}
@@ -368,6 +418,7 @@ function SortableStageRow({
   stage,
   onNameChange,
   onColorChange,
+  onKindChange,
   onRemove,
   colors,
   t,
@@ -375,6 +426,8 @@ function SortableStageRow({
   stage: PipelineStage;
   onNameChange: (v: string) => void;
   onColorChange: (v: string) => void;
+  /** Absent until migration 063 adds `pipeline_stages.kind`. */
+  onKindChange?: (v: StageKind) => void;
   onRemove: () => void;
   colors: string[];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -408,8 +461,20 @@ function SortableStageRow({
       <Input
         value={stage.name}
         onChange={(e) => onNameChange(e.target.value)}
-        className="h-7 flex-1 border-transparent bg-transparent text-sm text-foreground focus:border-border"
+        className="h-7 min-w-0 flex-1 border-transparent bg-transparent text-sm text-foreground focus:border-border"
       />
+      {onKindChange && (
+        <select
+          value={stageKind(stage)}
+          onChange={(e) => onKindChange(e.target.value as StageKind)}
+          aria-label={t("stageKind")}
+          className="h-7 shrink-0 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+        >
+          <option value="open">{t("kindOpen")}</option>
+          <option value="won">{t("kindWon")}</option>
+          <option value="lost">{t("kindLost")}</option>
+        </select>
+      )}
       <Button
         variant="ghost"
         size="icon-xs"

@@ -17,13 +17,15 @@ import {
 import type { Deal, PipelineStage } from "@/types";
 import { DealCard } from "./deal-card";
 import { Button } from "@/components/ui/button";
-import { Plus } from "lucide-react";
+import { Plus, Trophy, XCircle } from "lucide-react";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
+import { stageKind } from "@/lib/deals/reasons";
 
 interface PipelineBoardProps {
   stages: PipelineStage[];
+  /** Open deals only — closed ones live in the "Cerrados" list. */
   deals: Deal[];
   onDealMoved: (dealId: string, newStageId: string) => void;
   onAddDeal: (stageId: string) => void;
@@ -105,6 +107,10 @@ export function PipelineBoard({
           min-width), so a thin scrollbar stays visible on desktop. */}
       <div className="pipeline-scroll flex snap-x snap-mandatory gap-3 overflow-x-auto pb-4 lg:snap-none">
         {sortedStages.map((stage) => {
+          const kind = stageKind(stage);
+          if (kind !== "open") {
+            return <CloseColumn key={stage.id} stage={stage} kind={kind} />;
+          }
           const stageDeals = dealsByStage.get(stage.id) ?? [];
           const totalValue = stageDeals.reduce(
             (s, d) => s + Number(d.value || 0),
@@ -262,6 +268,39 @@ function StageColumn({
         <Plus className="mr-1 h-3 w-3" />
         {t("addDeal")}
       </Button>
+    </div>
+  );
+}
+
+/**
+ * A won/lost column. Closed deals leave the board, so it holds no cards:
+ * it is only a drop target that closes whatever lands on it.
+ */
+function CloseColumn({ stage, kind }: { stage: PipelineStage; kind: "won" | "lost" }) {
+  const t = useTranslations("Pipelines.board");
+  const { setNodeRef, isOver } = useDroppable({ id: stage.id });
+  const Icon = kind === "won" ? Trophy : XCircle;
+
+  return (
+    <div className="flex w-[85vw] min-w-[200px] max-w-[260px] shrink-0 snap-start flex-col rounded-xl border border-border bg-card/60 p-4 lg:w-auto lg:flex-1 lg:basis-[200px] lg:shrink lg:snap-none">
+      <div
+        className="-mx-4 -mt-4 h-[3px] rounded-t-xl"
+        style={{ backgroundColor: stage.color }}
+      />
+      <h3 className="truncate pt-3 text-sm font-semibold text-foreground">{stage.name}</h3>
+      <div
+        ref={setNodeRef}
+        className={`mt-3 flex flex-1 flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-3 py-10 text-center text-xs transition-all ${
+          isOver
+            ? kind === "won"
+              ? "border-emerald-500 bg-emerald-500/10 text-emerald-600"
+              : "border-rose-500 bg-rose-500/10 text-rose-600"
+            : "border-border text-muted-foreground"
+        }`}
+      >
+        <Icon className="size-5" />
+        {kind === "won" ? t("dropToWin") : t("dropToLose")}
+      </div>
     </div>
   );
 }

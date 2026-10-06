@@ -493,6 +493,17 @@ function InboxPageInner() {
   // Mobile "back" — deselect the conversation so the list pane comes
   // back. Also clears the ?c= param so a refresh lands on the list
   // instead of re-opening the thread the user just backed out of.
+  // A photo uploaded from the contact sidebar: update the open contact
+  // and every conversation row of that contact.
+  const handleContactChange = useCallback((updated: Contact) => {
+    setActiveContact(updated);
+    setConversations((prev) =>
+      prev.map((c) =>
+        c.contact?.id === updated.id ? { ...c, contact: { ...c.contact, ...updated } } : c,
+      ),
+    );
+  }, []);
+
   const handleCloseConversation = useCallback(() => {
     setActiveConversation(null);
     setActiveContact(null);
@@ -642,7 +653,7 @@ function InboxPageInner() {
             toggle — which is itself desktop-only — never affects it. */}
         {contactPanelOpen && (
           <div className="hidden lg:block">
-            <ContactSidebar contact={activeContact} />
+            <ContactSidebar contact={activeContact} onContactChange={handleContactChange} />
           </div>
         )}
       </div>

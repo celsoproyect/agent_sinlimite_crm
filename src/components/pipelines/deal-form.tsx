@@ -33,6 +33,10 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
+import { setDealStatus } from "@/lib/deals/status-client";
+import { isLostReason, stageKind } from "@/lib/deals/reasons";
+import { businessDate } from "@/lib/business-timezone";
+import { LostReasonDialog } from "./lost-reason-dialog";
 
 interface DealFormProps {
   open: boolean;
@@ -54,6 +58,7 @@ export function DealForm({
   onSaved,
 }: DealFormProps) {
   const t = useTranslations("Pipelines.form");
+  const tc = useTranslations("Pipelines.closed");
   const supabase = createClient();
   const { accountId, defaultCurrency } = useAuth();
 
@@ -75,6 +80,7 @@ export function DealForm({
   const [statusAction, setStatusAction] = useState<DealStatus | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [lostDialogOpen, setLostDialogOpen] = useState(false);
 
   // Reset the form fields every time the sheet opens or its input
   // props change. This is a legitimate prop-driven sync; the rule is
@@ -211,18 +217,26 @@ export function DealForm({
     onSaved();
   }
 
-  async function handleStatusChange(status: DealStatus) {
+  // Closing goes through /api/deals/[id]/status (src/lib/deals/close.ts):
+  // it moves the deal to the won/lost column, records the date and
+  // reason, tags a won contact "Cliente" and fires the deal automations.
+  async function handleStatusChange(
+    status: DealStatus,
+    lost?: { reason: string; note: string },
+  ) {
     if (!deal) return;
     setStatusAction(status);
-    const { error } = await supabase
-      .from("deals")
-      .update({ status })
-      .eq("id", deal.id);
-    setStatusAction(null);
-    if (error) {
-      toast.error(t("toastFailedStatus"));
-      return;
+    try {
+      await setDealStatus(deal.id, {
+        status,
+        ...(lost ? { lost_reason: lost.reason, note: lost.note } : {}),
+      });
+    } catch (err) {
+      setStatusAction(null);
+      toast.error(err instanceof Error ? err.message : t("toastFailedStatus"));
+      throw err;
     }
+    setStatusAction(null);
     toast.success(
       status === "won" ? t("toastMarkedWon") : status === "lost" ? t("toastMarkedLost") : t("toastReopened"),
     );
@@ -342,11 +356,13 @@ export function DealForm({
                 onChange={(e) => setStageId(e.target.value)}
                 className="h-9 w-full rounded-lg border border-border bg-muted px-2.5 text-sm text-foreground outline-none focus:border-primary"
               >
-                {stages.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
+                {stages
+                  .filter((s) => stageKind(s) === "open" || s.id === deal?.stage_id)
+                  .map((s) => (
+                    <option key={s.id} value={s.id}>
+                      {s.name}
+                    </option>
+                  ))}
               </select>
             </div>
 
@@ -381,10 +397,35 @@ export function DealForm({
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
                   {t("status")}
                 </p>
+                {(deal.status === "won" || deal.status === "lost") && (
+                  <div className="rounded-md bg-background/60 px-3 py-2 text-xs text-muted-foreground">
+                    <p>
+                      <span className="font-medium text-foreground">
+                        {deal.status === "won" ? tc("won") : tc("lost")}
+                      </span>
+                      {" · "}
+                      {new Date(
+                        `${businessDate(deal.closed_at || deal.updated_at || deal.created_at)}T12:00:00Z`,
+                      ).toLocaleDateString(undefined, {
+                        day: "numeric",
+                        month: "short",
+                        year: "numeric",
+                        timeZone: "UTC",
+                      })}
+                    </p>
+                    {deal.status === "lost" && (
+                      <p>
+                        {tc("reason")}:{" "}
+                        {tc(`reasons.${isLostReason(deal.lost_reason) ? deal.lost_reason : "other"}`)}
+                      </p>
+                    )}
+                    {deal.close_note && <p className="mt-1">{deal.close_note}</p>}
+                  </div>
+                )}
                 <div className="flex gap-2">
                   <Button
                     type="button"
-                    onClick={() => handleStatusChange("won")}
+                    onClick={() => handleStatusChange("won").catch(() => {})}
                     disabled={!!statusAction || deal.status === "won"}
                     className="flex-1 bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
                   >
@@ -399,7 +440,7 @@ export function DealForm({
                   </Button>
                   <Button
                     type="button"
-                    onClick={() => handleStatusChange("lost")}
+                    onClick={() => setLostDialogOpen(true)}
                     disabled={!!statusAction || deal.status === "lost"}
                     className="flex-1 bg-red-600 text-white hover:bg-red-700 disabled:opacity-50"
                   >
@@ -417,7 +458,7 @@ export function DealForm({
                   <Button
                     type="button"
                     variant="ghost"
-                    onClick={() => handleStatusChange("open")}
+                    onClick={() => handleStatusChange("open").catch(() => {})}
                     disabled={!!statusAction}
                     className="w-full text-muted-foreground hover:text-foreground"
                   >
@@ -482,6 +523,15 @@ export function DealForm({
           </div>
         </div>
       </SheetContent>
+      <LostReasonDialog
+        open={lostDialogOpen}
+        onOpenChange={setLostDialogOpen}
+        dealTitle={deal?.title}
+        onConfirm={async (reason, note) => {
+          await handleStatusChange("lost", { reason, note });
+          setLostDialogOpen(false);
+        }}
+      />
     </Sheet>
   );
 }

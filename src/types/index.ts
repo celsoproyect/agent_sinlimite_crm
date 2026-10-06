@@ -112,7 +112,7 @@ export interface Contact {
   whatsapp_username?: string | null;
   email?: string;
   company?: string;
-  avatar_url?: string;
+  avatar_url?: string | null;
   created_at: string;
   updated_at: string;
   /** Hydrated by queries that embed `contact_tags(tags(*))` (e.g. the
@@ -400,8 +400,13 @@ export interface Pipeline {
   id: string;
   user_id: string;
   name: string;
+  /** Close open deals idle this many days as lost (migration 063); null = off. */
+  auto_lose_days?: number | null;
   created_at: string;
 }
+
+/** What landing in a stage means: still open, or closed as won/lost. */
+export type StageKind = 'open' | 'won' | 'lost';
 
 export interface PipelineStage {
   id: string;
@@ -409,6 +414,8 @@ export interface PipelineStage {
   name: string;
   position: number;
   color: string;
+  /** Migration 063; absent until it runs (see `stageKind`). */
+  kind?: StageKind;
   created_at: string;
 }
 
@@ -432,6 +439,11 @@ export interface Deal {
   notes?: string;
   expected_close_date?: string;
   status?: DealStatus;
+  /** When the deal was won or lost (migration 063). */
+  closed_at?: string | null;
+  /** Why it was lost — one of `LOST_REASONS` (src/lib/deals/close.ts). */
+  lost_reason?: string | null;
+  close_note?: string | null;
   created_at: string;
   updated_at?: string;
   contact?: Contact;
@@ -566,7 +578,10 @@ export type AutomationTriggerType =
   | 'time_based'
   /** Customer tapped a reply button / list row whose id matches; lets
    *  multi-step menus be chained across automations. */
-  | 'interactive_reply';
+  | 'interactive_reply'
+  /** A deal was closed as won / lost (src/lib/deals/close.ts). */
+  | 'deal_won'
+  | 'deal_lost';
 
 export type AutomationStepType =
   | 'send_message'

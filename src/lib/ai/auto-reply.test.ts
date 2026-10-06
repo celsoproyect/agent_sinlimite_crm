@@ -16,6 +16,7 @@ const h = vi.hoisted(() => ({
   checkAvailability: vi.fn(),
   confirmAiBooking: vi.fn(),
   getBusinessHoursSummary: vi.fn(),
+  closeDeal: vi.fn(),
   state: {
     conv: null as Record<string, unknown> | null,
     contact: null as Record<string, unknown> | null,
@@ -47,6 +48,10 @@ vi.mock('./custom-fields', async (importOriginal) => ({
   getLeadPipelineStages: h.getLeadPipelineStages,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+vi.mock('@/lib/deals/close', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/deals/close')>()),
+  closeDeal: h.closeDeal,
+}))
 vi.mock('./booking', () => ({
   bookingEnabled: h.bookingEnabled,
   checkAvailability: h.checkAvailability,
@@ -115,7 +120,11 @@ vi.mock('./admin-client', () => ({
           },
           insert: (payload: Record<string, unknown>) => {
             h.state.dealInserts.push(payload)
-            return Promise.resolve({ error: null })
+            return {
+              select: () => ({
+                single: () => Promise.resolve({ data: { id: 'deal-new' }, error: null }),
+              }),
+            }
           },
         }
       }
@@ -191,6 +200,8 @@ beforeEach(() => {
   h.state.existingDeals = []
   h.state.dealInserts = []
   h.state.dealUpdates = []
+  h.closeDeal.mockReset()
+  h.closeDeal.mockResolvedValue({ changed: true, stageId: 'x' })
   h.loadAiConfig.mockResolvedValue(aiConfig())
   h.buildConversationContext.mockResolvedValue([{ role: 'user', content: 'hi' }])
   h.retrieveKnowledge.mockResolvedValue([])
@@ -514,14 +525,43 @@ describe('dispatchInboundToAiReply — capture side effects', () => {
 
   it('advances the existing open deal instead of creating a duplicate', async () => {
     h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
-    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-2', name: 'Won' }])
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-2', name: 'Negotiation' }])
     h.state.existingDeals = [{ id: 'deal-9', status: 'open' }]
-    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Won' })
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Negotiation' })
     await dispatchInboundToAiReply(ARGS)
     expect(h.state.dealInserts).toEqual([])
     expect(h.state.dealUpdates).toEqual([
       expect.objectContaining({ stage_id: 'stage-2' }),
     ])
+    expect(h.closeDeal).not.toHaveBeenCalled()
+  })
+
+  it('closes the open deal through closeDeal when the stage is a won column', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([
+      { id: 'stage-1', name: 'Qualified' },
+      { id: 'stage-2', name: 'Won' },
+    ])
+    h.state.existingDeals = [{ id: 'deal-9', status: 'open' }]
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Won' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.dealInserts).toEqual([])
+    expect(h.state.dealUpdates[0]).not.toHaveProperty('stage_id')
+    expect(h.closeDeal).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ dealId: 'deal-9', status: 'won', stageId: 'stage-2' }),
+    )
+  })
+
+  it('opens a new deal for a returning customer instead of reopening a won one', async () => {
+    h.loadAiConfig.mockResolvedValue(aiConfig({ leadPipelineId: 'pipe-1' }))
+    h.getLeadPipelineStages.mockResolvedValue([{ id: 'stage-1', name: 'Qualified' }])
+    h.state.existingDeals = [{ id: 'deal-old', status: 'won' }]
+    h.generateReply.mockResolvedValue({ text: 'Hello!', handoff: false, leadStage: 'Qualified' })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.state.dealUpdates).toEqual([])
+    expect(h.state.dealInserts).toEqual([expect.objectContaining({ stage_id: 'stage-1' })])
+    expect(h.closeDeal).not.toHaveBeenCalled()
   })
 
   it('records the deal amount and currency the model passed with the stage', async () => {

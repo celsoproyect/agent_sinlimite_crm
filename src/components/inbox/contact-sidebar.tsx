@@ -35,12 +35,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTranslations } from "next-intl";
+import { ContactPhotoEditor } from "@/components/contacts/contact-photo-editor";
 
 interface ContactSidebarProps {
   contact: Contact | null;
+  /** Called after the agent uploads or removes the contact's photo. */
+  onContactChange?: (contact: Contact) => void;
 }
 
-export function ContactSidebar({ contact }: ContactSidebarProps) {
+export function ContactSidebar({ contact, onContactChange }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -237,7 +240,6 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
   }
 
   const displayName = contact.name || contact.phone;
-  const initials = displayName.charAt(0).toUpperCase();
 
   return (
     <div className="flex h-full w-70 flex-col border-l border-border bg-card">
@@ -245,17 +247,10 @@ export function ContactSidebar({ contact }: ContactSidebarProps) {
         <div className="p-4">
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center">
-            <div className="flex h-16 w-16 items-center justify-center rounded-full bg-muted text-lg font-semibold text-foreground">
-              {contact.avatar_url ? (
-                <img
-                  src={contact.avatar_url}
-                  alt={displayName}
-                  className="h-16 w-16 rounded-full object-cover"
-                />
-              ) : (
-                initials
-              )}
-            </div>
+            <ContactPhotoEditor
+              contact={contact}
+              onChange={(avatarUrl) => onContactChange?.({ ...contact, avatar_url: avatarUrl })}
+            />
             <h3 className="mt-3 text-sm font-semibold text-foreground">
               {displayName}
             </h3>

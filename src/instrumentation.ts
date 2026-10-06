@@ -15,8 +15,9 @@ import { applyBusinessTimeZone } from '@/lib/business-timezone'
  * Edge runtime has no `process.env.TZ` to speak of and no Node date
  * cache to reset, so the assignment is skipped there.
  *
- * It also starts the booking-reminder scheduler, so reminders go out
- * without an external cron. Only in production (or when
+ * It also starts the booking-reminder scheduler and the other background
+ * jobs (`startServerSchedulers`: automation Wait steps, stale-deal
+ * auto-lose), so none of them needs an external cron. Only in production (or when
  * BOOKING_REMINDERS_INTERVAL is set): a local `next dev` shares the
  * production database and must not send real WhatsApp messages.
  */
@@ -27,10 +28,13 @@ export async function register() {
   const remindersWanted =
     process.env.NODE_ENV === 'production' || !!process.env.BOOKING_REMINDERS_INTERVAL
   if (remindersWanted && process.env.NEXT_PHASE !== 'phase-production-build') {
-    const [{ startBookingReminderScheduler }, { supabaseAdmin }] = await Promise.all([
-      import('@/lib/bookings/drain-reminders'),
-      import('@/lib/automations/admin-client'),
-    ])
+    const [{ startBookingReminderScheduler }, { startServerSchedulers }, { supabaseAdmin }] =
+      await Promise.all([
+        import('@/lib/bookings/drain-reminders'),
+        import('@/lib/server-schedulers'),
+        import('@/lib/automations/admin-client'),
+      ])
     startBookingReminderScheduler(supabaseAdmin)
+    startServerSchedulers(supabaseAdmin)
   }
 }

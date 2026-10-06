@@ -20,6 +20,8 @@ import {
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/currency";
 import { useTranslations } from "next-intl";
+import { stageKind } from "@/lib/deals/reasons";
+import { businessDate, businessToday } from "@/lib/business-timezone";
 
 interface PipelineAnalyticsProps {
   stages: PipelineStage[];
@@ -27,23 +29,19 @@ interface PipelineAnalyticsProps {
 }
 
 /**
- * Weighted pipeline value: value × per-stage probability.
- * First stage ≈ 10%, stages interpolate up to 90% before the final stage,
- * final stage (Won) = 100%. Lost deals excluded.
+ * Weighted pipeline value: value × per-stage probability. Only open
+ * stages count (won/lost columns hold no open deals): the first ≈ 10%,
+ * the last ≈ 90%, interpolated in between.
  */
 function computeStageProbability(
   stage: PipelineStage,
-  sortedStages: PipelineStage[],
+  openStages: PipelineStage[],
 ): number {
-  const n = sortedStages.length;
-  if (n <= 1) return 1;
-  const index = sortedStages.findIndex((s) => s.id === stage.id);
+  const n = openStages.length;
+  const index = openStages.findIndex((s) => s.id === stage.id);
   if (index < 0) return 0;
-  if (index === n - 1) return 1;
-  const slots = n - 1;
-  if (slots <= 1) return 0.1;
-  const t = index / (slots - 1);
-  return 0.1 + t * (0.9 - 0.1);
+  if (n <= 1) return 0.5;
+  return 0.1 + (index / (n - 1)) * (0.9 - 0.1);
 }
 
 export function PipelineAnalytics({ stages, deals }: PipelineAnalyticsProps) {
@@ -55,33 +53,30 @@ export function PipelineAnalytics({ stages, deals }: PipelineAnalyticsProps) {
   );
 
   const stats = useMemo(() => {
-    const active = deals.filter((d) => d.status !== "lost");
-    const openDeals = active.filter((d) => d.status !== "won");
+    // Closed deals leave the board, so the money figures cover open
+    // deals only; won/lost show up in the monthly counts.
+    const openDeals = deals.filter((d) => (d.status ?? "open") === "open");
 
-    const totalCount = active.length;
-    const totalValue = active.reduce((sum, d) => sum + Number(d.value || 0), 0);
+    const totalCount = openDeals.length;
+    const totalValue = openDeals.reduce((sum, d) => sum + Number(d.value || 0), 0);
     const avgValue = totalCount > 0 ? totalValue / totalCount : 0;
 
-    const stageById = new Map(sortedStages.map((s) => [s.id, s]));
+    const openStages = sortedStages.filter((s) => stageKind(s) === "open");
+    const stageById = new Map(openStages.map((s) => [s.id, s]));
     const weightedValue = openDeals.reduce((sum, d) => {
       const stage = stageById.get(d.stage_id);
       if (!stage) return sum;
-      const prob = computeStageProbability(stage, sortedStages);
-      return sum + Number(d.value || 0) * prob;
+      return sum + Number(d.value || 0) * computeStageProbability(stage, openStages);
     }, 0);
 
-    const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    // Business-local month, by the close date.
+    const monthStart = `${businessToday().slice(0, 7)}-01`;
     const thisMonth = (d: Deal) => {
-      const ts = d.updated_at ?? d.created_at;
-      return ts ? new Date(ts) >= monthStart : false;
+      const ts = d.closed_at || d.updated_at || d.created_at;
+      return ts ? businessDate(ts) >= monthStart : false;
     };
-    const wonThisMonth = deals.filter(
-      (d) => d.status === "won" && thisMonth(d),
-    ).length;
-    const lostThisMonth = deals.filter(
-      (d) => d.status === "lost" && thisMonth(d),
-    ).length;
+    const wonThisMonth = deals.filter((d) => d.status === "won" && thisMonth(d)).length;
+    const lostThisMonth = deals.filter((d) => d.status === "lost" && thisMonth(d)).length;
 
     return {
       totalCount,

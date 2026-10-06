@@ -7,6 +7,11 @@ import { PipelineBoard } from "@/components/pipelines/pipeline-board";
 import { PipelineSettings } from "@/components/pipelines/pipeline-settings";
 import { DealForm } from "@/components/pipelines/deal-form";
 import { PipelineAnalytics } from "@/components/pipelines/pipeline-analytics";
+import { ClosedDeals } from "@/components/pipelines/closed-deals";
+import { LostReasonDialog } from "@/components/pipelines/lost-reason-dialog";
+import { setDealStatus } from "@/lib/deals/status-client";
+import { stageKind } from "@/lib/deals/reasons";
+import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -24,7 +29,15 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { GitBranch, Loader2, Plus, ChevronDown, Settings } from "lucide-react";
+import {
+  GitBranch,
+  Loader2,
+  Plus,
+  ChevronDown,
+  Settings,
+  Columns3,
+  Archive,
+} from "lucide-react";
 import { toast } from "sonner";
 import { useCan } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
@@ -37,14 +50,18 @@ import { useModuleGate } from "@/hooks/use-module-gate";
 // agent+. The two CTAs gate on different `useCan` capabilities,
 // not on different copy.
 
-// Spec-defined seed — name and color per the product spec.
+// Spec-defined seed — name and color per the product spec. Dropping a
+// deal on the won/lost columns closes it (see src/lib/deals/close.ts).
 const SPEC_DEFAULT_STAGES = [
-  { name: "New Lead", color: "#3b82f6", position: 0 }, // blue
-  { name: "Qualified", color: "#eab308", position: 1 }, // yellow
-  { name: "Proposal Sent", color: "#f97316", position: 2 }, // orange
-  { name: "Negotiation", color: "#8b5cf6", position: 3 }, // purple
-  { name: "Won", color: "#22c55e", position: 4 }, // green
+  { name: "New Lead", color: "#3b82f6", position: 0, kind: "open" }, // blue
+  { name: "Qualified", color: "#eab308", position: 1, kind: "open" }, // yellow
+  { name: "Proposal Sent", color: "#f97316", position: 2, kind: "open" }, // orange
+  { name: "Negotiation", color: "#8b5cf6", position: 3, kind: "open" }, // purple
+  { name: "Won", color: "#22c55e", position: 4, kind: "won" }, // green
+  { name: "Lost", color: "#ef4444", position: 5, kind: "lost" }, // red
 ];
+
+type BoardView = "board" | "closed";
 
 export default function PipelinesPage() {
   const t = useTranslations("Pipelines.page");
@@ -71,6 +88,10 @@ export default function PipelinesPage() {
   const [dealFormOpen, setDealFormOpen] = useState(false);
   const [editingDeal, setEditingDeal] = useState<Deal | null>(null);
   const [defaultStageId, setDefaultStageId] = useState<string>("");
+
+  const [view, setView] = useState<BoardView>("board");
+  // Deal dropped on a "lost" column, waiting for its reason.
+  const [pendingLost, setPendingLost] = useState<{ deal: Deal; stageId: string } | null>(null);
 
   // Guard against double-seeding (React StrictMode double-effect in dev).
   const seedAttempted = useRef(false);
@@ -111,6 +132,21 @@ export default function PipelinesPage() {
     [supabase],
   );
 
+  const insertDefaultStages = useCallback(
+    async (pipelineId: string) => {
+      const rows = SPEC_DEFAULT_STAGES.map((s) => ({ pipeline_id: pipelineId, ...s }));
+      const { error } = await supabase.from("pipeline_stages").insert(rows);
+      // Before migration 063 there is no `kind` column; the won/lost
+      // columns are then recognised by name.
+      if (error?.code === "42703") {
+        await supabase
+          .from("pipeline_stages")
+          .insert(rows.map((r) => ({ pipeline_id: r.pipeline_id, name: r.name, color: r.color, position: r.position })));
+      }
+    },
+    [supabase],
+  );
+
   const seedDefaultPipeline = useCallback(async (): Promise<Pipeline | null> => {
     const {
       data: { session },
@@ -131,16 +167,10 @@ export default function PipelinesPage() {
       return null;
     }
 
-    const stagesPayload = SPEC_DEFAULT_STAGES.map((s) => ({
-      pipeline_id: pipeline.id,
-      name: s.name,
-      color: s.color,
-      position: s.position,
-    }));
-    await supabase.from("pipeline_stages").insert(stagesPayload);
+    await insertDefaultStages(pipeline.id);
 
     return pipeline as Pipeline;
-  }, [supabase, accountId]);
+  }, [supabase, accountId, insertDefaultStages]);
 
   // Initial load + seed-if-empty
   useEffect(() => {
@@ -216,8 +246,40 @@ export default function PipelinesPage() {
     setDeals(await loadDeals(selectedPipelineId));
   }, [loadDeals, selectedPipelineId]);
 
+  const closeDealOnBoard = useCallback(
+    async (dealId: string, body: Parameters<typeof setDealStatus>[1]) => {
+      // Optimistic: the card leaves the board right away.
+      setDeals((prev) =>
+        prev.map((d) =>
+          d.id === dealId
+            ? { ...d, status: body.status, stage_id: body.stage_id ?? d.stage_id }
+            : d,
+        ),
+      );
+      try {
+        await setDealStatus(dealId, body);
+        toast.success(body.status === "won" ? t("toastDealWon") : t("toastDealLost"));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("toastFailedMoveDeal"));
+      }
+      refreshDeals();
+    },
+    [refreshDeals, t],
+  );
+
   const handleDealMoved = useCallback(
     async (dealId: string, newStageId: string) => {
+      const target = stages.find((s) => s.id === newStageId);
+      const kind = target ? stageKind(target) : "open";
+      if (kind === "won") {
+        await closeDealOnBoard(dealId, { status: "won", stage_id: newStageId });
+        return;
+      }
+      if (kind === "lost") {
+        const deal = deals.find((d) => d.id === dealId);
+        if (deal) setPendingLost({ deal, stageId: newStageId });
+        return;
+      }
       // Optimistic update — board already animated; just persist.
       setDeals((prev) =>
         prev.map((d) => (d.id === dealId ? { ...d, stage_id: newStageId } : d)),
@@ -231,7 +293,20 @@ export default function PipelinesPage() {
         refreshDeals();
       }
     },
-    [supabase, refreshDeals, t],
+    [supabase, refreshDeals, t, stages, deals, closeDealOnBoard],
+  );
+
+  const handleReopen = useCallback(
+    async (deal: Deal) => {
+      try {
+        await setDealStatus(deal.id, { status: "open" });
+        toast.success(t("toastDealReopened"));
+      } catch (err) {
+        toast.error(err instanceof Error ? err.message : t("toastFailedMoveDeal"));
+      }
+      await refreshDeals();
+    },
+    [refreshDeals, t],
   );
 
   const handleAddDeal = useCallback(
@@ -281,13 +356,7 @@ export default function PipelinesPage() {
       return;
     }
 
-    const stagesPayload = SPEC_DEFAULT_STAGES.map((s) => ({
-      pipeline_id: pipeline.id,
-      name: s.name,
-      color: s.color,
-      position: s.position,
-    }));
-    await supabase.from("pipeline_stages").insert(stagesPayload);
+    await insertDefaultStages(pipeline.id);
 
     setNewPipelineName("");
     setNewPipelineOpen(false);
@@ -298,6 +367,8 @@ export default function PipelinesPage() {
   }
 
   const selectedPipeline = pipelines.find((p) => p.id === selectedPipelineId);
+  const openDeals = deals.filter((d) => (d.status ?? "open") === "open");
+  const closedCount = deals.length - openDeals.length;
 
   if (moduleGateLoading || !moduleReady) {
     return (
@@ -374,6 +445,37 @@ export default function PipelinesPage() {
               )}
             </DropdownMenuContent>
           </DropdownMenu>
+
+          {pipelines.length > 0 && (
+            <div className="inline-flex rounded-lg border border-border bg-card p-0.5">
+              {(["board", "closed"] as const).map((v) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setView(v)}
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    view === v
+                      ? "bg-primary text-primary-foreground"
+                      : "text-muted-foreground hover:text-foreground",
+                  )}
+                >
+                  {v === "board" ? <Columns3 className="size-4" /> : <Archive className="size-4" />}
+                  {v === "board" ? t("viewBoard") : t("viewClosed")}
+                  {v === "closed" && closedCount > 0 && (
+                    <span
+                      className={cn(
+                        "rounded-full px-1.5 text-[0.6875rem] tabular-nums",
+                        view === v ? "bg-primary-foreground/20" : "bg-muted",
+                      )}
+                    >
+                      {closedCount}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -421,16 +523,20 @@ export default function PipelinesPage() {
           </GatedButton>
         </div>
       ) : (
-        <>
-          <PipelineAnalytics stages={stages} deals={deals} />
-          <PipelineBoard
-            stages={stages}
-            deals={deals}
-            onDealMoved={handleDealMoved}
-            onAddDeal={handleAddDeal}
-            onEditDeal={handleEditDeal}
-          />
-        </>
+        view === "closed" ? (
+          <ClosedDeals deals={deals} onOpenDeal={handleEditDeal} onReopen={handleReopen} />
+        ) : (
+          <>
+            <PipelineAnalytics stages={stages} deals={deals} />
+            <PipelineBoard
+              stages={stages}
+              deals={openDeals}
+              onDealMoved={handleDealMoved}
+              onAddDeal={handleAddDeal}
+              onEditDeal={handleEditDeal}
+            />
+          </>
+        )
       )}
 
       {/* New Pipeline Dialog */}
@@ -488,6 +594,25 @@ export default function PipelinesPage() {
           }}
         />
       )}
+
+      <LostReasonDialog
+        open={!!pendingLost}
+        onOpenChange={(o) => {
+          if (!o) setPendingLost(null);
+        }}
+        dealTitle={pendingLost?.deal.title}
+        onConfirm={async (reason, note) => {
+          if (!pendingLost) return;
+          const { deal, stageId } = pendingLost;
+          setPendingLost(null);
+          await closeDealOnBoard(deal.id, {
+            status: "lost",
+            lost_reason: reason,
+            note,
+            stage_id: stageId,
+          });
+        }}
+      />
 
       {/* Deal Form (Sheet) */}
       <DealForm
