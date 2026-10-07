@@ -765,6 +765,7 @@
       "benefitBusy": "Your busy events in Google block those times: the AI won't offer them to customers.",
       "benefitPrivacy": "Only the busy times of your events are read; they are never shown to customers.",
       "connect": "Connect with Google",
+      "connecting": "Waiting for Google…",
       "disconnect": "Disconnect",
       "connectedAs": "Connected as {email}",
       "disconnected": "Google Calendar disconnected",

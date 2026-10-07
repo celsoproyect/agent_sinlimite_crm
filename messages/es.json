@@ -765,6 +765,7 @@
       "benefitBusy": "Tus eventos ocupados en Google bloquean esos horarios: la IA no los ofrecerá a los clientes.",
       "benefitPrivacy": "Solo se leen las horas ocupadas de tus eventos; nunca se muestran a los clientes.",
       "connect": "Conectar con Google",
+      "connecting": "Esperando a Google…",
       "disconnect": "Desconectar",
       "connectedAs": "Conectado como {email}",
       "disconnected": "Google Calendar desconectado",

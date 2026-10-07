@@ -1,4 +1,4 @@
-import { NextResponse, after } from 'next/server'
+import { after } from 'next/server'
 import { getCurrentAccount } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { encrypt } from '@/lib/whatsapp/encryption'
@@ -9,18 +9,21 @@ import {
   revokeGoogleToken,
   verifyState,
 } from '@/lib/google-calendar/oauth'
+import { oauthResult } from '@/lib/google-calendar/popup'
+import type { GoogleOAuthResult } from '@/lib/google-calendar/oauth-result'
 import { forgetGoogleConnection, syncUpcomingBookings } from '@/lib/google-calendar/sync'
 
 // Google redirects here after consent. Stores the encrypted refresh
 // token, then pushes the upcoming bookings into the calendar in the
-// background and returns to the agenda with ?google=connected|error.
+// background and returns to the agenda with ?google=connected|error, or,
+// for a popup flow, answers with a page that notifies the CRM and closes.
 export async function GET(request: Request) {
   const url = new URL(request.url)
   const base = appBaseUrl() || url.origin
-  const back = (status: string) => NextResponse.redirect(`${base}/agenda?google=${status}`)
+  const state = verifyState(url.searchParams.get('state'))
+  const back = (status: GoogleOAuthResult) => oauthResult(base, status, !!state?.popup)
 
   if (url.searchParams.get('error')) return back('denied')
-  const state = verifyState(url.searchParams.get('state'))
   const code = url.searchParams.get('code')
   if (!state || !code) return back('error')
 

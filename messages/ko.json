@@ -765,6 +765,7 @@
       "benefitBusy": "Google의 바쁜 일정은 해당 시간을 막아 AI가 고객에게 제안하지 않습니다.",
       "benefitPrivacy": "일정의 바쁜 시간만 읽으며 고객에게 표시되지 않습니다.",
       "connect": "Google과 연결",
+      "connecting": "Google 응답 대기 중…",
       "disconnect": "연결 해제",
       "connectedAs": "{email}(으)로 연결됨",
       "disconnected": "Google 캘린더 연결이 해제되었습니다",

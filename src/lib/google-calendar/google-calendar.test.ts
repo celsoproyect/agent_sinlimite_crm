@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { signState, verifyState } from './oauth'
+import { oauthResult } from './popup'
 import { bookingToEvent, eventsToBusy } from './sync'
 
 describe('OAuth state', () => {
@@ -24,6 +25,29 @@ describe('OAuth state', () => {
     expect(verifyState(`${payload}.${mac.slice(0, -2)}xx`, now)).toBeNull()
     expect(verifyState(state, now + 16 * 60_000)).toBeNull()
     expect(verifyState(null, now)).toBeNull()
+  })
+
+  it('remembers a popup flow', () => {
+    const now = Date.now()
+    expect(verifyState(signState('acc', 'user', now, true), now)).toEqual({ accountId: 'acc', userId: 'user', popup: true })
+  })
+})
+
+describe('oauthResult', () => {
+  it('redirects a full-page flow back to the agenda', () => {
+    const res = oauthResult('https://crm.example', 'connected', false)
+    expect(res.headers.get('location')).toBe('https://crm.example/agenda?google=connected')
+  })
+
+  it('answers a popup flow with a page that notifies the CRM and closes', async () => {
+    const res = oauthResult('https://crm.example', 'denied', true)
+    expect(res.headers.get('content-type')).toContain('text/html')
+    const html = await res.text()
+    expect(html).toContain('"status":"denied"')
+    expect(html).toContain('postMessage(msg, "https://crm.example")')
+    expect(html).toContain('BroadcastChannel("wacrm-google-calendar")')
+    expect(html).toContain('window.close()')
+    expect(html).toContain('/agenda?google=denied')
   })
 })
 

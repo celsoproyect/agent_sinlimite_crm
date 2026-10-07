@@ -41,16 +41,22 @@ function sign(payload: string): string {
   return createHmac('sha256', process.env.GOOGLE_CLIENT_SECRET ?? '').update(payload).digest('base64url')
 }
 
-/** Signed `state` tying the callback to the account and user that started it. */
-export function signState(accountId: string, userId: string, now: number = Date.now()): string {
-  const payload = Buffer.from(JSON.stringify({ a: accountId, u: userId, t: now })).toString('base64url')
+/**
+ * Signed `state` tying the callback to the account and user that started it.
+ * `popup` marks a flow started in a popup window, so the callback answers
+ * with a page that notifies the opener and closes itself.
+ */
+export function signState(accountId: string, userId: string, now: number = Date.now(), popup = false): string {
+  const payload = Buffer.from(JSON.stringify({ a: accountId, u: userId, t: now, ...(popup ? { p: 1 } : {}) })).toString(
+    'base64url',
+  )
   return `${payload}.${sign(payload)}`
 }
 
 export function verifyState(
   state: string | null,
   now: number = Date.now(),
-): { accountId: string; userId: string } | null {
+): { accountId: string; userId: string; popup?: true } | null {
   if (!state) return null
   const [payload, mac] = state.split('.')
   if (!payload || !mac) return null
@@ -58,10 +64,10 @@ export function verifyState(
   const given = Buffer.from(mac)
   if (expected.length !== given.length || !timingSafeEqual(expected, given)) return null
   try {
-    const { a, u, t } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
+    const { a, u, t, p } = JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))
     if (typeof a !== 'string' || typeof u !== 'string' || typeof t !== 'number') return null
     if (now - t > STATE_MAX_AGE_MS || t > now + 60_000) return null
-    return { accountId: a, userId: u }
+    return p === 1 ? { accountId: a, userId: u, popup: true } : { accountId: a, userId: u }
   } catch {
     return null
   }
