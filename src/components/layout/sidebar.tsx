@@ -10,6 +10,7 @@ import { BrandLogo } from "@/components/layout/brand-logo";
 import { useTotalUnread } from "@/hooks/use-total-unread";
 import { useUnreadNotifications } from "@/hooks/use-unread-notifications";
 import {
+  BarChart3,
   Bell,
   Bot,
   Calendar,
@@ -116,6 +117,7 @@ const navSections: NavSection[] = [
       { href: "/contacts", labelKey: "contacts", icon: Users },
       { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
       { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
+      { href: "/reports", labelKey: "reports", icon: BarChart3 },
     ],
   },
   {

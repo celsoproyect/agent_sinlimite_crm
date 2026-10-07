@@ -20,11 +20,12 @@
 
 import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Send, Sparkles, MessageCircle } from 'lucide-react';
+import { Loader2, Send, Sparkles, MessageCircle, BarChart3 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
+import { isModuleEnabled } from '@/lib/modules';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -40,7 +41,8 @@ interface TelegramRow {
 
 export function TelegramSettings() {
   const supabase = createClient();
-  const { accountId, canEditSettings, profileLoading } = useAuth();
+  const { accountId, account, canEditSettings, profileLoading } = useAuth();
+  const weeklyModule = isModuleEnabled(account?.enabled_modules, 'weekly_summary');
   const t = useTranslations('Channels.telegram');
 
   const [row, setRow] = useState<TelegramRow | null>(null);
@@ -51,6 +53,10 @@ export function TelegramSettings() {
   const [testing, setTesting] = useState(false);
   const [chatName, setChatName] = useState<string | null>(null);
   const [togglingAssistant, setTogglingAssistant] = useState(false);
+  // null = migration 065 not run yet (no weekly_report_enabled column).
+  const [weeklyEnabled, setWeeklyEnabled] = useState<boolean | null>(null);
+  const [savingWeekly, setSavingWeekly] = useState(false);
+  const [sendingWeekly, setSendingWeekly] = useState(false);
 
   useEffect(() => {
     if (!accountId) return;
@@ -73,6 +79,17 @@ export function TelegramSettings() {
       setRow(loaded);
       setTokenInput(loaded.telegram_bot_token ?? '');
       setLoading(false);
+
+      const { data: weekly, error: weeklyErr } = await supabase
+        .from('accounts')
+        .select('weekly_report_enabled')
+        .eq('id', accountId)
+        .single();
+      if (cancelled) return;
+      if (weeklyErr && weeklyErr.code !== '42703') {
+        console.error('[TelegramSettings] weekly report load error:', weeklyErr);
+      }
+      setWeeklyEnabled(weeklyErr ? null : (weekly as { weekly_report_enabled: boolean }).weekly_report_enabled);
     })();
     return () => {
       cancelled = true;
@@ -197,6 +214,42 @@ export function TelegramSettings() {
     }
   }
 
+  async function handleToggleWeekly(next: boolean) {
+    if (!accountId) return;
+    setSavingWeekly(true);
+    const { data, error } = await supabase
+      .from('accounts')
+      .update({ weekly_report_enabled: next })
+      .eq('id', accountId)
+      .select('id');
+    setSavingWeekly(false);
+    if (error || !data?.length) {
+      console.error('[TelegramSettings] weekly toggle error:', error);
+      toast.error(t('saveFailed'));
+      return;
+    }
+    setWeeklyEnabled(next);
+    toast.success(next ? t('weeklyEnabled') : t('weeklyDisabled'));
+  }
+
+  async function handleSendWeekly() {
+    setSendingWeekly(true);
+    try {
+      const res = await fetch('/api/reports/weekly-summary', { method: 'POST' });
+      const json = await res.json();
+      if (!res.ok) {
+        toast.error(json.error || t('weeklySendFailed'));
+        return;
+      }
+      toast.success(t('weeklySent'));
+    } catch (err) {
+      console.error('[TelegramSettings] weekly send error:', err);
+      toast.error(t('weeklySendFailed'));
+    } finally {
+      setSendingWeekly(false);
+    }
+  }
+
   if (loading || profileLoading || !row) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -307,6 +360,40 @@ export function TelegramSettings() {
               disabled={!canEditSettings || togglingAssistant}
               onCheckedChange={handleToggleAssistant}
             />
+          </CardContent>
+        </Card>
+      )}
+
+      {weeklyModule && hasToken && hasChat && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-foreground">
+              <BarChart3 className="size-4 text-primary" />
+              {t('weeklyTitle')}
+            </CardTitle>
+            <CardDescription className="text-muted-foreground">{t('weeklyDesc')}</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {weeklyEnabled === null ? (
+              <p className="text-xs text-muted-foreground">{t('weeklyMigrationPending')}</p>
+            ) : (
+              <div className="flex items-center justify-between gap-4">
+                <span className="text-sm text-foreground">
+                  {weeklyEnabled ? t('statusOn') : t('statusOff')}
+                </span>
+                <Switch
+                  checked={weeklyEnabled}
+                  disabled={!canEditSettings || savingWeekly}
+                  onCheckedChange={handleToggleWeekly}
+                />
+              </div>
+            )}
+            {canEditSettings && (
+              <Button type="button" variant="outline" onClick={handleSendWeekly} disabled={sendingWeekly}>
+                {sendingWeekly ? <Loader2 className="size-4 animate-spin" /> : <Send className="size-4" />}
+                {t('weeklySendNow')}
+              </Button>
+            )}
           </CardContent>
         </Card>
       )}

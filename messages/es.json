@@ -24,6 +24,7 @@
     "contacts": "Contactos",
     "pipelines": "Embudos",
     "broadcasts": "Difusiones",
+    "reports": "Reportes",
     "automations": "Automatizaciones",
     "flows": "Flujos",
     "aiAgents": "Agentes de IA",
@@ -43,7 +44,10 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Perfil",
     "menuSettings": "Configuración",
-    "menuSignOut": "Cerrar sesión"
+    "menuSignOut": "Cerrar sesión",
+    "aiMessagesModule": "Mensajes de la IA (Reportes)",
+    "weeklySummaryModule": "Resumen semanal (Telegram)",
+    "googleCalendarModule": "Google Calendar (Agenda)"
   },
   "Header": {
     "dashboard": "Panel",
@@ -560,7 +564,8 @@
       "prevWeek": "Semana anterior",
       "nextWeek": "Semana siguiente",
       "viewWeek": "Semana",
-      "viewList": "Lista"
+      "viewList": "Lista",
+      "google": "Google Calendar"
     },
     "todayPanel": {
       "title": "Hoy",
@@ -675,6 +680,30 @@
       "search": "Buscar nombre, teléfono, servicio o referencia",
       "empty": "No hay citas con estos filtros.",
       "count": "{count, plural, one {# cita} other {# citas}}"
+    },
+    "google": {
+      "title": "Google Calendar",
+      "description": "Conecta el calendario de Google del negocio para ver las citas allí y evitar choques con tus otros compromisos.",
+      "benefitSync": "Cada cita (de la IA o creada aquí) se crea, se mueve y se cancela también en Google Calendar.",
+      "benefitBusy": "Tus eventos ocupados en Google bloquean esos horarios: la IA no los ofrecerá a los clientes.",
+      "benefitPrivacy": "Solo se leen las horas ocupadas de tus eventos; nunca se muestran a los clientes.",
+      "connect": "Conectar con Google",
+      "disconnect": "Desconectar",
+      "connectedAs": "Conectado como {email}",
+      "disconnected": "Google Calendar desconectado",
+      "disconnectFailed": "No se pudo desconectar Google Calendar",
+      "loadFailed": "No se pudo cargar el estado de Google Calendar.",
+      "notConfiguredTitle": "Falta configurar Google en el servidor",
+      "notConfiguredBody": "Agrega GOOGLE_CLIENT_ID y GOOGLE_CLIENT_SECRET en el servidor (cliente OAuth de tipo \"Aplicación web\") con esta URI de redirección:",
+      "migrationPending": "Disponible cuando se ejecute la migración 065.",
+      "result": {
+        "connected": "Google Calendar conectado. Las próximas citas se están copiando.",
+        "error": "No se pudo conectar Google Calendar. Inténtalo de nuevo.",
+        "denied": "Cancelaste el permiso en Google.",
+        "forbidden": "Solo un administrador puede conectar Google Calendar.",
+        "migration": "Primero ejecuta la migración 065.",
+        "not_configured": "Google Calendar no está configurado en el servidor."
+      }
     }
   },
   "Channels": {
@@ -784,7 +813,15 @@
       "assistantEnabled": "Asistente de Telegram activado",
       "assistantDisabled": "Asistente de Telegram desactivado",
       "assistantEnableFailed": "No se pudo activar el asistente",
-      "assistantDisableFailed": "No se pudo desactivar el asistente"
+      "assistantDisableFailed": "No se pudo desactivar el asistente",
+      "weeklyTitle": "Resumen semanal",
+      "weeklyDesc": "Cada lunes a las 8:00 a. m. recibes en este chat el resumen de la semana anterior: conversaciones, atención de la IA, tiempos de respuesta, contactos, citas y ventas.",
+      "weeklyMigrationPending": "Disponible cuando se ejecute la migración 065.",
+      "weeklyEnabled": "Resumen semanal activado",
+      "weeklyDisabled": "Resumen semanal desactivado",
+      "weeklySendNow": "Enviar resumen ahora",
+      "weeklySent": "Resumen enviado a Telegram",
+      "weeklySendFailed": "No se pudo enviar el resumen"
     }
   },
   "Pipelines": {
@@ -2283,6 +2320,93 @@
       "saving": "Guardando…",
       "saved": "Módulos actualizados",
       "saveFailed": "Error al actualizar los módulos"
+    }
+  },
+  "Reports": {
+    "title": "Reportes",
+    "subtitle": "Quién atiende a tus clientes (IA o personas), qué tan rápido, de dónde vienen las ventas y cuánto dinero generó la IA. Fechas en hora de Santo Domingo.",
+    "presets": {
+      "today": "Hoy",
+      "yesterday": "Ayer",
+      "week": "Esta semana",
+      "lastWeek": "Semana pasada",
+      "month": "Este mes",
+      "last30": "Últimos 30 días"
+    },
+    "from": "Desde",
+    "to": "Hasta",
+    "channels": {
+      "all": "Todos",
+      "whatsapp": "WhatsApp",
+      "web": "Web",
+      "other": "Otros"
+    },
+    "loadFailed": "No se pudo cargar el reporte.",
+    "units": {
+      "s": "{n} s",
+      "min": "{n} min",
+      "h": "{n} h",
+      "d": "{n} d"
+    },
+    "cards": {
+      "conversations": "Conversaciones",
+      "conversationsHint": "{ai} solo IA · {human} con persona · {pending} sin respuesta",
+      "aiRate": "Atendidas solo por la IA",
+      "aiRateHint": "{ai} de {total} conversaciones respondidas",
+      "aiMessages": "Mensajes de la IA",
+      "aiMessagesHint": "{human} de personas · {customer} de clientes",
+      "aiRevenue": "Dinero generado con la IA",
+      "aiRevenueHint": "{count, plural, =1 {1 venta ganada} other {# ventas ganadas}} donde la IA atendió al cliente",
+      "responseAi": "Respuesta de la IA",
+      "responseHuman": "Respuesta de personas",
+      "responseHint": "Mediana · promedio {avg} · {count} respuestas",
+      "newContacts": "Contactos nuevos",
+      "none": "Ninguno",
+      "bookings": "Citas agendadas",
+      "bookingsHint": "{ai} agendadas por la IA"
+    },
+    "activity": {
+      "title": "Actividad por día",
+      "description": "Mensajes de clientes frente a respuestas de la IA y de personas.",
+      "empty": "Sin mensajes en este periodo.",
+      "customer": "Clientes",
+      "ai": "IA",
+      "human": "Personas",
+      "tooltip": "{date}: {customer} de clientes, {ai} de la IA, {human} de personas"
+    },
+    "sales": {
+      "title": "Ventas por canal",
+      "description": "Negocios ganados en el periodo.",
+      "won": "Ganadas ({count})",
+      "aiAssisted": "Con la IA ({count})",
+      "byChannel": "Por canal",
+      "none": "Sin ventas en este periodo.",
+      "aiNote": "\"Con la IA\" cuenta las ventas ganadas donde la IA le escribió al cliente antes del cierre.",
+      "unavailable": "Las ventas aparecerán cuando se ejecute la migración 063 (cierre de negocios)."
+    },
+    "aiMessages": {
+      "title": "Mensajes atendidos por la IA",
+      "description": "Cada respuesta de la IA con el mensaje del cliente que contestó.",
+      "kinds": {
+        "all": "Todos",
+        "text": "Texto",
+        "media": "Catálogo/archivos",
+        "interactive": "Botones"
+      },
+      "searchPlaceholder": "Buscar en las respuestas…",
+      "loadFailed": "No se pudieron cargar los mensajes.",
+      "empty": "La IA no envió mensajes con estos filtros.",
+      "unknownContact": "Sin nombre",
+      "question": "Cliente",
+      "open": "Ver conversación",
+      "pageOf": "Página {page} de {pages}",
+      "prev": "Anterior",
+      "next": "Siguiente",
+      "types": {
+        "text": "texto",
+        "media": "archivo",
+        "interactive": "botones"
+      }
     }
   }
 }

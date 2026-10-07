@@ -24,6 +24,7 @@
     "contacts": "연락처",
     "pipelines": "파이프라인",
     "broadcasts": "브로드캐스트",
+    "reports": "보고서",
     "automations": "자동화",
     "flows": "플로우",
     "aiAgents": "AI 에이전트",
@@ -43,7 +44,10 @@
     "defaultAvatar": "아바타",
     "menuProfile": "프로필",
     "menuSettings": "설정",
-    "menuSignOut": "로그아웃"
+    "menuSignOut": "로그아웃",
+    "aiMessagesModule": "AI 메시지 (보고서)",
+    "weeklySummaryModule": "주간 요약 (텔레그램)",
+    "googleCalendarModule": "Google 캘린더 (예약)"
   },
   "Header": {
     "dashboard": "대시보드",
@@ -560,7 +564,8 @@
       "prevWeek": "이전 주",
       "nextWeek": "다음 주",
       "viewWeek": "Week",
-      "viewList": "List"
+      "viewList": "List",
+      "google": "Google 캘린더"
     },
     "todayPanel": {
       "title": "오늘",
@@ -675,6 +680,30 @@
       "search": "Search name, phone, service or reference",
       "empty": "No appointments match these filters.",
       "count": "{count, plural, one {# appointment} other {# appointments}}"
+    },
+    "google": {
+      "title": "Google 캘린더",
+      "description": "비즈니스 Google 캘린더를 연결하여 예약을 그곳에서 확인하고 다른 일정과의 충돌을 피하세요.",
+      "benefitSync": "모든 예약(AI 또는 여기서 생성)이 Google 캘린더에서도 생성, 변경, 취소됩니다.",
+      "benefitBusy": "Google의 바쁜 일정은 해당 시간을 막아 AI가 고객에게 제안하지 않습니다.",
+      "benefitPrivacy": "일정의 바쁜 시간만 읽으며 고객에게 표시되지 않습니다.",
+      "connect": "Google과 연결",
+      "disconnect": "연결 해제",
+      "connectedAs": "{email}(으)로 연결됨",
+      "disconnected": "Google 캘린더 연결이 해제되었습니다",
+      "disconnectFailed": "Google 캘린더 연결을 해제하지 못했습니다",
+      "loadFailed": "Google 캘린더 상태를 불러오지 못했습니다.",
+      "notConfiguredTitle": "서버에 Google 설정이 필요합니다",
+      "notConfiguredBody": "서버에 GOOGLE_CLIENT_ID와 GOOGLE_CLIENT_SECRET(\"웹 애플리케이션\" OAuth 클라이언트)을 추가하고 다음 리디렉션 URI를 사용하세요:",
+      "migrationPending": "마이그레이션 065 실행 후 사용할 수 있습니다.",
+      "result": {
+        "connected": "Google 캘린더가 연결되었습니다. 예정된 예약을 복사하는 중입니다.",
+        "error": "Google 캘린더를 연결하지 못했습니다. 다시 시도하세요.",
+        "denied": "Google에서 권한을 취소했습니다.",
+        "forbidden": "관리자만 Google 캘린더를 연결할 수 있습니다.",
+        "migration": "먼저 마이그레이션 065를 실행하세요.",
+        "not_configured": "서버에 Google 캘린더가 설정되지 않았습니다."
+      }
     }
   },
   "Channels": {
@@ -784,7 +813,15 @@
       "assistantEnabled": "텔레그램 어시스턴트가 활성화되었습니다",
       "assistantDisabled": "텔레그램 어시스턴트가 비활성화되었습니다",
       "assistantEnableFailed": "어시스턴트를 활성화하지 못했습니다",
-      "assistantDisableFailed": "어시스턴트를 비활성화하지 못했습니다"
+      "assistantDisableFailed": "어시스턴트를 비활성화하지 못했습니다",
+      "weeklyTitle": "주간 요약",
+      "weeklyDesc": "매주 월요일 오전 8시에 지난주 요약(대화, AI 응대, 응답 시간, 연락처, 예약, 매출)을 이 채팅으로 받습니다.",
+      "weeklyMigrationPending": "마이그레이션 065 실행 후 사용할 수 있습니다.",
+      "weeklyEnabled": "주간 요약 켜짐",
+      "weeklyDisabled": "주간 요약 꺼짐",
+      "weeklySendNow": "지금 요약 보내기",
+      "weeklySent": "요약을 텔레그램으로 보냈습니다",
+      "weeklySendFailed": "요약을 보내지 못했습니다"
     }
   },
   "Pipelines": {
@@ -2283,6 +2320,93 @@
       "saving": "저장 중…",
       "saved": "모듈이 업데이트되었습니다",
       "saveFailed": "모듈 업데이트에 실패했습니다"
+    }
+  },
+  "Reports": {
+    "title": "보고서",
+    "subtitle": "누가 고객에게 응답하는지(AI 또는 직원), 얼마나 빠른지, 매출이 어디서 오는지, AI가 만든 매출이 얼마인지 보여줍니다. 날짜는 산토도밍고 시간 기준입니다.",
+    "presets": {
+      "today": "오늘",
+      "yesterday": "어제",
+      "week": "이번 주",
+      "lastWeek": "지난주",
+      "month": "이번 달",
+      "last30": "최근 30일"
+    },
+    "from": "시작",
+    "to": "종료",
+    "channels": {
+      "all": "전체",
+      "whatsapp": "WhatsApp",
+      "web": "웹",
+      "other": "기타"
+    },
+    "loadFailed": "보고서를 불러오지 못했습니다.",
+    "units": {
+      "s": "{n}초",
+      "min": "{n}분",
+      "h": "{n}시간",
+      "d": "{n}일"
+    },
+    "cards": {
+      "conversations": "대화",
+      "conversationsHint": "AI만 {ai} · 직원 참여 {human} · 미응답 {pending}",
+      "aiRate": "AI 단독 처리",
+      "aiRateHint": "응답한 대화 {total}개 중 {ai}개",
+      "aiMessages": "AI 메시지",
+      "aiMessagesHint": "직원 {human} · 고객 {customer}",
+      "aiRevenue": "AI로 만든 매출",
+      "aiRevenueHint": "AI가 응대한 성사 거래 {count}건",
+      "responseAi": "AI 응답 시간",
+      "responseHuman": "직원 응답 시간",
+      "responseHint": "중앙값 · 평균 {avg} · 응답 {count}건",
+      "newContacts": "신규 연락처",
+      "none": "없음",
+      "bookings": "예약",
+      "bookingsHint": "AI 예약 {ai}건"
+    },
+    "activity": {
+      "title": "일별 활동",
+      "description": "고객 메시지와 AI 및 직원의 응답 비교.",
+      "empty": "이 기간에 메시지가 없습니다.",
+      "customer": "고객",
+      "ai": "AI",
+      "human": "직원",
+      "tooltip": "{date}: 고객 {customer}, AI {ai}, 직원 {human}"
+    },
+    "sales": {
+      "title": "채널별 매출",
+      "description": "기간 내 성사된 거래.",
+      "won": "성사 ({count})",
+      "aiAssisted": "AI 참여 ({count})",
+      "byChannel": "채널별",
+      "none": "이 기간에 매출이 없습니다.",
+      "aiNote": "\"AI 참여\"는 성사 전에 AI가 고객에게 메시지를 보낸 거래를 집계합니다.",
+      "unavailable": "마이그레이션 063(거래 종료)을 실행하면 매출이 표시됩니다."
+    },
+    "aiMessages": {
+      "title": "AI가 응대한 메시지",
+      "description": "AI의 모든 응답과 그에 대한 고객 메시지.",
+      "kinds": {
+        "all": "전체",
+        "text": "텍스트",
+        "media": "카탈로그/파일",
+        "interactive": "버튼"
+      },
+      "searchPlaceholder": "응답 검색…",
+      "loadFailed": "메시지를 불러오지 못했습니다.",
+      "empty": "이 필터로 AI가 보낸 메시지가 없습니다.",
+      "unknownContact": "이름 없음",
+      "question": "고객",
+      "open": "대화 열기",
+      "pageOf": "{pages}페이지 중 {page}",
+      "prev": "이전",
+      "next": "다음",
+      "types": {
+        "text": "텍스트",
+        "media": "파일",
+        "interactive": "버튼"
+      }
     }
   }
 }

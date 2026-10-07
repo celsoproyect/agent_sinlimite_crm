@@ -258,6 +258,8 @@ interface SendMediaEngineArgs {
    *  sent to Meta; the caption above is what the customer actually sees
    *  on WhatsApp. */
   metadata?: MessageMetadata
+  /** See `SendTextEngineArgs.aiGenerated`. */
+  aiGenerated?: boolean
 }
 
 /**
@@ -314,6 +316,7 @@ export async function engineSendMedia(
     message_id: waMessageId,
     status: 'sent',
     metadata: args.metadata ?? null,
+    ai_generated: args.aiGenerated ?? false,
   })
   if (msgErr) {
     throw new Error(`sent to Meta but DB insert failed: ${msgErr.message}`)
@@ -340,6 +343,8 @@ interface SendInteractiveButtonsEngineArgs {
   buttons: InteractiveButton[]
   headerText?: string
   footerText?: string
+  /** See `SendTextEngineArgs.aiGenerated`. */
+  aiGenerated?: boolean
 }
 
 interface SendInteractiveListEngineArgs {
@@ -352,6 +357,8 @@ interface SendInteractiveListEngineArgs {
   sections: InteractiveListSection[]
   headerText?: string
   footerText?: string
+  /** See `SendTextEngineArgs.aiGenerated`. */
+  aiGenerated?: boolean
 }
 
 /**
@@ -475,6 +482,7 @@ async function sendInteractiveViaMeta(
     interactive_payload: interactivePayload,
     message_id: waMessageId,
     status: 'sent',
+    ai_generated: input.aiGenerated ?? false,
   })
   if (msgErr) {
     throw new Error(`sent to Meta but DB insert failed: ${msgErr.message}`)

@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
 import {
+  BarChart3,
+  CalendarCheck2,
+  MessageSquareText,
+  Send,
   Bell,
   Bot,
   Calendar,
@@ -46,6 +50,10 @@ const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string }> = {
   contacts: { icon: Users, labelKey: "contacts" },
   pipelines: { icon: GitBranch, labelKey: "pipelines" },
   broadcasts: { icon: Radio, labelKey: "broadcasts" },
+  reports: { icon: BarChart3, labelKey: "reports" },
+  ai_messages: { icon: MessageSquareText, labelKey: "aiMessagesModule" },
+  weekly_summary: { icon: Send, labelKey: "weeklySummaryModule" },
+  google_calendar: { icon: CalendarCheck2, labelKey: "googleCalendarModule" },
   automations: { icon: Zap, labelKey: "automations" },
   flows: { icon: Workflow, labelKey: "flows" },
   agents: { icon: Bot, labelKey: "aiAgents" },

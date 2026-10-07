@@ -276,6 +276,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     content_type: 'text',
     content_text: text,
     status: 'sent',
+    ai_generated: true,
   })
   if (insertErr) {
     // Mirror the WhatsApp path: a failed persist means the visitor never

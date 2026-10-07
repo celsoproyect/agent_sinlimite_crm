@@ -14,17 +14,22 @@ import {
 import { BookingFormDialog } from "@/components/agenda/booking-form-dialog";
 import { BusinessHoursSettings } from "@/components/agenda/business-hours-settings";
 import { ReminderRulesSettings } from "@/components/agenda/reminder-rules-settings";
+import { GoogleCalendarSettings } from "@/components/agenda/google-calendar-settings";
 import { GatedButton } from "@/components/ui/gated-button";
-import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Settings, BellRing, CalendarDays, List } from "lucide-react";
+import { Calendar, ChevronLeft, ChevronRight, Loader2, Plus, Settings, BellRing, CalendarDays, CalendarCheck2, List } from "lucide-react";
 import { useCan } from "@/hooks/use-can";
 import { useTranslations } from "next-intl";
 import { useModuleGate } from "@/hooks/use-module-gate";
+import { useAuth } from "@/hooks/use-auth";
+import { isModuleEnabled } from "@/lib/modules";
 
 export default function AgendaPage() {
   const t = useTranslations("Agenda.page");
   const canCreateBookings = useCan("send-messages");
   const canEditSettings = useCan("edit-settings");
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agenda");
+  const { account } = useAuth();
+  const googleModule = isModuleEnabled(account?.enabled_modules, "google_calendar");
 
   const [weekStart, setWeekStart] = useState(() => new Date());
   const [bookings, setBookings] = useState<Booking[]>([]);
@@ -35,6 +40,8 @@ export default function AgendaPage() {
   const [slotDefaults, setSlotDefaults] = useState<{ date: string; time: string } | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [googleOpen, setGoogleOpen] = useState(false);
+  const [googleConnected, setGoogleConnected] = useState(false);
   const [view, setView] = useState<"week" | "list">("week");
   const [listFilter, setListFilter] = useState<BookingListFilter>(defaultBookingFilter);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -200,6 +207,19 @@ export default function AgendaPage() {
             <BellRing className="mr-1 h-4 w-4" />
             {t("reminders")}
           </GatedButton>
+          {googleModule && (
+            <GatedButton
+              variant="outline"
+              canAct={canEditSettings}
+              gateReason="connect Google Calendar"
+              onClick={() => setGoogleOpen(true)}
+              className="border-border bg-card text-foreground hover:bg-muted"
+            >
+              <CalendarCheck2 className="mr-1 h-4 w-4" />
+              {t("google")}
+              {googleConnected && <span className="ml-1.5 h-2 w-2 rounded-full bg-emerald-500" />}
+            </GatedButton>
+          )}
           <GatedButton
             canAct={canCreateBookings}
             gateReason="create bookings"
@@ -247,6 +267,13 @@ export default function AgendaPage() {
       )}
       {canEditSettings && (
         <ReminderRulesSettings open={remindersOpen} onOpenChange={setRemindersOpen} />
+      )}
+      {canEditSettings && googleModule && (
+        <GoogleCalendarSettings
+          open={googleOpen}
+          onOpenChange={setGoogleOpen}
+          onStatus={setGoogleConnected}
+        />
       )}
     </div>
   );

@@ -7,6 +7,7 @@ import {
   businessWeekday,
 } from '@/lib/business-timezone'
 import { bookingReference, phonesMatch, referenceMatches } from '@/lib/bookings/reference'
+import { googleBusy, syncBookingToGoogle } from '@/lib/google-calendar/sync'
 import type { AvailabilityResult, BookingAppointment, ManagedBooking, TimeSlot } from './types'
 
 type Weekday =
@@ -204,13 +205,17 @@ async function loadBusy(
     .gte('starts_at', new Date(from - 86_400_000).toISOString())
     .lt('starts_at', new Date(to).toISOString())
   if (error) return null
-  return (data ?? [])
+  const own = (data ?? [])
     .filter((b: { id?: string }) => !excludeId || b.id !== excludeId)
     .map((b: { starts_at: string; ends_at: string }) => ({
       start: new Date(b.starts_at).getTime(),
       end: new Date(b.ends_at).getTime(),
     }))
     .filter((b) => b.end > from)
+  // The owner's own events in a connected Google Calendar block slots
+  // too ([] when not connected or Google fails).
+  const google = await googleBusy(accountId, from, to)
+  return [...own, ...google]
 }
 
 function overlapsBusy(start: number, end: number, busy: Busy, bufferMs: number): boolean {
@@ -442,6 +447,7 @@ export async function confirmAiBooking(
       return { confirmed: false, error: 'the booking could not be saved' }
     }
     const reference = bookingReference((inserted as { id: string }).id)
+    void syncBookingToGoogle((inserted as { id: string }).id)
 
     // Thread annotation is cosmetic — a failure here must not turn a
     // booking that really was saved into a "no" for the customer.
@@ -629,6 +635,7 @@ export async function rescheduleAiBooking(
     }
 
     await db.from('booking_reminder_sends').delete().eq('booking_id', booking.id)
+    void syncBookingToGoogle(booking.id)
 
     const reference = bookingReference(booking.id)
     const from = `${businessDate(booking.starts_at)} ${businessTime(booking.starts_at)}`
@@ -678,6 +685,7 @@ export async function cancelAiBooking(
       console.error('[ai booking] cancel update failed:', error)
       return { cancelled: false, error: 'the appointment could not be cancelled' }
     }
+    void syncBookingToGoogle(booking.id)
 
     const reference = bookingReference(booking.id)
     await annotate(

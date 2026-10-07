@@ -462,6 +462,7 @@ export async function dispatchInboundToAiReply(
           contactId,
           bodyText: text,
           buttons,
+          aiGenerated: true,
         })
         sentInteractive = true
       } catch (err) {
@@ -543,6 +544,7 @@ export async function dispatchInboundToAiReply(
           filename: attachment.filename,
           caption,
           metadata,
+          aiGenerated: true,
         })
       } catch (err) {
         console.error('[ai auto-reply] attachment send failed:', err)

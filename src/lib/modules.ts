@@ -10,10 +10,12 @@
 // baseline navigation, not optional features, so they never appear
 // in the super-admin toggle UI and are never gated on a page.
 //
-// Keys must match the sidebar's `navSections[].items` hrefs
+// Page modules must match the sidebar's `navSections[].items` hrefs
 // (src/components/layout/sidebar.tsx), minus the leading slash — the
 // sidebar filter and each page's `useModuleGate` call both key off this
-// list.
+// list. Feature modules (`ai_messages`, `weekly_summary`,
+// `google_calendar`) have no menu entry: their UI hides itself and the
+// server checks them with `accountModuleEnabled` (modules-server.ts).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -23,6 +25,10 @@ export const MODULE_KEYS = [
   "contacts",
   "pipelines",
   "broadcasts",
+  "reports",
+  "ai_messages",
+  "weekly_summary",
+  "google_calendar",
   "automations",
   "flows",
   "agents",

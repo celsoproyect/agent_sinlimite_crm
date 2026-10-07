@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
+import { syncBookingToGoogle } from '@/lib/google-calendar/sync'
 
 // Agenda module CRUD. RLS (migration 046: bookings_select/insert/update/
 // delete, all `is_account_member`) already scopes every query to the
@@ -81,5 +82,6 @@ export async function POST(request: Request) {
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  after(() => syncBookingToGoogle(data.id))
   return NextResponse.json({ booking: data }, { status: 201 })
 }

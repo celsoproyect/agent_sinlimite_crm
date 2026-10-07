@@ -24,6 +24,7 @@
     "contacts": "Contacts",
     "pipelines": "Pipelines",
     "broadcasts": "Broadcasts",
+    "reports": "Reports",
     "automations": "Automations",
     "flows": "Flows",
     "aiAgents": "AI Agents",
@@ -43,7 +44,10 @@
     "defaultAvatar": "Avatar",
     "menuProfile": "Profile",
     "menuSettings": "Settings",
-    "menuSignOut": "Sign out"
+    "menuSignOut": "Sign out",
+    "aiMessagesModule": "AI messages (Reports)",
+    "weeklySummaryModule": "Weekly summary (Telegram)",
+    "googleCalendarModule": "Google Calendar (Agenda)"
   },
   "Header": {
     "dashboard": "Dashboard",
@@ -560,7 +564,8 @@
       "prevWeek": "Previous week",
       "nextWeek": "Next week",
       "viewWeek": "Week",
-      "viewList": "List"
+      "viewList": "List",
+      "google": "Google Calendar"
     },
     "todayPanel": {
       "title": "Today",
@@ -675,6 +680,30 @@
       "search": "Search name, phone, service or reference",
       "empty": "No appointments match these filters.",
       "count": "{count, plural, one {# appointment} other {# appointments}}"
+    },
+    "google": {
+      "title": "Google Calendar",
+      "description": "Connect the business's Google Calendar to see appointments there and avoid clashes with your other commitments.",
+      "benefitSync": "Every appointment (from the AI or created here) is also created, moved and cancelled in Google Calendar.",
+      "benefitBusy": "Your busy events in Google block those times: the AI won't offer them to customers.",
+      "benefitPrivacy": "Only the busy times of your events are read; they are never shown to customers.",
+      "connect": "Connect with Google",
+      "disconnect": "Disconnect",
+      "connectedAs": "Connected as {email}",
+      "disconnected": "Google Calendar disconnected",
+      "disconnectFailed": "Couldn't disconnect Google Calendar",
+      "loadFailed": "Couldn't load the Google Calendar status.",
+      "notConfiguredTitle": "Google is not set up on the server yet",
+      "notConfiguredBody": "Add GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET on the server (\"Web application\" OAuth client) with this redirect URI:",
+      "migrationPending": "Available once migration 065 has run.",
+      "result": {
+        "connected": "Google Calendar connected. Upcoming appointments are being copied.",
+        "error": "Couldn't connect Google Calendar. Please try again.",
+        "denied": "You cancelled the permission in Google.",
+        "forbidden": "Only an admin can connect Google Calendar.",
+        "migration": "Run migration 065 first.",
+        "not_configured": "Google Calendar is not configured on the server."
+      }
     }
   },
   "Channels": {
@@ -784,7 +813,15 @@
       "assistantEnabled": "Telegram assistant enabled",
       "assistantDisabled": "Telegram assistant disabled",
       "assistantEnableFailed": "Couldn't enable the assistant",
-      "assistantDisableFailed": "Couldn't disable the assistant"
+      "assistantDisableFailed": "Couldn't disable the assistant",
+      "weeklyTitle": "Weekly summary",
+      "weeklyDesc": "Every Monday at 8:00 AM this chat gets last week's summary: conversations, AI handling, response times, contacts, appointments and sales.",
+      "weeklyMigrationPending": "Available once migration 065 has run.",
+      "weeklyEnabled": "Weekly summary on",
+      "weeklyDisabled": "Weekly summary off",
+      "weeklySendNow": "Send summary now",
+      "weeklySent": "Summary sent to Telegram",
+      "weeklySendFailed": "Couldn't send the summary"
     }
   },
   "Pipelines": {
@@ -2283,6 +2320,93 @@
       "saving": "Saving…",
       "saved": "Modules updated",
       "saveFailed": "Failed to update modules"
+    }
+  },
+  "Reports": {
+    "title": "Reports",
+    "subtitle": "Who answers your customers (AI or people), how fast, where sales come from and how much money the AI generated. Dates in Santo Domingo time.",
+    "presets": {
+      "today": "Today",
+      "yesterday": "Yesterday",
+      "week": "This week",
+      "lastWeek": "Last week",
+      "month": "This month",
+      "last30": "Last 30 days"
+    },
+    "from": "From",
+    "to": "To",
+    "channels": {
+      "all": "All",
+      "whatsapp": "WhatsApp",
+      "web": "Web",
+      "other": "Other"
+    },
+    "loadFailed": "Couldn't load the report.",
+    "units": {
+      "s": "{n} s",
+      "min": "{n} min",
+      "h": "{n} h",
+      "d": "{n} d"
+    },
+    "cards": {
+      "conversations": "Conversations",
+      "conversationsHint": "{ai} AI only · {human} with a person · {pending} unanswered",
+      "aiRate": "Handled by the AI alone",
+      "aiRateHint": "{ai} of {total} answered conversations",
+      "aiMessages": "AI messages",
+      "aiMessagesHint": "{human} from people · {customer} from customers",
+      "aiRevenue": "Revenue generated with the AI",
+      "aiRevenueHint": "{count, plural, =1 {1 won deal} other {# won deals}} where the AI served the customer",
+      "responseAi": "AI response time",
+      "responseHuman": "People response time",
+      "responseHint": "Median · average {avg} · {count} replies",
+      "newContacts": "New contacts",
+      "none": "None",
+      "bookings": "Appointments booked",
+      "bookingsHint": "{ai} booked by the AI"
+    },
+    "activity": {
+      "title": "Activity by day",
+      "description": "Customer messages versus replies from the AI and from people.",
+      "empty": "No messages in this period.",
+      "customer": "Customers",
+      "ai": "AI",
+      "human": "People",
+      "tooltip": "{date}: {customer} from customers, {ai} from the AI, {human} from people"
+    },
+    "sales": {
+      "title": "Sales by channel",
+      "description": "Deals won in the period.",
+      "won": "Won ({count})",
+      "aiAssisted": "With the AI ({count})",
+      "byChannel": "By channel",
+      "none": "No sales in this period.",
+      "aiNote": "\"With the AI\" counts won deals where the AI wrote to the customer before the close.",
+      "unavailable": "Sales will show once migration 063 (deal closing) has run."
+    },
+    "aiMessages": {
+      "title": "Messages handled by the AI",
+      "description": "Every AI reply with the customer message it answered.",
+      "kinds": {
+        "all": "All",
+        "text": "Text",
+        "media": "Catalog/files",
+        "interactive": "Buttons"
+      },
+      "searchPlaceholder": "Search replies…",
+      "loadFailed": "Couldn't load the messages.",
+      "empty": "The AI sent no messages with these filters.",
+      "unknownContact": "No name",
+      "question": "Customer",
+      "open": "Open conversation",
+      "pageOf": "Page {page} of {pages}",
+      "prev": "Previous",
+      "next": "Next",
+      "types": {
+        "text": "text",
+        "media": "file",
+        "interactive": "buttons"
+      }
     }
   }
 }

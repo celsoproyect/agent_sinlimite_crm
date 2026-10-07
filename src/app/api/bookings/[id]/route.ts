@@ -1,5 +1,6 @@
-import { NextResponse } from 'next/server'
+import { NextResponse, after } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { deleteGoogleEvent, syncBookingToGoogle } from '@/lib/google-calendar/sync'
 
 // Update / cancel a single booking. RLS (bookings_update/delete) already
 // scopes to the caller's account — the explicit `account_id` filter below
@@ -57,6 +58,7 @@ export async function PATCH(
     .single()
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  after(() => syncBookingToGoogle(id))
   return NextResponse.json({ booking: data })
 }
 
@@ -72,11 +74,15 @@ export async function DELETE(
     return toErrorResponse(err)
   }
 
-  const { error } = await ctx.supabase
+  // Return the deleted row: its Google event id goes away with it.
+  const { data: rows, error } = await ctx.supabase
     .from('bookings')
     .delete()
     .eq('id', id)
     .eq('account_id', ctx.accountId)
+    .select('*')
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  const eventId = (rows?.[0] as { google_event_id?: string | null } | undefined)?.google_event_id
+  if (eventId) after(() => deleteGoogleEvent(ctx.accountId, eventId))
   return NextResponse.json({ ok: true })
 }
