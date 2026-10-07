@@ -79,4 +79,4 @@
 - **Migrations:** the Supabase CLI here lacks privileges (`db push` fails with 403). New `supabase/migrations/*.sql` must be pasted into the Supabase SQL Editor by the owner, and code should tolerate the column being missing (`42703`) until then.
 - **Inbox:** the colored dot on each conversation row is its status (open, pending or closed). It is not an unread marker, and the owner wants it kept that way. Unread is shown by the numeric badge.
 - **Checks before committing:** `npx tsc --noEmit -p .`, `npx eslint src`, `npx vitest run`.
-- **Deploy:** Dokploy builds from `main`. Commit only when asked.
+- **Deploy:** Dokploy builds from `main` with `docker-compose.yml`, which forwards only the variables it lists under `environment`. A new `process.env.X` needs its line there, or it stays undefined in production even when it's set in Dokploy. Commit only when asked.
