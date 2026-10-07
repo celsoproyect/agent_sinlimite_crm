@@ -7,6 +7,17 @@ describe('bookingReference', () => {
   it('derives a short upper-case code from the booking id', () => {
     expect(bookingReference(ID)).toBe('CITA-3F9A2C')
   })
+
+  it('prefixes tables and events by kind (migration 068)', () => {
+    expect(bookingReference(ID, 'appointment')).toBe('CITA-3F9A2C')
+    expect(bookingReference(ID, 'table')).toBe('RES-3F9A2C')
+    expect(bookingReference(ID, 'event')).toBe('EVT-3F9A2C')
+    expect(bookingReference(ID, null)).toBe('CITA-3F9A2C')
+  })
+
+  it('matches whatever prefix the customer writes', () => {
+    for (const raw of ['RES-3F9A2C', 'evt 3f9a2c', 'CITA-3F9A2C']) expect(referenceMatches(ID, raw)).toBe(true)
+  })
 })
 
 describe('normalizeReference / referenceMatches', () => {

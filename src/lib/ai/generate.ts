@@ -47,6 +47,9 @@ export interface GenerateArgs {
    *  adds the doctor/specialty arguments to the booking tools. Omit for
    *  businesses with a single shared agenda. */
   clinicTool?: BookingSearchTool['clinic']
+  /** Restaurant/events modules: the table and hall tools. Work with or
+   *  without `checkAvailability`. */
+  venueTools?: BookingSearchTool['venue']
   /** True to expose the `set_customer_name` tool — the caller decides
    *  this (typically "the contact has no real name on file yet"). No
    *  executor needed: the adapter only validates and reports the name. */
@@ -82,6 +85,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     bookAppointment,
     manageAppointments,
     clinicTool,
+    venueTools,
     captureCustomerName,
     captureNote,
     customFieldNames,
@@ -96,14 +100,16 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   const attachments: AttachmentSearchTool | undefined = searchAttachments
     ? { execute: searchAttachments }
     : undefined
-  const booking: BookingSearchTool | undefined = checkAvailability
-    ? {
-        execute: checkAvailability,
-        create: bookAppointment,
-        manage: manageAppointments,
-        ...(clinicTool ? { clinic: clinicTool } : {}),
-      }
-    : undefined
+  const hasVenue = !!(venueTools?.restaurant || venueTools?.events)
+  const booking: BookingSearchTool | undefined =
+    checkAvailability || hasVenue
+      ? {
+          ...(checkAvailability ? { execute: checkAvailability, create: bookAppointment } : {}),
+          manage: manageAppointments,
+          ...(checkAvailability && clinicTool ? { clinic: clinicTool } : {}),
+          ...(hasVenue ? { venue: venueTools } : {}),
+        }
+      : undefined
   const nameCapture = !!captureCustomerName
   const noteCapture = !!captureNote
   const sentimentCapture = !!captureSentiment

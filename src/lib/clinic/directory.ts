@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import type { BookingSettings } from '@/types'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import { businessToday } from '@/lib/business-timezone'
+import { preferReal } from '@/lib/samples/prefer-real'
 
 // ============================================================
 // Clinic module (migration 066): doctors ("professionals") with
@@ -61,6 +62,7 @@ interface ProfessionalRow {
   slot_minutes: number | null
   sort_order: number | null
   professional_specialties?: { specialty: { name: string } | null }[] | null
+  is_sample?: boolean
 }
 
 interface TimeOffRow {
@@ -76,6 +78,7 @@ interface ServiceRow {
   duration_minutes: number
   price: number | string | null
   specialty?: { name: string } | null
+  is_sample?: boolean
 }
 
 /** `accounts.clinic_settings` as stored, normalized. */
@@ -112,7 +115,8 @@ export async function getClinicDirectory(
     const [{ data, error }, specialtiesRes, timeOffRes, servicesRes, settingsRes] = await Promise.all([
       db
         .from('professionals')
-        .select('id, name, bio, active, hours, slot_minutes, sort_order, professional_specialties(specialty:specialties(name))')
+        // `*` so `is_sample` (migration 068) comes along when it exists.
+        .select('*, professional_specialties(specialty:specialties(name))')
         .eq('account_id', accountId)
         .eq('active', true)
         .order('sort_order', { ascending: true })
@@ -127,7 +131,7 @@ export async function getClinicDirectory(
         .order('starts_on', { ascending: true }),
       db
         .from('clinic_services')
-        .select('id, name, description, duration_minutes, price, specialty:specialties(name)')
+        .select('*, specialty:specialties(name)')
         .eq('account_id', accountId)
         .eq('active', true)
         .order('sort_order', { ascending: true })
@@ -144,7 +148,7 @@ export async function getClinicDirectory(
       list.push({ from: row.starts_on, to: row.ends_on })
       timeOff.set(row.professional_id, list)
     }
-    const professionals = ((data ?? []) as unknown as ProfessionalRow[]).map((p) => ({
+    const professionals = preferReal((data ?? []) as unknown as ProfessionalRow[]).map((p) => ({
       id: p.id,
       name: p.name,
       bio: p.bio,
@@ -158,7 +162,7 @@ export async function getClinicDirectory(
     }))
     if (professionals.length === 0) return null
     const specialties = ((specialtiesRes.data ?? []) as { name: string }[]).map((s) => s.name)
-    const services = ((servicesRes.error ? [] : (servicesRes.data ?? [])) as unknown as ServiceRow[]).map((s) => ({
+    const services = preferReal((servicesRes.error ? [] : (servicesRes.data ?? [])) as unknown as ServiceRow[]).map((s) => ({
       id: s.id,
       name: s.name,
       description: s.description,

@@ -451,7 +451,23 @@ export interface Deal {
   assignee?: Profile;
 }
 
-export type BookingStatus = 'confirmed' | 'cancelled' | 'completed';
+export type BookingStatus = 'confirmed' | 'cancelled' | 'completed' | 'no_show';
+
+/** Migration 068: an agenda appointment, a restaurant table reservation or
+ *  an event-hall booking. */
+export type BookingKind = 'appointment' | 'table' | 'event';
+
+/** Migration 068: how a party that needs several tables is seated. */
+export type TableSeating = 'single' | 'joined' | 'separate';
+
+/** Migration 068: an event's progress. */
+export type EventStatus = 'requested' | 'quoted' | 'deposit_paid' | 'confirmed' | 'completed' | 'cancelled';
+
+export interface PreorderItem {
+  item: string;
+  qty: number;
+  notes?: string | null;
+}
 
 export interface Booking {
   id: string;
@@ -476,9 +492,156 @@ export interface Booking {
   /** Clinic module (migration 067): health insurance (ARS) + affiliate
    *  number as the customer gave it, or "privado". */
   insurance?: string | null;
+  /** Migration 068. Missing = 'appointment'. */
+  kind?: BookingKind;
+  /** Guests (tables and events). */
+  party_size?: number | null;
+  occasion?: string | null;
+  seating?: TableSeating | null;
+  preorder?: PreorderItem[] | null;
+  /** Created by "Cargar ejemplos": never reminded, removable. */
+  is_sample?: boolean;
+  event_hall_id?: string | null;
+  event_package_id?: string | null;
+  event_type?: string | null;
+  event_status?: EventStatus | null;
+  quote_amount?: number | null;
+  deposit_amount?: number | null;
+  deposit_paid_at?: string | null;
+  currency?: string | null;
+  /** Restaurant: the tables it holds (joined from booking_tables). */
+  table_ids?: string[];
   created_at: string;
   updated_at: string;
   contact?: Contact;
+}
+
+/** Restaurant module (068): a dining area (Salón, Terraza…). */
+export interface RestaurantArea {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  sort_order: number;
+  active: boolean;
+  is_sample?: boolean;
+  created_at: string;
+}
+
+/** Restaurant module (068): a table. */
+export interface RestaurantTable {
+  id: string;
+  account_id: string;
+  area_id?: string | null;
+  name: string;
+  min_party: number;
+  max_party: number;
+  combinable: boolean;
+  active: boolean;
+  sort_order: number;
+  notes?: string | null;
+  is_sample?: boolean;
+  created_at: string;
+}
+
+/** Restaurant module (068): `accounts.restaurant_settings`. */
+export interface RestaurantSettings {
+  /** Length of a reservation unless the customer asks otherwise. */
+  default_duration_minutes: number;
+  min_duration_minutes: number;
+  max_duration_minutes: number;
+  /** Grid of start times offered. */
+  slot_minutes: number;
+  /** Gap kept free between two reservations at the same table. */
+  buffer_minutes: number;
+  /** Bigger parties go to a person instead of the AI. */
+  max_party_ai: number;
+  /** Whether bigger parties may get several tables (joined or apart). */
+  allow_combine: boolean;
+  /** No new reservation starts later than this many minutes before
+   *  closing. */
+  last_seating_minutes: number;
+  /** Whether the AI takes dishes ordered ahead. */
+  allow_preorder: boolean;
+  /** Restaurant hours; null = the agenda's business hours. */
+  hours?: BookingSettings['hours'] | null;
+}
+
+/** Restaurant module (068): someone waiting for a table. */
+export type WaitlistStatus = 'waiting' | 'notified' | 'seated' | 'cancelled' | 'expired';
+export interface WaitlistEntry {
+  id: string;
+  account_id: string;
+  contact_id?: string | null;
+  conversation_id?: string | null;
+  customer_name?: string | null;
+  customer_phone?: string | null;
+  party_size: number;
+  date: string;
+  preferred_time?: string | null;
+  notes?: string | null;
+  status: WaitlistStatus;
+  is_sample?: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Events module (068): a hall. Null approval/deposit = the account's
+ *  event settings. */
+export interface EventHall {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  capacity_min: number;
+  capacity_max: number;
+  price_per_hour?: number | null;
+  min_hours: number;
+  setup_minutes: number;
+  cleanup_minutes: number;
+  requires_approval?: boolean | null;
+  deposit_percent?: number | null;
+  active: boolean;
+  sort_order: number;
+  is_sample?: boolean;
+  created_at: string;
+}
+
+/** Events module (068): what a hall sells (fixed price and/or per person). */
+export interface EventPackage {
+  id: string;
+  account_id: string;
+  hall_id?: string | null;
+  name: string;
+  description?: string | null;
+  price?: number | null;
+  price_per_person?: number | null;
+  min_guests?: number | null;
+  max_guests?: number | null;
+  duration_hours?: number | null;
+  active: boolean;
+  sort_order: number;
+  is_sample?: boolean;
+  created_at: string;
+}
+
+/** Events module (068): `accounts.event_settings`. */
+export interface EventSettings {
+  /** The owner confirms each request before it's final. */
+  requires_approval: boolean;
+  /** A deposit is required to confirm. */
+  deposit_required: boolean;
+  /** Deposit as a percentage of the quote (0–100). */
+  deposit_percent: number;
+  currency: string;
+  /** Requests need at least this many days of notice. */
+  min_notice_days: number;
+  /** How to pay the deposit (bank account, link…), told to the customer. */
+  deposit_instructions: string;
+  /** Kinds of events offered (Boda, Cumpleaños…). */
+  event_types: string[];
+  /** Hours the halls can be used; null = the business hours. */
+  hours?: BookingSettings['hours'] | null;
 }
 
 /** Clinic module (migration 066): a specialty (Pediatría, Cardiología…). */
@@ -504,6 +667,8 @@ export interface Professional {
   slot_minutes?: number | null;
   sort_order: number;
   specialty_ids: string[];
+  /** Migration 068: created by "Cargar ejemplos". */
+  is_sample?: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -561,10 +726,20 @@ export interface BookingSettings {
   holidayNames?: Record<string, string>;
 }
 
+/** Migration 068: 'before' = reminder before it starts, 'after' =
+ *  follow-up after it ends. */
+export type ReminderRuleKind = 'before' | 'after';
+export type ReminderAppliesTo = 'all' | BookingKind;
+
 /** Account-level reminder rule — `booking_reminder_rules` (migration 052). */
 export interface BookingReminderRule {
   id: string;
   account_id: string;
+  /** Migration 068. Missing = 'before'. */
+  kind?: ReminderRuleKind;
+  /** Migration 068. Missing = 'all'. */
+  applies_to?: ReminderAppliesTo;
+  is_sample?: boolean;
   offset_minutes: number;
   message_text: string;
   template_name?: string | null;

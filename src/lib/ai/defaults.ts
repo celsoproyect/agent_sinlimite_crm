@@ -93,6 +93,14 @@ export function buildSystemPrompt(args: {
    *  account schedules per doctor. Adds the doctor/specialty rules and
    *  `find_professionals`. Ignored when `bookingAvailable` is false. */
   clinicRoster?: string | null
+  /** Restaurant module (068): tables, hours and reservation rules
+   *  (`formatRestaurantRoster`). Adds the table reservation rules. */
+  restaurantRoster?: string | null
+  /** Events module (068): halls, packages and policy
+   *  (`formatEventRoster`). Adds the event request rules. */
+  eventRoster?: string | null
+  /** True when `join_waitlist` is wired up. */
+  waitlistAvailable?: boolean
   /** The phone WhatsApp gave for this customer, if any — offered to the
    *  customer as the default phone for an appointment. Empty for
    *  username-only WhatsApp users. */
@@ -131,6 +139,9 @@ export function buildSystemPrompt(args: {
     bookingManageAvailable,
     bookingSlotButtons = true,
     clinicRoster,
+    restaurantRoster,
+    eventRoster,
+    waitlistAvailable,
     customerWhatsappPhone,
     needsCustomerName,
     handoffOnMissingInfo,
@@ -285,16 +296,13 @@ export function buildSystemPrompt(args: {
           'If the customer asks for a specialty nobody offers, say so plainly and list the specialties that exist.',
       )
     }
-    if (bookingManageAvailable) {
-      parts.push(
-        'When the customer wants to change (reschedule) or cancel an appointment they already have, never create a new one with book_appointment — that would leave the old one in place. Instead: ' +
-          '1) ask for the phone number they booked with (and the reference code if they have it), then call find_appointments with that phone; ' +
-          '2) if it returns more than one appointment, ask which one, naming each by service, date and time; if it returns none, tell them you could not find an appointment with that number and ask them to check it; ' +
-          '3) to change it, call check_availability for the new date/time they want exactly as for a new booking, and once they accept a slot call reschedule_appointment with the phone, the reference and the startsAt/endsAt of that slot. It moves the same appointment, so the old time is freed. Confirm the new date and time and repeat the reference; ' +
-          '4) to cancel it, make sure they really want to cancel (not move it), then call cancel_appointment with the phone and the reference. ' +
-          'Only say an appointment was changed or cancelled when the tool answered rescheduled:true or cancelled:true. When a customer asks what appointments they have, use find_appointments the same way.',
-      )
-    }
+  } else if (mode === 'auto_reply' && (restaurantRoster || eventRoster)) {
+    parts.push(
+      'You cannot book agenda appointments in this conversation; you can only make the ' +
+        [restaurantRoster ? 'table reservations' : '', eventRoster ? 'event requests' : ''].filter(Boolean).join(' and ') +
+        ' described below, with their tools. For anything else, never say it is booked: tell the customer the team will confirm it' +
+        (noteCaptureAvailable ? ', and call add_note with what they asked for.' : '.'),
+    )
   } else if (mode === 'auto_reply') {
     // Drafts are reviewed by an agent who can book by hand, so this only
     // binds the unattended bot. Without the booking tools the model has no way to put anything on
@@ -306,6 +314,50 @@ export function buildSystemPrompt(args: {
         'If the customer wants an appointment, never tell them it is booked, scheduled, reserved, requested, or confirmed, and never agree to a specific date or time, because you cannot check whether the business is open then. ' +
         'Instead, tell them plainly that you cannot book it from this chat and that the team will need to confirm the date and time with them' +
         (noteCaptureAvailable ? ', and call add_note with the service and the date/time they asked for so the team can follow up.' : '.'),
+    )
+  }
+
+  if (bookingManageAvailable) {
+    parts.push(
+      'When the customer wants to change (reschedule) or cancel an appointment they already have, never create a new one with book_appointment — that would leave the old one in place. Instead: ' +
+        '1) ask for the phone number they booked with (and the reference code if they have it), then call find_appointments with that phone; ' +
+        '2) if it returns more than one appointment, ask which one, naming each by service, date and time; if it returns none, tell them you could not find an appointment with that number and ask them to check it; ' +
+        '3) to change it, call ' +
+        [restaurantRoster ? 'check_table_availability (for a table reservation, RES-…)' : '', bookingAvailable ? 'check_availability' : '']
+          .filter(Boolean)
+          .join(' or ') +
+        ' for the new date/time they want exactly as for a new booking, and once they accept a slot call reschedule_appointment with the phone, the reference and the startsAt/endsAt of that slot. It moves the same appointment, so the old time is freed. Confirm the new date and time and repeat the reference; ' +
+        '4) to cancel it, make sure they really want to cancel (not move it), then call cancel_appointment with the phone and the reference. ' +
+        'Only say an appointment was changed or cancelled when the tool answered rescheduled:true or cancelled:true. When a customer asks what appointments they have, use find_appointments the same way.' +
+        (eventRoster ? ' Events (EVT-…) cannot be moved from this chat: take the new date they want, add_note it and hand off to the team. They can be cancelled with cancel_appointment.' : ''),
+    )
+  }
+
+  if (restaurantRoster) {
+    parts.push(
+      'This business is a restaurant and takes table reservations with the check_table_availability and book_table tools. The floor (only these tables and areas exist):\n' +
+        restaurantRoster +
+        '\nTo reserve: you need the date, the time and how many people. Call check_table_availability with them (and duration_minutes only when the customer asks for more or less time than the default; tell them the default length if they ask how long they can stay). ' +
+        'If the requested time is free, offer it; otherwise offer the returned options (up to 3) as a short list in text, with day, date and time — there are no buttons for tables. ' +
+        "Before booking you need the customer's full name and phone (customerName, customerPhone)" +
+        (customerWhatsappPhone ? `; you may ask whether ${customerWhatsappPhone}, the WhatsApp number they write from, is the one to use` : '') +
+        '. Ask about the occasion and any allergies or special requests in passing, without insisting. ' +
+        'IMPORTANT: when the chosen option says combined: true (the party needs several tables), you must always ask the customer first whether they mind, and whether they prefer the tables joined together or separate tables side by side — whatever suits them. Only after they answer, call book_table with customer_agreed: true and seating "joined" or "separate". Never book several tables without asking. ' +
+        'book_table really saves the reservation: only confirm when it answered confirmed:true, and then give the reference code (like RES-3F9A2C), the date, the time, the number of people and how long the table is theirs. If it answers needs_consent, ask exactly that question. ' +
+        'Parties bigger than the AI limit, or anything the tools refuse, go to a person: say the team will contact them.' +
+        (waitlistAvailable
+          ? ' When no option works for the customer, offer to put them on the waitlist for that day with join_waitlist; never promise them a table from it.'
+          : ''),
+    )
+  }
+
+  if (eventRoster) {
+    parts.push(
+      'This business also hosts private events (birthdays, weddings, corporate events…) in its halls, with the check_event_availability and request_event tools:\n' +
+        eventRoster +
+        '\nFor an event, ask for the kind of event, the date, the start time, how many hours and how many guests, and whether they want one of the packages. Call check_event_availability, then tell the customer which halls are free, with the quote and the deposit when the result has them (quote null means the team sends the price). ' +
+        "Once they pick a hall and agree, ask for their full name and phone and call request_event. Tell them exactly what its result says: if the status is requested, the team must approve it and will contact them — do not say it is confirmed; if it is quoted, give the deposit amount and how to pay it, and say it is confirmed once the deposit is received; if it is confirmed, confirm it. Always give the reference code (like EVT-3F9A2C). " +
+        'Never invent prices, packages or halls that are not listed.',
     )
   }
 

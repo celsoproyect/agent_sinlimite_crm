@@ -8,6 +8,8 @@ import {
   renderReminderMessage,
   reminderTemplateParams,
   isOutsideSessionWindowError,
+  usesToken,
+  type ReminderMessageVars,
 } from '@/lib/bookings/reminder-message'
 
 /**
@@ -36,6 +38,11 @@ export interface DueReminderRow {
   message_text: string
   template_name: string | null
   template_language: string | null
+  /** Migration 068 (absent before it): what was booked, and whether the
+   *  rule is a reminder (before) or a follow-up (after). */
+  booking_kind?: 'appointment' | 'table' | 'event' | null
+  rule_kind?: 'before' | 'after' | null
+  party_size?: number | null
 }
 
 export interface DrainResult {
@@ -104,6 +111,35 @@ async function bookingDoctorName(admin: SupabaseClient, bookingId: string): Prom
   return professional?.name || undefined
 }
 
+/** Restaurant/events tokens ({{tables}}, {{hall}}, {{deposit}}), loaded
+ *  only when the message uses them. Best-effort: blank on any error. */
+async function venueVars(admin: SupabaseClient, row: DueReminderRow): Promise<Partial<ReminderMessageVars>> {
+  const out: Partial<ReminderMessageVars> = { partySize: row.party_size ?? null }
+  if (row.booking_kind === 'table' && usesToken(row.message_text, 'tables')) {
+    const { data } = await admin
+      .from('booking_tables')
+      .select('table:restaurant_tables(name)')
+      .eq('booking_id', row.booking_id)
+    const names = ((data ?? []) as unknown as { table?: { name?: string } | null }[])
+      .map((r) => r.table?.name)
+      .filter((n): n is string => !!n)
+    if (names.length) out.tables = names.join(' + ')
+  }
+  if (row.booking_kind === 'event' && (usesToken(row.message_text, 'hall') || usesToken(row.message_text, 'deposit'))) {
+    const { data } = await admin
+      .from('bookings')
+      .select('deposit_amount, currency, hall:event_halls(name)')
+      .eq('id', row.booking_id)
+      .maybeSingle()
+    const b = data as unknown as { deposit_amount?: number | null; currency?: string | null; hall?: { name?: string } | null } | null
+    if (b?.hall?.name) out.hall = b.hall.name
+    if (b?.deposit_amount != null) {
+      out.deposit = `${b.currency || 'DOP'} ${Number(b.deposit_amount).toLocaleString('en-US', { maximumFractionDigits: 2 })}`
+    }
+  }
+  return out
+}
+
 async function sendReminder(
   admin: SupabaseClient,
   row: DueReminderRow,
@@ -125,12 +161,13 @@ async function sendReminder(
     throw err
   })
 
-  const vars = {
+  const vars: ReminderMessageVars = {
     contactName: row.contact_name || row.contact_phone || '',
     service: row.service || '',
     startsAt: row.starts_at,
-    reference: bookingReference(row.booking_id),
-    doctor: /\{\{\s*doctor\s*\}\}/.test(row.message_text) ? await bookingDoctorName(admin, row.booking_id) : undefined,
+    reference: bookingReference(row.booking_id, row.booking_kind),
+    doctor: usesToken(row.message_text, 'doctor') ? await bookingDoctorName(admin, row.booking_id) : undefined,
+    ...(row.booking_kind && row.booking_kind !== 'appointment' ? await venueVars(admin, row) : {}),
   }
 
   try {

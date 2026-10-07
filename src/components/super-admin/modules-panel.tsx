@@ -10,6 +10,9 @@ import {
   Send,
   Stethoscope,
   Globe,
+  UtensilsCrossed,
+  PartyPopper,
+  ListOrdered,
   Bell,
   Bot,
   Calendar,
@@ -58,6 +61,9 @@ const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string }> = {
   widget_booking: { icon: Globe, labelKey: "widgetBookingModule" },
   google_calendar: { icon: CalendarCheck2, labelKey: "googleCalendarModule" },
   clinic: { icon: Stethoscope, labelKey: "clinicModule" },
+  restaurant: { icon: UtensilsCrossed, labelKey: "restaurant" },
+  events: { icon: PartyPopper, labelKey: "events" },
+  waitlist: { icon: ListOrdered, labelKey: "waitlistModule" },
   automations: { icon: Zap, labelKey: "automations" },
   flows: { icon: Workflow, labelKey: "flows" },
   agents: { icon: Bot, labelKey: "aiAgents" },
@@ -191,7 +197,7 @@ export function ModulesPanel() {
                         </span>
                       </div>
                       <Switch
-                        checked={draft[key] ?? true}
+                        checked={draft[key] ?? isModuleEnabled(null, key)}
                         onCheckedChange={(v) =>
                           setDraft((prev) => ({ ...prev, [key]: !!v }))
                         }

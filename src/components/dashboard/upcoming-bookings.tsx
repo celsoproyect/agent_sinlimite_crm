@@ -112,7 +112,7 @@ export function UpcomingBookings() {
                   <p className="truncate text-xs text-muted-foreground">{b.service}</p>
                 </div>
                 <span className="hidden rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-foreground sm:inline">
-                  {bookingReference(b.id)}
+                  {bookingReference(b.id, b.kind)}
                 </span>
               </li>
             )

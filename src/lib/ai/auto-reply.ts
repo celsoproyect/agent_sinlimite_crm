@@ -16,6 +16,7 @@ import {
 import { generateReply } from './generate'
 import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { buildSystemPrompt } from './defaults'
+import { agendaModuleOn, loadVenue, venuePromptOptions, venueTools } from './venue'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
@@ -199,11 +200,13 @@ export async function dispatchInboundToAiReply(
       knowledge,
       knowledgeBases,
       attachmentRoster,
-      bookingAvailable,
+      hoursSaved,
       businessHoursSummary,
       customFieldRoster,
       leadStageRoster,
       clinic,
+      venue,
+      agendaOn,
     ] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
@@ -216,7 +219,12 @@ export async function dispatchInboundToAiReply(
         : Promise.resolve([]),
       // Clinic module: per-doctor agendas (null = one shared agenda).
       getClinicDirectory(db, accountId),
+      // Restaurant/events modules: tables and halls (null while off).
+      loadVenue(db, accountId),
+      agendaModuleOn(db, accountId),
     ])
+    const bookingAvailable = hoursSaved && agendaOn
+    const venueOn = !!(venue.restaurant || venue.events)
     const attachmentsEnabled = attachmentRoster.length > 0
     const customFieldNames = customFieldRoster.map((f) => f.field_name)
     const leadStageNames = leadStageRoster.map((s) => s.name)
@@ -231,8 +239,9 @@ export async function dispatchInboundToAiReply(
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
       businessHoursSummary,
-      bookingManageAvailable: bookingAvailable,
+      bookingManageAvailable: bookingAvailable || venueOn,
       clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+      ...venuePromptOptions(venue),
       customerWhatsappPhone: contactRow?.phone || null,
       needsCustomerName,
       handoffOnMissingInfo: config.handoffOnMissingInfo,
@@ -267,10 +276,20 @@ export async function dispatchInboundToAiReply(
           ? (appointment) =>
               confirmAiBooking(db, { accountId, contactId, conversationId, appointment, directory: clinic })
           : undefined,
-        manageAppointments: bookingAvailable
+        venueTools: venueTools(db, venue, { accountId, contactId, conversationId, write: true }),
+        manageAppointments:
+          bookingAvailable || venueOn
           ? {
               find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone, directory: clinic }),
-              reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
+              reschedule: (a) =>
+                rescheduleAiBooking(db, {
+                  accountId,
+                  contactId,
+                  conversationId,
+                  ...a,
+                  directory: clinic,
+                  restaurant: venue.restaurant,
+                }),
               cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
             }
           : undefined,

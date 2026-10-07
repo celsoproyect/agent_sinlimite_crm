@@ -45,6 +45,7 @@ const STATUS_TONE: Record<Booking["status"], string> = {
   confirmed: "bg-emerald-500/10 text-emerald-600",
   completed: "bg-blue-500/10 text-blue-600",
   cancelled: "bg-rose-500/10 text-rose-600",
+  no_show: "bg-amber-500/10 text-amber-600",
 };
 
 interface BookingListProps {
@@ -77,7 +78,7 @@ export function BookingList({
 
   useEffect(() => {
     let cancelled = false;
-    fetchBookings(range).then((list) => {
+    fetchBookings(range, "appointment").then((list) => {
       if (!cancelled) setBookings(list);
     });
     return () => {
@@ -104,7 +105,7 @@ export function BookingList({
       })
       .filter((b) => {
         if (!q) return true;
-        const haystack = [bookingDisplayName(b), b.service, bookingReference(b.id)]
+        const haystack = [bookingDisplayName(b), b.service, bookingReference(b.id, b.kind)]
           .join(" ")
           .toLowerCase();
         if (haystack.includes(q)) return true;
@@ -264,7 +265,7 @@ export function BookingList({
                       </span>
                     </span>
                     <span className="rounded-md bg-muted px-2 py-0.5 font-mono text-xs text-foreground">
-                      {bookingReference(b.id)}
+                      {bookingReference(b.id, b.kind)}
                     </span>
                     <span
                       className={cn(

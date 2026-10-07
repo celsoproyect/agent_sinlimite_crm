@@ -19,6 +19,7 @@ import {
   type ClinicProfessional,
   type ClinicService,
 } from '@/lib/clinic/directory'
+import { rescheduleTableReservation, type RestaurantDirectory } from '@/lib/restaurant/engine'
 import type { AvailabilityResult, BookingAppointment, ManagedBooking, TimeSlot } from './types'
 
 type Weekday =
@@ -40,7 +41,7 @@ const WEEKDAY_BY_JS_INDEX: Weekday[] = [
   'saturday',
 ]
 
-interface BookingSettingsRow {
+export interface BookingSettingsRow {
   slotMinutes?: number
   bufferMinutes?: number
   hours?: Partial<Record<Weekday, { open: string; close: string } | null>>
@@ -73,7 +74,7 @@ const WEEKDAY_ORDER: Weekday[] = [
   'sunday',
 ]
 
-async function loadBookingSettings(
+export async function loadBookingSettings(
   db: SupabaseClient,
   accountId: string,
 ): Promise<BookingSettingsRow | null> {
@@ -151,7 +152,7 @@ function holidayLabel(settings: BookingSettingsRow, dateISO: string): string {
 }
 
 /** The holiday on `dateISO`, or null when it is not one. */
-function holidayOn(settings: BookingSettingsRow | null, dateISO: string): { date: string; name?: string } | null {
+export function holidayOn(settings: BookingSettingsRow | null, dateISO: string): { date: string; name?: string } | null {
   if (!settings?.holidays?.includes(dateISO)) return null
   const name = settings.holidayNames?.[dateISO]?.trim()
   return name ? { date: dateISO, name } : { date: dateISO }
@@ -243,13 +244,22 @@ async function loadBookedRows(
   // booking that STARTED before the range can still run into it, and
   // `starts_at >= from` alone would miss it and hand the customer a slot
   // that is already taken.
-  const { data, error } = await db
-    .from('bookings')
-    .select(withProfessional ? 'id, starts_at, ends_at, professional_id' : 'id, starts_at, ends_at')
-    .eq('account_id', accountId)
-    .neq('status', 'cancelled')
-    .gte('starts_at', new Date(from - 86_400_000).toISOString())
-    .lt('starts_at', new Date(to).toISOString())
+  // Only agenda appointments: restaurant tables and event halls
+  // (migration 068) have their own availability and never block it.
+  const query = (byKind: boolean) => {
+    let q = db
+      .from('bookings')
+      .select(withProfessional ? 'id, starts_at, ends_at, professional_id' : 'id, starts_at, ends_at')
+      .eq('account_id', accountId)
+      .not('status', 'in', '(cancelled,no_show)')
+      .gte('starts_at', new Date(from - 86_400_000).toISOString())
+      .lt('starts_at', new Date(to).toISOString())
+    // Example bookings ("Cargar ejemplos") never take a real slot.
+    if (byKind) q = q.eq('kind', 'appointment').eq('is_sample', false)
+    return q
+  }
+  let { data, error } = await query(true)
+  if (error?.code === '42703') ({ data, error } = await query(false))
   if (error) return null
   return ((data ?? []) as unknown as { id: string; starts_at: string; ends_at: string; professional_id?: string | null }[])
     .filter((b) => !excludeId || b.id !== excludeId)
@@ -889,6 +899,10 @@ interface CustomerBookingRow {
   id: string
   contact_id: string
   service: string
+  /** Migration 068: appointment, table or event. */
+  kind?: string | null
+  party_size?: number | null
+  event_status?: string | null
   starts_at: string
   ends_at: string
   customer_name?: string | null
@@ -915,7 +929,8 @@ async function loadCustomerBookings(
       .limit(500)
   // Newest columns first, dropping them while the migrations that add
   // them (066, then 062) haven't run.
-  let { data, error } = await query(`${base}, customer_name, customer_phone, professional_id`)
+  let { data, error } = await query(`${base}, customer_name, customer_phone, professional_id, kind, party_size, event_status`)
+  if (error?.code === '42703') ({ data, error } = await query(`${base}, customer_name, customer_phone, professional_id`))
   if (error?.code === '42703') ({ data, error } = await query(`${base}, customer_name, customer_phone`))
   if (error?.code === '42703') ({ data, error } = await query(base))
   if (error) {
@@ -933,8 +948,10 @@ async function loadCustomerBookings(
 function toManaged(b: CustomerBookingRow, directory?: ClinicDirectory | null): ManagedBooking {
   const professional =
     directory && b.professional_id ? directory.professionals.find((p) => p.id === b.professional_id) : undefined
+  const kind = (b.kind ?? 'appointment') as ManagedBooking['kind']
   return {
-    reference: bookingReference(b.id),
+    reference: bookingReference(b.id, kind),
+    kind,
     service: b.service,
     startsAt: b.starts_at,
     endsAt: b.ends_at,
@@ -942,6 +959,8 @@ function toManaged(b: CustomerBookingRow, directory?: ClinicDirectory | null): M
     time: businessTime(b.starts_at),
     customerName: b.customer_name || b.contact?.name || null,
     ...(professional ? { professional: professional.name } : {}),
+    ...(b.party_size ? { partySize: b.party_size } : {}),
+    ...(b.event_status ? { eventStatus: b.event_status } : {}),
   }
 }
 
@@ -1021,6 +1040,11 @@ export async function rescheduleAiBooking(
     /** Clinic module: move it to this doctor (default: the same one). */
     professionalId?: string
     directory?: ClinicDirectory | null
+    /** Restaurant module: moving a table reservation re-picks tables. */
+    restaurant?: RestaurantDirectory | null
+    /** Table reservations: the customer agreed to several tables. */
+    customerAgreed?: boolean
+    seating?: 'joined' | 'separate'
   },
 ): Promise<{
   rescheduled: boolean
@@ -1033,6 +1057,14 @@ export async function rescheduleAiBooking(
     const picked = await pickCustomerBooking(db, args)
     if ('error' in picked) return { rescheduled: false, ...picked }
     const booking = picked.booking
+
+    if (booking.kind === 'event') {
+      return {
+        rescheduled: false,
+        error: 'events are changed by the team: take the new date and time the customer wants and hand off to a person',
+      }
+    }
+    if (booking.kind === 'table') return await rescheduleTable(db, args, booking)
 
     let professional: ClinicProfessional | null = null
     if (args.directory) {
@@ -1092,8 +1124,55 @@ export async function rescheduleAiBooking(
   }
 }
 
+/** Move a table reservation: same party and length, tables re-picked. */
+async function rescheduleTable(
+  db: SupabaseClient,
+  args: {
+    accountId: string
+    conversationId: string
+    startsAt: string
+    restaurant?: RestaurantDirectory | null
+    customerAgreed?: boolean
+    seating?: 'joined' | 'separate'
+  },
+  booking: CustomerBookingRow,
+): Promise<{ rescheduled: boolean; error?: string; appointment?: BookingAppointment }> {
+  if (!args.restaurant) return { rescheduled: false, error: 'table reservations cannot be changed right now: hand off to a person' }
+  const durationMinutes = Math.round((new Date(booking.ends_at).getTime() - new Date(booking.starts_at).getTime()) / 60_000)
+  const moved = await rescheduleTableReservation(db, {
+    accountId: args.accountId,
+    dir: args.restaurant,
+    bookingId: booking.id,
+    startsAt: args.startsAt,
+    partySize: booking.party_size ?? 2,
+    durationMinutes,
+    customerAgreed: args.customerAgreed,
+    seating: args.seating,
+  })
+  if (!moved.rescheduled) return { rescheduled: false, error: moved.error }
+  const reference = bookingReference(booking.id, 'table')
+  await annotate(
+    db,
+    args.conversationId,
+    `Rescheduled reservation ${reference} from ${businessDate(booking.starts_at)} ${businessTime(booking.starts_at)} to ${businessDate(args.startsAt)} ${businessTime(args.startsAt)}`,
+    { kind: 'booking_rescheduled', reference, previousStartsAt: booking.starts_at, startsAt: args.startsAt, endsAt: moved.endsAt },
+  )
+  return {
+    rescheduled: true,
+    appointment: {
+      startsAt: args.startsAt,
+      endsAt: moved.endsAt ?? booking.ends_at,
+      service: booking.service,
+      reference,
+      customerName: booking.customer_name || booking.contact?.name || undefined,
+    },
+  }
+}
+
 /** Cancel an existing appointment the customer identified by phone (and
- *  reference). */
+ *  reference). Works for every kind: a table reservation's tables are
+ *  freed by the sync_booking_tables trigger, an event's hall by its
+ *  status. */
 export async function cancelAiBooking(
   db: SupabaseClient,
   args: {
@@ -1112,7 +1191,11 @@ export async function cancelAiBooking(
 
     const { data: rows, error } = await db
       .from('bookings')
-      .update({ status: 'cancelled', updated_at: new Date().toISOString() })
+      .update({
+        status: 'cancelled',
+        updated_at: new Date().toISOString(),
+        ...(booking.kind === 'event' ? { event_status: 'cancelled' } : {}),
+      })
       .eq('id', booking.id)
       .eq('account_id', args.accountId)
       .select('id')
@@ -1120,9 +1203,9 @@ export async function cancelAiBooking(
       console.error('[ai booking] cancel update failed:', error)
       return { cancelled: false, error: 'the appointment could not be cancelled' }
     }
-    void syncBookingToGoogle(booking.id)
+    if (booking.kind !== 'table') void syncBookingToGoogle(booking.id)
 
-    const reference = bookingReference(booking.id)
+    const reference = bookingReference(booking.id, booking.kind)
     await annotate(
       db,
       args.conversationId,

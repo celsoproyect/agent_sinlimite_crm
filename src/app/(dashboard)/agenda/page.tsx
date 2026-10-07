@@ -88,7 +88,7 @@ export default function AgendaPage() {
     if (!clinicActive) return;
     let cancelled = false;
     (async () => {
-      const params = new URLSearchParams({ from: new Date().toISOString() });
+      const params = new URLSearchParams({ from: new Date().toISOString(), kind: "appointment" });
       const res = await fetch(`/api/bookings?${params.toString()}`).catch(() => null);
       if (!res?.ok || cancelled) return;
       const json = await res.json();
@@ -133,6 +133,7 @@ export default function AgendaPage() {
 
   const loadBookings = useCallback(async () => {
     const params = rangeToParams({ from: weekStart, to: addDaysISO(weekStart, 6) });
+    params.set("kind", "appointment");
     const res = await fetch(`/api/bookings?${params.toString()}`);
     if (!res.ok) return [];
     const json = await res.json();
@@ -407,7 +408,7 @@ export default function AgendaPage() {
         />
       )}
       {canEditSettings && (
-        <ReminderRulesSettings open={remindersOpen} onOpenChange={setRemindersOpen} />
+        <ReminderRulesSettings open={remindersOpen} onOpenChange={setRemindersOpen} scope="appointment" />
       )}
       {canEditSettings && clinicModule && (
         <ClinicDirectoryDialog
@@ -421,6 +422,7 @@ export default function AgendaPage() {
           timeOff={clinic.timeOff}
           settings={clinic.settings}
           onChanged={clinic.reload}
+          onSamplesChanged={refreshBookings}
         />
       )}
       {canEditSettings && googleModule && (

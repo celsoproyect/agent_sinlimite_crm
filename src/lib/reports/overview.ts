@@ -220,6 +220,19 @@ async function paged<T>(
   }
 }
 
+/** Leave out "Cargar ejemplos" rows (migration 068); before the
+ *  migration there is no is_sample column, so read everything. */
+async function pagedReal<T>(
+  run: (realOnly: boolean, from: number, to: number) => PromiseLike<{ data: T[] | null; error: PgError | null }>,
+): Promise<T[]> {
+  try {
+    return await paged((from, to) => run(true, from, to))
+  } catch (err) {
+    if (!isMissingColumn(err)) throw err
+    return paged((from, to) => run(false, from, to))
+  }
+}
+
 function chunks<T>(list: T[], size = IN_CHUNK): T[][] {
   const out: T[][] = []
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
@@ -298,16 +311,16 @@ async function loadNewContactChannels(
   channel: ReportChannel,
 ): Promise<string[]> {
   const { fromISO, toISO } = rangeInstants(range)
-  const contacts = await paged<{ id: string }>((from, to) =>
-    db
+  const contacts = await pagedReal<{ id: string }>((realOnly, from, to) => {
+    let q = db
       .from('contacts')
       .select('id')
       .eq('account_id', accountId)
       .gte('created_at', fromISO)
       .lt('created_at', toISO)
-      .order('created_at', { ascending: true })
-      .range(from, to),
-  )
+    if (realOnly) q = q.eq('is_sample', false)
+    return q.order('created_at', { ascending: true }).range(from, to)
+  })
   if (contacts.length === 0) return []
   const firstChannel = firstChannelByContact(
     await conversationsForContacts(db, accountId, contacts.map((c) => c.id)),
@@ -403,17 +416,17 @@ async function loadBookingCounts(
   channel: ReportChannel,
 ): Promise<{ total: number; byAi: number }> {
   const { fromISO, toISO } = rangeInstants(range)
-  const rows = await paged<{ created_by: string | null; conversation_id: string | null }>((from, to) =>
-    db
+  const rows = await pagedReal<{ created_by: string | null; conversation_id: string | null }>((realOnly, from, to) => {
+    let q = db
       .from('bookings')
       .select('created_by, conversation_id')
       .eq('account_id', accountId)
-      .neq('status', 'cancelled')
+      .not('status', 'in', '(cancelled,no_show)')
       .gte('created_at', fromISO)
       .lt('created_at', toISO)
-      .order('created_at', { ascending: true })
-      .range(from, to),
-  )
+    if (realOnly) q = q.eq('is_sample', false)
+    return q.order('created_at', { ascending: true }).range(from, to)
+  })
   let filtered = rows
   if (channel !== 'all') {
     const convIds = [...new Set(rows.map((r) => r.conversation_id).filter((id): id is string => !!id))]

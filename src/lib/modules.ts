@@ -19,6 +19,11 @@
 // `telegram` covers everything Telegram: handoff and lead alerts, the
 // owner assistant and the weekly summary. `clinic` adds doctors with
 // specialties, each with their own agenda (Agenda → Doctores).
+// `restaurant` (/restaurant: tables, reservations, waitlist) and `events`
+// (/events: halls, packages, event requests) are page modules that start
+// OFF (DEFAULT_OFF_MODULES): most businesses don't need them, so they're
+// only on once a super admin switches them on. `waitlist` is a feature
+// module on top of `restaurant`.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -34,6 +39,9 @@ export const MODULE_KEYS = [
   "widget_booking",
   "google_calendar",
   "clinic",
+  "restaurant",
+  "events",
+  "waitlist",
   "automations",
   "flows",
   "agents",
@@ -47,13 +55,21 @@ export function isModuleKey(value: string): value is ModuleKey {
   return (MODULE_KEYS as readonly string[]).includes(value);
 }
 
-/** Shape of `accounts.enabled_modules`. Only `false` is meaningful. */
+/** Shape of `accounts.enabled_modules`. */
 export type EnabledModules = Partial<Record<ModuleKey, boolean>>;
 
-/** Missing key = enabled. Only an explicit `false` disables a module. */
+/** Modules that are off until a super admin switches them on. */
+export const DEFAULT_OFF_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
+  "restaurant",
+  "events",
+]);
+
+/** Missing key = enabled, except for DEFAULT_OFF_MODULES, which need an
+ *  explicit `true`. */
 export function isModuleEnabled(
   enabledModules: EnabledModules | null | undefined,
   key: ModuleKey,
 ): boolean {
+  if (DEFAULT_OFF_MODULES.has(key)) return enabledModules?.[key] === true;
   return enabledModules?.[key] !== false;
 }

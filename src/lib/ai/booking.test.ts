@@ -45,16 +45,12 @@ function makeDb(opts: FakeOpts = {}) {
         }
       }
       if (table === 'bookings') {
+        // Any chain of filters (eq/not/gte/lt…) resolves to the bookings.
+        const chain: Record<string, unknown> = {}
+        for (const m of ['eq', 'neq', 'not', 'gte', 'lt', 'in']) chain[m] = () => chain
+        chain.then = (resolve: (v: unknown) => unknown) => resolve({ data: opts.bookings ?? [], error: null })
         return {
-          select: () => ({
-            eq: () => ({
-              neq: () => ({
-                gte: () => ({
-                  lt: async () => ({ data: opts.bookings ?? [], error: null }),
-                }),
-              }),
-            }),
-          }),
+          select: () => chain,
           insert: (row: Record<string, unknown>) => {
             inserts.push({ table, row })
             const code = queuedErrors.shift() ?? opts.insertErrorCode

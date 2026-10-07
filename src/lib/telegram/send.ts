@@ -106,6 +106,13 @@ export async function notifyOwnerOfHandoff(
   accountId: string,
   args: { contactName: string; summary: string; conversationId: string },
 ): Promise<void> {
+  await notifyOwner(db, accountId, `🔔 ${args.contactName} necesita un agente humano.\n\n${args.summary}`)
+}
+
+/** Best-effort Telegram alert to the owner (handoffs, event requests…).
+ *  No-ops unless the telegram module and notifications are on. Never
+ *  throws. */
+export async function notifyOwner(db: SupabaseClient, accountId: string, text: string): Promise<void> {
   try {
     const { data: account, error } = await db
       .from('accounts')
@@ -113,12 +120,12 @@ export async function notifyOwnerOfHandoff(
       .eq('id', accountId)
       .maybeSingle()
     if (error || !account) {
-      console.warn('[telegram] notifyOwnerOfHandoff: could not load account row', { accountId, error })
+      console.warn('[telegram] notifyOwner: could not load account row', { accountId, error })
       return
     }
     if (!isModuleEnabled(account.enabled_modules as EnabledModules | null, 'telegram')) return
     if (!account.telegram_notify_enabled || !account.telegram_bot_token || !account.telegram_chat_id) {
-      console.warn('[telegram] notifyOwnerOfHandoff: skipped — notifications not configured/enabled', {
+      console.warn('[telegram] notifyOwner: skipped — notifications not configured/enabled', {
         accountId,
         notifyEnabled: account.telegram_notify_enabled,
         hasBotToken: Boolean(account.telegram_bot_token),
@@ -130,10 +137,10 @@ export async function notifyOwnerOfHandoff(
     await sendTelegramMessage({
       botToken: account.telegram_bot_token,
       chatId: account.telegram_chat_id,
-      text: `🔔 ${args.contactName} necesita un agente humano.\n\n${args.summary}`,
+      text,
     })
   } catch (err) {
-    console.error('[telegram] notifyOwnerOfHandoff failed:', err)
+    console.error('[telegram] notifyOwner failed:', err)
   }
 }
 

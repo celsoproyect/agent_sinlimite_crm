@@ -25,9 +25,22 @@ export interface ReminderMessageVars {
   reference?: string
   /** The doctor's name (clinic module), for {{doctor}}. */
   doctor?: string
+  /** Restaurant/events (migration 068): people or guests, for {{party_size}}. */
+  partySize?: number | null
+  /** Table names ("Mesa 4 + Mesa 5"), for {{tables}}. */
+  tables?: string
+  /** Event hall name, for {{hall}}. */
+  hall?: string
+  /** Event deposit, already formatted ("DOP 6,000"), for {{deposit}}. */
+  deposit?: string
 }
 
-const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time|reference|doctor)\s*\}\}/g
+const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time|reference|doctor|party_size|tables|hall|deposit)\s*\}\}/g
+
+/** Tokens the drain only fills (with an extra query) when the message uses them. */
+export function usesToken(text: string, token: string): boolean {
+  return new RegExp(`\\{\\{\\s*${token}\\s*\\}\\}`).test(text)
+}
 
 export function renderReminderMessage(text: string, vars: ReminderMessageVars): string {
   const { date, time } = splitIsoDateTime(vars.startsAt)
@@ -39,6 +52,11 @@ export function renderReminderMessage(text: string, vars: ReminderMessageVars): 
     ...(vars.reference ? { reference: vars.reference } : {}),
     // An appointment with no doctor: blank, never the raw token.
     doctor: vars.doctor ?? '',
+    // Blank when the booking has none (an appointment has no tables).
+    party_size: vars.partySize ? String(vars.partySize) : '',
+    tables: vars.tables ?? '',
+    hall: vars.hall ?? '',
+    deposit: vars.deposit ?? '',
   }
   return text.replace(TOKEN_PATTERN, (match, key: string) => values[key] ?? match)
 }

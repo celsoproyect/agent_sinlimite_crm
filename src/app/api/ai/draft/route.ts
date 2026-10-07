@@ -9,6 +9,7 @@ import { bookingEnabled, checkAvailability } from '@/lib/ai/booking'
 import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
+import { agendaModuleOn, loadVenue, venuePromptOptions, venueTools } from '@/lib/ai/venue'
 import { latestUserMessage } from '@/lib/ai/query'
 import { logAiUsage } from '@/lib/ai/usage'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
@@ -97,12 +98,13 @@ export async function POST(request: Request) {
 
     // Ground the draft in the account's knowledge base (best-effort —
     // returns [] when there's no KB or retrieval fails).
-    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable, clinic] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable, clinic, venue] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(supabase, accountId),
       getAttachmentRoster(supabase, accountId),
-      bookingEnabled(supabase, accountId),
+      Promise.all([bookingEnabled(supabase, accountId), agendaModuleOn(supabase, accountId)]).then(([h, a]) => h && a),
       getClinicDirectory(supabase, accountId),
+      loadVenue(supabase, accountId),
     ])
     const attachmentsEnabled = attachmentRoster.length > 0
 
@@ -116,6 +118,7 @@ export async function POST(request: Request) {
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
       clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+      ...venuePromptOptions(venue),
     })
 
     // Note: check_availability is read-only (no DB write) so it's safe to
@@ -140,6 +143,8 @@ export async function POST(request: Request) {
             checkAvailability(supabase, accountId, date, time, 3, { directory: clinic, professionalId, specialty, serviceId })
         : undefined,
       clinicTool: bookingAvailable && clinic ? clinicSearchTool(clinic) : undefined,
+      // Read-only: tables/halls are checked, nothing is reserved.
+      venueTools: venueTools(supabase, venue, { accountId, contactId: null, conversationId: null, write: false }),
     })
 
     // Record spend on the account's BYO key. Best-effort + via the

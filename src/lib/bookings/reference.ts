@@ -5,25 +5,42 @@
 // every booking — old ones included — has one without a stored column.
 // It is only ever used together with the customer's phone number, which
 // scopes the lookup to a handful of bookings, so 6 hex chars are plenty.
+// The prefix tells the kind apart (migration 068): CITA- for an agenda
+// appointment, RES- for a restaurant table, EVT- for an event. Matching
+// ignores the prefix, so a customer who writes the wrong one still finds
+// it.
 // ============================================================
 
-const REFERENCE_PREFIX = 'CITA-'
+const REFERENCE_PREFIX: Record<string, string> = {
+  appointment: 'CITA-',
+  table: 'RES-',
+  event: 'EVT-',
+}
 
-/** `3f9a2c1e-…` → `CITA-3F9A2C`. */
-export function bookingReference(bookingId: string): string {
-  return REFERENCE_PREFIX + bookingId.replace(/-/g, '').slice(0, 6).toUpperCase()
+function referenceCode(bookingId: string): string {
+  return bookingId.replace(/-/g, '').slice(0, 6).toUpperCase()
+}
+
+/** `3f9a2c1e-…` → `CITA-3F9A2C` (`RES-…` for a table, `EVT-…` for an
+ *  event). */
+export function bookingReference(bookingId: string, kind?: string | null): string {
+  return (REFERENCE_PREFIX[kind ?? 'appointment'] ?? REFERENCE_PREFIX.appointment) + referenceCode(bookingId)
 }
 
 /** Normalize what a customer typed ("cita 3f9a2c", "#3F9A2C",
- *  "CITA-3F9A2C") down to the 6-char code, or '' when it can't be one. */
+ *  "CITA-3F9A2C", "RES-3F9A2C") down to the 6-char code, or '' when it
+ *  can't be one. */
 export function normalizeReference(raw: string): string {
-  const cleaned = raw.toUpperCase().replace(/^\s*#?\s*CITA[\s-]*/, '').replace(/[^0-9A-F]/g, '')
+  const cleaned = raw
+    .toUpperCase()
+    .replace(/^\s*#?\s*(CITA|RES|EVT)[\s-]*/, '')
+    .replace(/[^0-9A-F]/g, '')
   return cleaned.length === 6 ? cleaned : ''
 }
 
 export function referenceMatches(bookingId: string, raw: string): boolean {
   const code = normalizeReference(raw)
-  return !!code && bookingReference(bookingId) === REFERENCE_PREFIX + code
+  return !!code && referenceCode(bookingId) === code
 }
 
 /** Digits only. */

@@ -34,7 +34,7 @@ export function BookingStats({ refreshKey, onPick }: BookingStatsProps) {
   useEffect(() => {
     let cancelled = false;
     const to = weekEnd > month.to ? weekEnd : month.to;
-    fetchBookings({ from: month.from, to }).then((list) => {
+    fetchBookings({ from: month.from, to }, "appointment").then((list) => {
       if (cancelled) return;
       setBookings(list);
       setLoadedAt(Date.now());

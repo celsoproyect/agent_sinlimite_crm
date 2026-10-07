@@ -3,7 +3,28 @@ import {
   renderReminderMessage,
   reminderTemplateParams,
   isOutsideSessionWindowError,
+  usesToken,
 } from './reminder-message'
+
+describe('restaurant and event tokens (migration 068)', () => {
+  const vars = { contactName: 'Ana', service: 'Mesa para 4', startsAt: '2026-08-25T23:00:00.000Z' }
+
+  it('fills party size, tables, hall and deposit', () => {
+    const text = '{{party_size}} personas en {{tables}} · {{hall}} · {{deposit}}'
+    expect(
+      renderReminderMessage(text, { ...vars, partySize: 4, tables: 'Mesa 4 + Mesa 5', hall: 'Jardín', deposit: 'DOP 6,000' }),
+    ).toBe('4 personas en Mesa 4 + Mesa 5 · Jardín · DOP 6,000')
+  })
+
+  it('blanks them when the booking has none', () => {
+    expect(renderReminderMessage('[{{tables}}][{{hall}}][{{deposit}}][{{party_size}}]', vars)).toBe('[][][][]')
+  })
+
+  it('usesToken spots a token with or without spaces', () => {
+    expect(usesToken('Hola {{ tables }}', 'tables')).toBe(true)
+    expect(usesToken('Hola {{tables}}', 'hall')).toBe(false)
+  })
+})
 
 describe('renderReminderMessage', () => {
   it('fills {{doctor}}, and blanks it when the appointment has none', () => {

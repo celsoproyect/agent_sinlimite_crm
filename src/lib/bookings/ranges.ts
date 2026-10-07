@@ -54,8 +54,12 @@ export function rangeToParams(range: DayRange): URLSearchParams {
   return new URLSearchParams({ from: from.toISOString(), to: to.toISOString() })
 }
 
-export async function fetchBookings(range: DayRange): Promise<Booking[]> {
-  const res = await fetch(`/api/bookings?${rangeToParams(range).toString()}`)
+/** Bookings in a range; `kind` (migration 068) narrows to appointments,
+ *  table reservations or events. */
+export async function fetchBookings(range: DayRange, kind?: Booking['kind']): Promise<Booking[]> {
+  const params = rangeToParams(range)
+  if (kind) params.set('kind', kind)
+  const res = await fetch(`/api/bookings?${params.toString()}`)
   if (!res.ok) return []
   const json = await res.json()
   return (json.bookings ?? []) as Booking[]

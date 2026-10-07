@@ -16,6 +16,7 @@ import {
 import { businessDate, businessTime, businessWeekday, normalizeAiTimestamp } from '@/lib/business-timezone'
 import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
 import { shortProfessionalName } from '@/lib/clinic/directory'
+import { runVenueTool, venueToolDefinitions, type VenueTools } from './venue-tools'
 
 // ============================================================
 // Bits shared by the OpenAI + Anthropic adapters.
@@ -65,7 +66,9 @@ export const SEND_ATTACHMENT_TOOL_NAME = 'send_attachment'
  *  confirmed appointments into `ProviderResult.booking` for the caller
  *  (auto-reply) to dispatch after generation finishes. */
 export interface BookingSearchTool {
-  execute: (args: AvailabilityArgs) => Promise<AvailabilityResult>
+  /** Absent when only the restaurant/events tools are on (no agenda
+   *  hours): check_availability and book_appointment are then left out. */
+  execute?: (args: AvailabilityArgs) => Promise<AvailabilityResult>
   /** Writes the booking for `book_appointment`, returning the honest
    *  outcome so the model learns about a rejected/failed booking while
    *  it is still composing its reply. Omitted by callers that only offer
@@ -82,6 +85,8 @@ export interface BookingSearchTool {
    *  `find_professionals` and the doctor/specialty arguments on the
    *  booking tools. */
   clinic?: ProfessionalSearchTool
+  /** Restaurant/events modules (migration 068): table and hall tools. */
+  venue?: VenueTools
 }
 
 /** `check_availability` arguments. `professionalId`/`specialty` only
@@ -116,6 +121,9 @@ export interface BookingManageTool {
     startsAt: string
     endsAt: string
     professionalId?: string
+    /** Table reservations: consent to several tables, and how. */
+    customerAgreed?: boolean
+    seating?: 'joined' | 'separate'
   }) => Promise<{
     rescheduled: boolean
     error?: string
@@ -277,12 +285,15 @@ export async function runManageAppointmentTool(
     }
     const professionalId =
       typeof args.professional_id === 'string' && args.professional_id.trim() ? args.professional_id.trim() : undefined
+    const seating = args.seating === 'joined' || args.seating === 'separate' ? args.seating : undefined
     const { appointment, ...rest } = await tool.reschedule({
       phone,
       reference,
       startsAt,
       endsAt,
       ...(professionalId ? { professionalId } : {}),
+      ...(args.customer_agreed === true ? { customerAgreed: true } : {}),
+      ...(seating ? { seating } : {}),
     })
     return {
       resultJson: JSON.stringify(
@@ -619,6 +630,7 @@ export async function runAvailabilityCheck(
   time?: string,
   clinic: { professionalId?: string; specialty?: string; serviceId?: string } = {},
 ): Promise<{ resultJson: string; offer: TimeSlot[] }> {
+  if (!tool.execute) return { resultJson: JSON.stringify({ available: false }), offer: [] }
   const result = await tool.execute({ date, time, ...clinic })
   return { resultJson: offerToToolResult(result), offer: result.slots }
 }
@@ -728,20 +740,37 @@ export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefi
         }
       : BOOK_APPOINTMENT_PARAMETERS,
   }
-  const defs = [availability, book]
+  const defs = tool.execute ? [availability, book] : []
+  const tables = !!tool.venue?.restaurant
   if (tool.manage) {
     for (const def of MANAGE_APPOINTMENT_TOOLS) {
-      if (clinic && def.name === RESCHEDULE_APPOINTMENT_TOOL_NAME) {
+      if ((clinic || tables) && def.name === RESCHEDULE_APPOINTMENT_TOOL_NAME) {
         defs.push({
           ...def,
+          description: tables
+            ? `${def.description} For a table reservation (RES-…), check the new time with check_table_availability instead; events (EVT-…) are changed by the team.`
+            : def.description,
           parameters: {
             ...def.parameters,
             properties: {
               ...(def.parameters.properties as Record<string, unknown>),
-              professional_id: {
-                ...PROFESSIONAL_ID_PARAM,
-                description: 'Optional. The doctor of the new slot, when it is with a different doctor. Defaults to the same one.',
-              },
+              ...(clinic
+                ? {
+                    professional_id: {
+                      ...PROFESSIONAL_ID_PARAM,
+                      description: 'Optional. The doctor of the new slot, when it is with a different doctor. Defaults to the same one.',
+                    },
+                  }
+                : {}),
+              ...(tables
+                ? {
+                    customer_agreed: {
+                      type: 'boolean',
+                      description: 'Table reservations: true once the customer accepted several tables at the new time.',
+                    },
+                    seating: { type: 'string', enum: ['joined', 'separate'], description: 'Table reservations with several tables.' },
+                  }
+                : {}),
             },
           },
         })
@@ -764,6 +793,7 @@ export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefi
       },
     })
   }
+  if (tool.venue) defs.push(...venueToolDefinitions(tool.venue))
   return defs
 }
 
@@ -778,7 +808,12 @@ export async function runBookingTool(
   rawArgs: unknown,
   outcome: BookingOutcome,
 ): Promise<string | null> {
-  if (name === CHECK_AVAILABILITY_TOOL_NAME) {
+  if (tool.venue) {
+    const venue = await runVenueTool(tool.venue, name, rawArgs)
+    if (venue !== null) return venue
+  }
+
+  if (name === CHECK_AVAILABILITY_TOOL_NAME && tool.execute) {
     const { date, time, professionalId, specialty, serviceId } = parseAvailabilityArgs(rawArgs)
     if (!date) return JSON.stringify({ available: false })
     try {
@@ -797,7 +832,7 @@ export async function runBookingTool(
     }
   }
 
-  if (name === BOOK_APPOINTMENT_TOOL_NAME) {
+  if (name === BOOK_APPOINTMENT_TOOL_NAME && tool.execute) {
     const { resultJson, appointment } = await runBookAppointment(tool, rawArgs)
     if (appointment) outcome.appointment = appointment
     return resultJson

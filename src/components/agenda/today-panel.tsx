@@ -53,7 +53,7 @@ export function TodayPanel({ bookings, onBookingClick }: TodayPanelProps) {
                     {businessTime(b.starts_at)}–{businessTime(b.ends_at)}
                   </span>
                   <span className="font-mono text-[10px] text-muted-foreground">
-                    {bookingReference(b.id)}
+                    {bookingReference(b.id, b.kind)}
                   </span>
                 </div>
                 <p className="mt-0.5 truncate text-sm text-foreground">

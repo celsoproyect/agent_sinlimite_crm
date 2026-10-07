@@ -19,17 +19,29 @@ export async function GET(request: Request) {
     const from = searchParams.get('from')
     const to = searchParams.get('to')
     const contactId = searchParams.get('contact_id')
+    // Migration 068: appointment | table | event. The agenda asks for
+    // appointments only; restaurant and events have their own pages.
+    const kind = searchParams.get('kind')
 
-    let query = supabase
-      .from('bookings')
-      .select('*, contact:contacts(*)')
-      .order('starts_at', { ascending: true })
+    const build = (byKind: boolean) => {
+      let query = supabase
+        .from('bookings')
+        .select('*, contact:contacts(*)')
+        .order('starts_at', { ascending: true })
 
-    if (from) query = query.gte('starts_at', from)
-    if (to) query = query.lte('starts_at', to)
-    if (contactId) query = query.eq('contact_id', contactId)
+      if (from) query = query.gte('starts_at', from)
+      if (to) query = query.lte('starts_at', to)
+      if (contactId) query = query.eq('contact_id', contactId)
+      if (byKind && kind) query = query.eq('kind', kind)
+      return query
+    }
 
-    const { data, error } = await query
+    let { data, error } = await build(true)
+    // Before migration 068 every booking is an appointment.
+    if (error?.code === '42703' && kind) {
+      if (kind !== 'appointment') return NextResponse.json({ bookings: [] })
+      ;({ data, error } = await build(false))
+    }
     if (error) return NextResponse.json({ error: error.message }, { status: 500 })
     return NextResponse.json({ bookings: data ?? [] })
   } catch (err) {

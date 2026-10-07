@@ -25,6 +25,7 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { ClinicInsurancePanel, ClinicServicesPanel, ClinicTimeOffSection } from "./clinic-extra-panels";
+import { SampleDataBar } from "@/components/samples/sample-data-bar";
 
 type Tab = "doctors" | "specialties" | "services" | "insurance";
 const TABS: Tab[] = ["doctors", "specialties", "services", "insurance"];
@@ -101,6 +102,8 @@ interface ClinicDirectoryDialogProps {
   timeOff: ProfessionalTimeOff[];
   settings: ClinicSettings;
   onChanged: () => Promise<void> | void;
+  /** After example data is loaded or removed (the agenda reloads its bookings too). */
+  onSamplesChanged?: () => Promise<void> | void;
 }
 
 /** Clinic module: manage the doctors (with their specialties, own hours
@@ -116,6 +119,7 @@ export function ClinicDirectoryDialog({
   timeOff,
   settings,
   onChanged,
+  onSamplesChanged,
 }: ClinicDirectoryDialogProps) {
   const t = useTranslations("Agenda.clinic");
   const tDays = useTranslations("Agenda.businessHours");
@@ -228,6 +232,17 @@ export function ClinicDirectoryDialog({
             {t("title")}
           </DialogTitle>
         </DialogHeader>
+
+        {migrated && !draft && (
+          <SampleDataBar
+            module="clinic"
+            hasSamples={professionals.some((p) => p.is_sample)}
+            onChanged={async () => {
+              await onChanged();
+              await onSamplesChanged?.();
+            }}
+          />
+        )}
 
         {!migrated ? (
           <p className="rounded-lg border border-amber-500/40 bg-amber-500/10 p-3 text-sm text-foreground">

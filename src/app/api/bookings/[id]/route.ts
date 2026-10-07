@@ -42,7 +42,9 @@ export async function PATCH(
   if (
     body.status === 'confirmed' ||
     body.status === 'cancelled' ||
-    body.status === 'completed'
+    body.status === 'completed' ||
+    // Migration 068: the customer never came.
+    body.status === 'no_show'
   ) {
     update.status = body.status
   }
@@ -73,9 +75,11 @@ export async function PATCH(
       .eq('id', id)
       .eq('account_id', ctx.accountId)
       .maybeSingle()
-    const row = current as { starts_at: string; ends_at: string; professional_id?: string | null; status?: string } | null
+    const row = current as { starts_at: string; ends_at: string; professional_id?: string | null; status?: string; kind?: string } | null
     const professionalId = 'professional_id' in update ? (update.professional_id as string | null) : row?.professional_id
-    if (row && row.status !== 'cancelled') {
+    // Tables and events follow their own hours (their pages check them).
+    const appointment = !row?.kind || row.kind === 'appointment'
+    if (row && appointment && row.status !== 'cancelled') {
       const problem = await checkBookingSchedule(
         ctx.supabase,
         ctx.accountId,
@@ -100,6 +104,10 @@ export async function PATCH(
     // has a live appointment overlapping this time.
     if (error.code === PROFESSIONAL_OVERLAP) {
       return NextResponse.json({ error: 'professional_busy' }, { status: 409 })
+    }
+    // Before migration 068 the status check rejects 'no_show'.
+    if (error.code === '23514' && update.status === 'no_show') {
+      return NextResponse.json({ error: 'needs_migration', code: 'needs_migration' }, { status: 503 })
     }
     return NextResponse.json({ error: error.message }, { status: 500 })
   }

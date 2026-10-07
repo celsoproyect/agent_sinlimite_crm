@@ -190,6 +190,9 @@ interface BookingRow {
   customer_name?: string | null
   customer_phone?: string | null
   google_event_id: string | null
+  /** Migration 068. */
+  kind?: string | null
+  is_sample?: boolean | null
   contact: { name: string | null; phone: string | null } | null
 }
 
@@ -197,7 +200,7 @@ export function bookingToEvent(b: BookingRow) {
   const name = b.customer_name || b.contact?.name || ''
   const phone = b.customer_phone || b.contact?.phone || ''
   const description = [
-    `Referencia: ${bookingReference(b.id)}`,
+    `Referencia: ${bookingReference(b.id, b.kind)}`,
     name && `Cliente: ${name}`,
     phone && `Teléfono: ${phone}`,
     b.notes && `Notas: ${b.notes}`,
@@ -216,8 +219,9 @@ export function bookingToEvent(b: BookingRow) {
 
 async function loadBooking(bookingId: string): Promise<BookingRow | null> {
   const db = supabaseAdmin()
-  const full =
-    'id, account_id, service, starts_at, ends_at, status, notes, created_by, customer_name, customer_phone, google_event_id, contact:contacts(name, phone)'
+  // `*` brings customer_name/phone (062), kind and is_sample (068) when
+  // they exist.
+  const full = '*, contact:contacts(name, phone)'
   let { data, error } = await db.from('bookings').select(full).eq('id', bookingId).maybeSingle()
   if (error?.code === '42703') {
     // Migration 062 missing (customer_name/phone); google_event_id may
@@ -232,6 +236,9 @@ async function loadBooking(bookingId: string): Promise<BookingRow | null> {
     if (error.code !== '42703') console.error('[gcal] load booking failed:', error)
     return null
   }
+  // `*` doesn't fail when migration 065 is missing; without
+  // google_event_id we can't sync (no dedupe).
+  if (data && !('google_event_id' in data)) return null
   return data as unknown as BookingRow | null
 }
 
@@ -253,11 +260,12 @@ export async function syncBookingToGoogle(bookingId: string): Promise<void> {
   if (!googleCalendarConfigured()) return
   try {
     const booking = await loadBooking(bookingId)
-    if (!booking) return
+    // Example bookings ("Cargar ejemplos") never reach the owner's calendar.
+    if (!booking || booking.is_sample) return
     const conn = await loadGoogleConnection(booking.account_id)
     if (!conn) return
 
-    if (booking.status === 'cancelled') {
+    if (booking.status === 'cancelled' || booking.status === 'no_show') {
       if (booking.google_event_id) {
         await deleteGoogleEvent(booking.account_id, booking.google_event_id)
         await saveEventId(booking.id, null)

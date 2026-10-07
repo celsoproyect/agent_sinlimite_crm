@@ -152,6 +152,12 @@ export interface ManagedBooking {
   customerName: string | null
   /** Clinic module: the doctor's name. */
   professional?: string | null
+  /** Migration 068: an agenda appointment, a restaurant table or an event. */
+  kind?: 'appointment' | 'table' | 'event'
+  /** Table reservations and events: people / guests. */
+  partySize?: number
+  /** Events: requested, quoted, deposit_paid, confirmed… */
+  eventStatus?: string
 }
 
 /** What the model did with the booking tools this turn, if anything. */

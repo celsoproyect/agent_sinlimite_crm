@@ -15,6 +15,7 @@ import {
 import { generateReply } from './generate'
 import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { buildSystemPrompt } from './defaults'
+import { agendaModuleOn, loadVenue, venuePromptOptions, venueTools } from './venue'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
@@ -99,18 +100,22 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const acctLimit = checkRateLimit(`ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
-  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster, clinic] = await Promise.all([
+  const widgetBooking = await accountModuleEnabled(db, accountId, 'widget_booking')
+  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster, clinic, venue] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
-    // Saved hours AND the widget_booking module on.
-    Promise.all([bookingEnabled(db, accountId), accountModuleEnabled(db, accountId, 'widget_booking')]).then(
-      ([hours, moduleOn]) => hours && moduleOn,
-    ),
+    // Saved hours, the agenda module AND the widget_booking module on.
+    widgetBooking
+      ? Promise.all([bookingEnabled(db, accountId), agendaModuleOn(db, accountId)]).then(([hours, agenda]) => hours && agenda)
+      : Promise.resolve(false),
     getBusinessHoursSummary(db, accountId),
     getCustomFieldRoster(db, accountId),
     config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),
     getClinicDirectory(db, accountId),
+    // Tables and halls are booked from the widget under the same switch.
+    widgetBooking ? loadVenue(db, accountId) : Promise.resolve({ restaurant: null, events: null }),
   ])
+  const venueOn = !!(venue.restaurant || venue.events)
   const customFieldNames = customFieldRoster.map((f) => f.field_name)
   const leadStageNames = leadStageRoster.map((s) => s.name)
 
@@ -123,9 +128,10 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     attachmentsAvailable: false,
     bookingAvailable,
     businessHoursSummary,
-    bookingManageAvailable: bookingAvailable,
+    bookingManageAvailable: bookingAvailable || venueOn,
     bookingSlotButtons: false,
     clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+    ...venuePromptOptions(venue),
     needsCustomerName,
     handoffOnMissingInfo: config.handoffOnMissingInfo,
     noteCaptureAvailable: true,
@@ -151,10 +157,13 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     bookAppointment: bookingAvailable
       ? (appointment) => confirmAiBooking(db, { accountId, contactId, conversationId, appointment, directory: clinic })
       : undefined,
-    manageAppointments: bookingAvailable
+    venueTools: venueTools(db, venue, { accountId, contactId, conversationId, write: true }),
+    manageAppointments:
+      bookingAvailable || venueOn
       ? {
           find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone, directory: clinic }),
-          reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
+          reschedule: (a) =>
+            rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic, restaurant: venue.restaurant }),
           cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
         }
       : undefined,

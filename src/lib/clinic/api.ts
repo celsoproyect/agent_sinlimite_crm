@@ -35,7 +35,8 @@ export async function clinicAdmin(): Promise<{ ctx: AccountContext } | { respons
 }
 
 export const PROFESSIONAL_SELECT =
-  'id, account_id, name, bio, active, hours, slot_minutes, sort_order, created_at, updated_at, professional_specialties(specialty_id)'
+  // `*` so is_sample (migration 068) comes along once it exists.
+  '*, professional_specialties(specialty_id)'
 
 type ProfessionalRow = Omit<Professional, 'specialty_ids'> & {
   professional_specialties?: { specialty_id: string }[] | null

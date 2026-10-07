@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { parseRuleKind, parseAppliesTo } from '../fields'
 
 // uuid v4 plus the looser shape Postgres gen_random_uuid emits — same
 // guard as src/app/api/whatsapp/templates/[id]/route.ts.
@@ -52,6 +53,18 @@ export async function PATCH(
   if (body.enabled !== undefined) {
     patch.enabled = !!body.enabled
   }
+  if (body.kind !== undefined) {
+    const kind = parseRuleKind(body.kind)
+    if (!kind) return NextResponse.json({ error: 'kind must be before or after' }, { status: 400 })
+    patch.kind = kind
+  }
+  if (body.applies_to !== undefined) {
+    const appliesTo = parseAppliesTo(body.applies_to)
+    if (!appliesTo) return NextResponse.json({ error: 'Invalid applies_to' }, { status: 400 })
+    patch.applies_to = appliesTo
+  }
+  // An example rule never sends; "Usar esta regla" turns it into a real one.
+  if (body.is_sample === false) patch.is_sample = false
 
   if (Object.keys(patch).length === 0) {
     return NextResponse.json({ error: 'No fields to update' }, { status: 400 })
@@ -64,6 +77,12 @@ export async function PATCH(
     .select('*')
     .single()
 
+  if (error?.code === '42703') {
+    return NextResponse.json({ error: 'Run migration 068 first.', code: 'needs_migration' }, { status: 503 })
+  }
+  if (error?.code === '23505') {
+    return NextResponse.json({ error: 'A rule with that timing already exists.', code: 'duplicate_rule' }, { status: 409 })
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 })
   return NextResponse.json({ rule: data })
 }
