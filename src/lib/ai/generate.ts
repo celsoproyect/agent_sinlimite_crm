@@ -43,6 +43,10 @@ export interface GenerateArgs {
   /** Executors for `find_appointments` / `reschedule_appointment` /
    *  `cancel_appointment`. Omit to run without them. */
   manageAppointments?: BookingSearchTool['manage']
+  /** Clinic module: searches the doctors for `find_professionals` and
+   *  adds the doctor/specialty arguments to the booking tools. Omit for
+   *  businesses with a single shared agenda. */
+  clinicTool?: BookingSearchTool['clinic']
   /** True to expose the `set_customer_name` tool — the caller decides
    *  this (typically "the contact has no real name on file yet"). No
    *  executor needed: the adapter only validates and reports the name. */
@@ -77,6 +81,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     checkAvailability,
     bookAppointment,
     manageAppointments,
+    clinicTool,
     captureCustomerName,
     captureNote,
     customFieldNames,
@@ -92,7 +97,12 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     ? { execute: searchAttachments }
     : undefined
   const booking: BookingSearchTool | undefined = checkAvailability
-    ? { execute: checkAvailability, create: bookAppointment, manage: manageAppointments }
+    ? {
+        execute: checkAvailability,
+        create: bookAppointment,
+        manage: manageAppointments,
+        ...(clinicTool ? { clinic: clinicTool } : {}),
+      }
     : undefined
   const nameCapture = !!captureCustomerName
   const noteCapture = !!captureNote

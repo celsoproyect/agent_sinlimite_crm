@@ -3,6 +3,7 @@ import { AiError, type AiConfig, type AiUsage, type ChatMessage } from './types'
 import { aiRequestTimeoutMs, MAX_OUTPUT_TOKENS } from './defaults'
 import { mergeConsecutive, normalizeUsage, providerHttpError, toNetworkError } from './providers/shared'
 import { checkAvailability } from './booking'
+import { getClinicDirectory, resolveProfessional } from '@/lib/clinic/directory'
 import { retrieveKnowledge } from './knowledge'
 import { searchAttachments } from './attachments'
 import { businessDate, businessLocalToInstant, businessTime, businessToday, BUSINESS_TIME_ZONE } from '@/lib/business-timezone'
@@ -278,13 +279,14 @@ const OPS_TOOLS: OpsTool[] = [
   },
   {
     name: 'check_free_slots',
-    description: 'Find free appointment slots on the business agenda for a day (and optionally a specific time), using the saved business hours and existing bookings. Use it for "¿tengo espacio el jueves?" or "¿está libre el martes a las 3?".',
+    description: 'Find free appointment slots on the business agenda for a day (and optionally a specific time), using the saved business hours and existing bookings. Use it for "¿tengo espacio el jueves?" or "¿está libre el martes a las 3?". In a clinic (several doctors), pass doctor to check one doctor or one specialty; each slot says which doctor it is with.',
     schema: {
       type: 'object',
       properties: {
         date: { type: 'string', description: 'Day to check, YYYY-MM-DD (business-local).' },
         time: { type: 'string', description: 'Optional specific time, 24-hour HH:mm, e.g. "15:00".' },
         limit: { type: 'number', description: 'How many free slots to return, default 6, max 12.' },
+        doctor: { type: 'string', description: 'Optional, clinics only: a doctor name or a specialty, e.g. "Dra. Pérez" or "Pediatría".' },
       },
       required: ['date'],
     },
@@ -292,13 +294,22 @@ const OPS_TOOLS: OpsTool[] = [
       const date = typeof args.date === 'string' ? args.date.trim() : ''
       if (!DATE_ONLY_RE.test(date)) return { error: 'date must be YYYY-MM-DD' }
       const time = typeof args.time === 'string' ? args.time.trim() : undefined
-      const result = await checkAvailability(db, accountId, date, time, clampLimit(args.limit, 6, 12))
+      // Clinic module: per-doctor agendas; `doctor` is a name or a specialty.
+      const directory = await getClinicDirectory(db, accountId)
+      const doctor = typeof args.doctor === 'string' ? args.doctor.trim() : ''
+      const professional = directory && doctor ? resolveProfessional(directory, doctor) : null
+      const result = await checkAvailability(db, accountId, date, time, clampLimit(args.limit, 6, 12), {
+        directory,
+        ...(professional ? { professionalId: professional.id } : doctor ? { specialty: doctor } : {}),
+      })
+      if (result.error) return { error: result.error }
       return {
         ...(result.requested ? { requested: result.requested } : {}),
         freeSlots: result.slots.map((slot) => ({
           date: businessDate(slot.startsAt),
           time: businessTime(slot.startsAt),
           endsAt: businessTime(slot.endsAt),
+          ...(slot.professionalName ? { doctor: slot.professionalName } : {}),
         })),
         ...(result.slots.length === 0
           ? { note: 'No free slots found: the agenda may be full or closed those days, or business hours are not saved.' }

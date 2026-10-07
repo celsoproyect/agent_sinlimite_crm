@@ -13,6 +13,7 @@ import {
   rescheduleAiBooking,
 } from './booking'
 import { generateReply } from './generate'
+import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
@@ -98,7 +99,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const acctLimit = checkRateLimit(`ai-autoreply:${accountId}`, RATE_LIMITS.aiAutoReplyAccount)
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
-  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster] = await Promise.all([
+  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster, clinic] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
     // Saved hours AND the widget_booking module on.
@@ -108,6 +109,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     getBusinessHoursSummary(db, accountId),
     getCustomFieldRoster(db, accountId),
     config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),
+    getClinicDirectory(db, accountId),
   ])
   const customFieldNames = customFieldRoster.map((f) => f.field_name)
   const leadStageNames = leadStageRoster.map((s) => s.name)
@@ -123,6 +125,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     businessHoursSummary,
     bookingManageAvailable: bookingAvailable,
     bookingSlotButtons: false,
+    clinicRoster: clinic ? formatClinicRoster(clinic) : null,
     needsCustomerName,
     handoffOnMissingInfo: config.handoffOnMissingInfo,
     noteCaptureAvailable: true,
@@ -141,16 +144,18 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
         ? retrieveKnowledgeFromKb(db, accountId, config, query, knowledgeBaseName)
         : Promise.resolve([]),
     checkAvailability: bookingAvailable
-      ? ({ date, time }) => checkAvailability(db, accountId, date, time)
+      ? ({ date, time, professionalId, specialty, serviceId }) =>
+          checkAvailability(db, accountId, date, time, 3, { directory: clinic, professionalId, specialty, serviceId })
       : undefined,
+    clinicTool: bookingAvailable && clinic ? clinicSearchTool(clinic) : undefined,
     bookAppointment: bookingAvailable
-      ? (appointment) => confirmAiBooking(db, { accountId, contactId, conversationId, appointment })
+      ? (appointment) => confirmAiBooking(db, { accountId, contactId, conversationId, appointment, directory: clinic })
       : undefined,
     manageAppointments: bookingAvailable
       ? {
-          find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone }),
-          reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a }),
-          cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a }),
+          find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone, directory: clinic }),
+          reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
+          cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
         }
       : undefined,
     captureCustomerName: needsCustomerName,

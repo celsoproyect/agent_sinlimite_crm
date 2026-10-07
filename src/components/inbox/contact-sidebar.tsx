@@ -34,6 +34,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { format, formatDistanceToNow } from "date-fns";
+import { businessDate, businessTime } from "@/lib/business-timezone";
 import { useTranslations } from "next-intl";
 import { ContactPhotoEditor } from "@/components/contacts/contact-photo-editor";
 
@@ -435,7 +436,8 @@ export function ContactSidebar({ contact, onContactChange }: ContactSidebarProps
                     {nextBooking.service || tSidebar("nextBooking")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {format(new Date(nextBooking.starts_at), "MMM d, yyyy HH:mm")}
+                    {format(new Date(`${businessDate(nextBooking.starts_at)}T12:00:00`), "MMM d, yyyy")}{" "}
+                    {businessTime(nextBooking.starts_at)}
                   </p>
                 </div>
               ) : (

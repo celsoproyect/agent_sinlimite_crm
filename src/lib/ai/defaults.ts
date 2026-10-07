@@ -89,6 +89,10 @@ export function buildSystemPrompt(args: {
    *  web widget is text only) — the model then lists the slots itself.
    *  Defaults to true. */
   bookingSlotButtons?: boolean
+  /** Clinic module: the doctor roster (`formatClinicRoster`) when the
+   *  account schedules per doctor. Adds the doctor/specialty rules and
+   *  `find_professionals`. Ignored when `bookingAvailable` is false. */
+  clinicRoster?: string | null
   /** The phone WhatsApp gave for this customer, if any — offered to the
    *  customer as the default phone for an appointment. Empty for
    *  username-only WhatsApp users. */
@@ -126,6 +130,7 @@ export function buildSystemPrompt(args: {
     businessHoursSummary,
     bookingManageAvailable,
     bookingSlotButtons = true,
+    clinicRoster,
     customerWhatsappPhone,
     needsCustomerName,
     handoffOnMissingInfo,
@@ -268,6 +273,18 @@ export function buildSystemPrompt(args: {
           : '') +
         'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time, and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment.',
     )
+    if (clinicRoster) {
+      parts.push(
+        'This business is a clinic with several doctors, and every appointment is with one specific doctor; each doctor has their own agenda. The doctors (only these exist — never invent a doctor or a specialty):\n' +
+          clinicRoster +
+          '\nBefore checking availability, find out which doctor or which specialty the customer needs. If they describe a symptom or a need, suggest the matching specialty from the list and confirm it with them. ' +
+          'If they ask which doctors there are, who sees a specialty, or name a doctor you cannot identify with certainty, call find_professionals. ' +
+          'Call check_availability with professional_id when they want a specific doctor, or with specialty when any doctor of that specialty is fine. ' +
+          'Every slot in the result says which doctor it is with: always name the doctor together with the day and time when you offer slots, and when you confirm. ' +
+          "Call book_appointment with the professional_id of the exact slot the customer chose — never one from a different slot. If check_availability answers with an error (unknown doctor or specialty), tell the customer what's available instead. " +
+          'If the customer asks for a specialty nobody offers, say so plainly and list the specialties that exist.',
+      )
+    }
     if (bookingManageAvailable) {
       parts.push(
         'When the customer wants to change (reschedule) or cancel an appointment they already have, never create a new one with book_appointment — that would leave the old one in place. Instead: ' +

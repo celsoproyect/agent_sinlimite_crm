@@ -93,6 +93,9 @@ export interface ResolvedAttachment {
 export interface TimeSlot {
   startsAt: string
   endsAt: string
+  /** Clinic module: the doctor this slot is with. */
+  professionalId?: string
+  professionalName?: string
 }
 
 /** What `check_availability` found: open slots, plus — when the customer
@@ -105,6 +108,12 @@ export interface AvailabilityResult {
    *  days). Without one: the first open slots of the requested date, or of
    *  the next open days when that date is closed or full. */
   slots: TimeSlot[]
+  /** Why nothing could be looked up (e.g. an unknown doctor), for the
+   *  model to act on. */
+  error?: string
+  /** Set when the asked-for date is one of the business's holidays: the
+   *  slots then fall on other days. */
+  holiday?: { date: string; name?: string }
 }
 
 /** A confirmed appointment the model built via `book_appointment`, ready
@@ -121,6 +130,14 @@ export interface BookingAppointment {
   customerPhone?: string
   /** "CITA-3F9A2C", set once the booking is saved. */
   reference?: string
+  /** Clinic module: the doctor (id, or a name the engine resolves). */
+  professionalId?: string
+  professionalName?: string
+  /** Clinic module (migration 067): the service it is for (id or name). */
+  serviceId?: string
+  /** Clinic module: the customer's health insurance (ARS) and affiliate
+   *  number as they gave it, or "privado". */
+  insurance?: string
 }
 
 /** An existing appointment as `find_appointments` shows it to the model. */
@@ -133,6 +150,8 @@ export interface ManagedBooking {
   date: string
   time: string
   customerName: string | null
+  /** Clinic module: the doctor's name. */
+  professional?: string | null
 }
 
 /** What the model did with the booking tools this turn, if anything. */

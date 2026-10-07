@@ -1,6 +1,9 @@
 import { NextResponse, after } from 'next/server'
 import { getCurrentAccount, requireRole, toErrorResponse } from '@/lib/auth/account'
 import { syncBookingToGoogle } from '@/lib/google-calendar/sync'
+import { checkBookingSchedule } from '@/lib/ai/booking'
+
+const PROFESSIONAL_OVERLAP = '23P01'
 
 // Agenda module CRUD. RLS (migration 046: bookings_select/insert/update/
 // delete, all `is_account_member`) already scopes every query to the
@@ -52,6 +55,14 @@ export async function POST(request: Request) {
   const notes = typeof body.notes === 'string' ? body.notes : null
   const conversationId =
     typeof body.conversation_id === 'string' ? body.conversation_id : null
+  // Clinic module: the doctor the appointment is with. Only sent when the
+  // account uses doctors, so accounts without migration 066 never touch it.
+  const professionalId =
+    typeof body.professional_id === 'string' && body.professional_id ? body.professional_id : null
+  // Clinic module, migration 067: only sent when set, for the same reason.
+  const clinicServiceId =
+    typeof body.clinic_service_id === 'string' && body.clinic_service_id ? body.clinic_service_id : null
+  const insurance = typeof body.insurance === 'string' && body.insurance.trim() ? body.insurance.trim().slice(0, 200) : null
 
   if (!contactId || !startsAt || !endsAt) {
     return NextResponse.json(
@@ -66,6 +77,14 @@ export async function POST(request: Request) {
     )
   }
 
+  // On a holiday, a closed day or outside the hours (the doctor's in
+  // clinic mode): ask first, and save anyway when the agent confirms
+  // (`force`).
+  if (body.force !== true) {
+    const problem = await checkBookingSchedule(ctx.supabase, ctx.accountId, professionalId, startsAt, endsAt)
+    if (problem) return NextResponse.json({ error: 'outside_doctor_hours', reason: problem }, { status: 409 })
+  }
+
   const { data, error } = await ctx.supabase
     .from('bookings')
     .insert({
@@ -77,11 +96,21 @@ export async function POST(request: Request) {
       ends_at: endsAt,
       notes,
       created_by: ctx.userId,
+      ...(professionalId ? { professional_id: professionalId } : {}),
+      ...(clinicServiceId ? { clinic_service_id: clinicServiceId } : {}),
+      ...(insurance ? { insurance } : {}),
     })
     .select('*, contact:contacts(*)')
     .single()
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+  if (error) {
+    // bookings_no_professional_overlap (migration 066): that doctor already
+    // has a live appointment overlapping this time.
+    if (error.code === PROFESSIONAL_OVERLAP) {
+      return NextResponse.json({ error: 'professional_busy' }, { status: 409 })
+    }
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
   after(() => syncBookingToGoogle(data.id))
   return NextResponse.json({ booking: data }, { status: 201 })
 }

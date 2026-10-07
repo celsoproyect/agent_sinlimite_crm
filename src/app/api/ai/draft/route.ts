@@ -6,6 +6,7 @@ import { buildConversationContext } from '@/lib/ai/context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from '@/lib/ai/knowledge'
 import { getAttachmentRoster, searchAttachments } from '@/lib/ai/attachments'
 import { bookingEnabled, checkAvailability } from '@/lib/ai/booking'
+import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { generateReply } from '@/lib/ai/generate'
 import { buildSystemPrompt } from '@/lib/ai/defaults'
 import { latestUserMessage } from '@/lib/ai/query'
@@ -96,11 +97,12 @@ export async function POST(request: Request) {
 
     // Ground the draft in the account's knowledge base (best-effort —
     // returns [] when there's no KB or retrieval fails).
-    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable] = await Promise.all([
+    const [knowledge, knowledgeBases, attachmentRoster, bookingAvailable, clinic] = await Promise.all([
       retrieveKnowledge(supabase, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(supabase, accountId),
       getAttachmentRoster(supabase, accountId),
       bookingEnabled(supabase, accountId),
+      getClinicDirectory(supabase, accountId),
     ])
     const attachmentsEnabled = attachmentRoster.length > 0
 
@@ -113,6 +115,7 @@ export async function POST(request: Request) {
       attachmentsAvailable: attachmentsEnabled,
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
+      clinicRoster: clinic ? formatClinicRoster(clinic) : null,
     })
 
     // Note: check_availability is read-only (no DB write) so it's safe to
@@ -133,8 +136,10 @@ export async function POST(request: Request) {
         ? ({ query }) => searchAttachments(supabase, accountId, query)
         : undefined,
       checkAvailability: bookingAvailable
-        ? ({ date, time }) => checkAvailability(supabase, accountId, date, time)
+        ? ({ date, time, professionalId, specialty, serviceId }) =>
+            checkAvailability(supabase, accountId, date, time, 3, { directory: clinic, professionalId, specialty, serviceId })
         : undefined,
+      clinicTool: bookingAvailable && clinic ? clinicSearchTool(clinic) : undefined,
     })
 
     // Record spend on the account's BYO key. Best-effort + via the

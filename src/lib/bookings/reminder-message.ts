@@ -23,9 +23,11 @@ export interface ReminderMessageVars {
   startsAt: string
   /** Booking reference ("CITA-3F9A2C"), for {{reference}}. */
   reference?: string
+  /** The doctor's name (clinic module), for {{doctor}}. */
+  doctor?: string
 }
 
-const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time|reference)\s*\}\}/g
+const TOKEN_PATTERN = /\{\{\s*(contact_name|service|date|time|reference|doctor)\s*\}\}/g
 
 export function renderReminderMessage(text: string, vars: ReminderMessageVars): string {
   const { date, time } = splitIsoDateTime(vars.startsAt)
@@ -35,6 +37,8 @@ export function renderReminderMessage(text: string, vars: ReminderMessageVars): 
     date,
     time,
     ...(vars.reference ? { reference: vars.reference } : {}),
+    // An appointment with no doctor: blank, never the raw token.
+    doctor: vars.doctor ?? '',
   }
   return text.replace(TOKEN_PATTERN, (match, key: string) => values[key] ?? match)
 }

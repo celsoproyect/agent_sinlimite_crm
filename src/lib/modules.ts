@@ -14,10 +14,11 @@
 // (src/components/layout/sidebar.tsx), minus the leading slash — the
 // sidebar filter and each page's `useModuleGate` call both key off this
 // list. Feature modules (`ai_messages`, `telegram`, `widget_booking`,
-// `google_calendar`) have no menu entry: their UI hides itself and the
+// `google_calendar`, `clinic`) have no menu entry: their UI hides itself and the
 // server checks them with `accountModuleEnabled` (modules-server.ts).
 // `telegram` covers everything Telegram: handoff and lead alerts, the
-// owner assistant and the weekly summary.
+// owner assistant and the weekly summary. `clinic` adds doctors with
+// specialties, each with their own agenda (Agenda → Doctores).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -32,6 +33,7 @@ export const MODULE_KEYS = [
   "telegram",
   "widget_booking",
   "google_calendar",
+  "clinic",
   "automations",
   "flows",
   "agents",

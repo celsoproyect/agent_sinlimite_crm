@@ -4,6 +4,7 @@ import {
   type AiUsage,
   type AvailabilityResult,
   type BookingAppointment,
+  type BookingOutcome,
   type CapturedCustomField,
   type ChatMessage,
   type ContentPart,
@@ -14,6 +15,7 @@ import {
 } from '../types'
 import { businessDate, businessTime, businessWeekday, normalizeAiTimestamp } from '@/lib/business-timezone'
 import type { KnowledgeExcerpt, KnowledgeBaseSummary } from '../knowledge'
+import { shortProfessionalName } from '@/lib/clinic/directory'
 
 // ============================================================
 // Bits shared by the OpenAI + Anthropic adapters.
@@ -63,17 +65,44 @@ export const SEND_ATTACHMENT_TOOL_NAME = 'send_attachment'
  *  confirmed appointments into `ProviderResult.booking` for the caller
  *  (auto-reply) to dispatch after generation finishes. */
 export interface BookingSearchTool {
-  execute: (args: { date: string; time?: string }) => Promise<AvailabilityResult>
+  execute: (args: AvailabilityArgs) => Promise<AvailabilityResult>
   /** Writes the booking for `book_appointment`, returning the honest
    *  outcome so the model learns about a rejected/failed booking while
    *  it is still composing its reply. Omitted by callers that only offer
    *  slots and never persist (the Playground), in which case the tool
    *  reports success without writing. */
-  create?: (appointment: BookingAppointment) => Promise<{ confirmed: boolean; error?: string; reference?: string }>
+  create?: (
+    appointment: BookingAppointment,
+  ) => Promise<{ confirmed: boolean; error?: string; reference?: string; professional?: string }>
   /** Present to expose `find_appointments` / `reschedule_appointment` /
    *  `cancel_appointment` (auto-reply only — they write to the real
    *  agenda). */
   manage?: BookingManageTool
+  /** Clinic module: present when the account schedules per doctor. Adds
+   *  `find_professionals` and the doctor/specialty arguments on the
+   *  booking tools. */
+  clinic?: ProfessionalSearchTool
+}
+
+/** `check_availability` arguments. `professionalId`/`specialty` only
+ *  exist in clinic mode. */
+export interface AvailabilityArgs {
+  date: string
+  time?: string
+  professionalId?: string
+  specialty?: string
+  /** Clinic services (migration 067): its id or exact name. */
+  serviceId?: string
+}
+
+/** Searches the clinic's doctors for `find_professionals`. */
+export interface ProfessionalSearchTool {
+  find: (args: { query?: string; specialty?: string }) => Promise<unknown[]> | unknown[]
+  /** The clinic has services: expose `service_id` on the booking tools. */
+  services?: boolean
+  /** The clinic asks for the health insurance: `book_appointment`
+   *  requires `insurance`. */
+  insurance?: boolean
 }
 
 /** Executors for the tools that act on an appointment that already
@@ -81,7 +110,13 @@ export interface BookingSearchTool {
  *  with, plus the reference code when they have it. */
 export interface BookingManageTool {
   find: (args: { phone: string }) => Promise<ManagedBooking[]>
-  reschedule: (args: { phone: string; reference?: string; startsAt: string; endsAt: string }) => Promise<{
+  reschedule: (args: {
+    phone: string
+    reference?: string
+    startsAt: string
+    endsAt: string
+    professionalId?: string
+  }) => Promise<{
     rescheduled: boolean
     error?: string
     appointments?: ManagedBooking[]
@@ -100,6 +135,7 @@ export const BOOK_APPOINTMENT_TOOL_NAME = 'book_appointment'
 export const FIND_APPOINTMENTS_TOOL_NAME = 'find_appointments'
 export const RESCHEDULE_APPOINTMENT_TOOL_NAME = 'reschedule_appointment'
 export const CANCEL_APPOINTMENT_TOOL_NAME = 'cancel_appointment'
+export const FIND_PROFESSIONALS_TOOL_NAME = 'find_professionals'
 
 /** `book_appointment`'s parameters, shared by both adapters. */
 export const BOOK_APPOINTMENT_PARAMETERS: Record<string, unknown> = {
@@ -239,7 +275,15 @@ export async function runManageAppointmentTool(
         }),
       }
     }
-    const { appointment, ...rest } = await tool.reschedule({ phone, reference, startsAt, endsAt })
+    const professionalId =
+      typeof args.professional_id === 'string' && args.professional_id.trim() ? args.professional_id.trim() : undefined
+    const { appointment, ...rest } = await tool.reschedule({
+      phone,
+      reference,
+      startsAt,
+      endsAt,
+      ...(professionalId ? { professionalId } : {}),
+    })
     return {
       resultJson: JSON.stringify(
         appointment
@@ -248,6 +292,7 @@ export async function runManageAppointmentTool(
               reference: appointment.reference,
               date: businessDate(appointment.startsAt),
               time: businessTime(appointment.startsAt),
+              ...(appointment.professionalName ? { professional: appointment.professionalName } : {}),
             }
           : rest,
       ),
@@ -523,17 +568,32 @@ export function offerToToolResult(result: AvailabilityResult): string {
     date: businessDate(s.startsAt),
     weekday: WEEKDAY_NAMES[businessWeekday(businessDate(s.startsAt))],
     time: formatLocalHHMM(s.startsAt),
+    ...(s.professionalId ? { professional_id: s.professionalId, professional: s.professionalName } : {}),
   }))
+  if (result.error) {
+    return JSON.stringify({ available: false, error: result.error })
+  }
+  // A holiday: say so, so the model explains it instead of just
+  // offering other days.
+  const holiday = result.holiday
+    ? {
+        holiday: {
+          ...result.holiday,
+          note: `${result.holiday.date}${result.holiday.name ? ` (${result.holiday.name})` : ''} is a holiday and the business is closed: tell the customer and offer the listed slots on other days. Never book on a holiday.`,
+        },
+      }
+    : {}
   if (!result.requested) {
     return JSON.stringify(
       slots.length > 0
-        ? { available: true, slots }
-        : { available: false, note: 'No open slots on that date or the following two weeks.' },
+        ? { available: true, ...holiday, slots }
+        : { available: false, ...holiday, note: 'No open slots on that date or the following two weeks.' },
     )
   }
   const { date, time, available } = result.requested
   return JSON.stringify({
     requested: { date, time, available },
+    ...holiday,
     ...(available
       ? { note: 'The requested time is free. Its slot is the first one listed; the others are nearby alternatives.' }
       : {
@@ -557,13 +617,15 @@ export async function runAvailabilityCheck(
   tool: BookingSearchTool,
   date: string,
   time?: string,
+  clinic: { professionalId?: string; specialty?: string; serviceId?: string } = {},
 ): Promise<{ resultJson: string; offer: TimeSlot[] }> {
-  const result = await tool.execute({ date, time })
+  const result = await tool.execute({ date, time, ...clinic })
   return { resultJson: offerToToolResult(result), offer: result.slots }
 }
 
-/** Parse `check_availability` arguments from either adapter. */
-export function parseAvailabilityArgs(rawArgs: unknown): { date: string; time?: string } {
+/** Parse `check_availability` arguments from either adapter. The clinic
+ *  fields are only set when the model passed them. */
+export function parseAvailabilityArgs(rawArgs: unknown): AvailabilityArgs {
   const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
   const date = typeof args.date === 'string' ? args.date.trim() : ''
   const rawTime = typeof args.time === 'string' ? args.time.trim() : ''
@@ -571,7 +633,204 @@ export function parseAvailabilityArgs(rawArgs: unknown): { date: string; time?: 
   // failing the whole lookup.
   const m = /^(\d{1,2}):(\d{2})$/.exec(rawTime)
   const time = m && Number(m[1]) < 24 && Number(m[2]) < 60 ? `${m[1].padStart(2, '0')}:${m[2]}` : undefined
-  return { date, time }
+  const professionalId = typeof args.professional_id === 'string' ? args.professional_id.trim() : ''
+  const specialty = typeof args.specialty === 'string' ? args.specialty.trim() : ''
+  const serviceId = typeof args.service_id === 'string' ? args.service_id.trim() : ''
+  return {
+    date,
+    time,
+    ...(professionalId ? { professionalId } : {}),
+    ...(specialty ? { specialty } : {}),
+    ...(serviceId ? { serviceId } : {}),
+  }
+}
+
+/** One booking tool in a provider-neutral shape (name, description,
+ *  JSON-schema parameters) each adapter wraps in its own envelope. */
+export interface BookingToolDefinition {
+  name: string
+  description: string
+  parameters: Record<string, unknown>
+}
+
+const PROFESSIONAL_ID_PARAM = {
+  type: 'string',
+  description: 'The professional_id of the doctor, from the doctor list, find_professionals or the chosen check_availability slot.',
+}
+
+const SERVICE_ID_PARAM = {
+  type: 'string',
+  description: 'The service_id of the service the customer needs, from the services list. It sets the appointment length and which doctors offer it.',
+}
+
+const INSURANCE_PARAM = {
+  type: 'string',
+  description: 'The health insurance (ARS) and affiliate number the customer gave (e.g. "Humano, afiliado 123456"), or "privado" if they pay themselves.',
+}
+
+/**
+ * The booking tools to expose for `tool`: check_availability and
+ * book_appointment, the existing-appointment tools when `manage` is set,
+ * and in clinic mode `find_professionals` plus the doctor/specialty
+ * arguments (book_appointment then requires `professional_id`).
+ */
+export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefinition[] {
+  const clinic = !!tool.clinic
+  const services = !!tool.clinic?.services
+  const insurance = !!tool.clinic?.insurance
+  const availability: BookingToolDefinition = {
+    name: CHECK_AVAILABILITY_TOOL_NAME,
+    description: clinic
+      ? "Look up open appointment slots on the doctors' agendas. Pass the date, and the time too whenever the customer named one: the result then says whether exactly that time is free and lists the closest open alternatives (possibly on nearby days). Pass professional_id when the customer wants a specific doctor, or specialty to search every doctor of that specialty. Each slot says which doctor it is with."
+      : 'Look up open appointment slots. Pass the date, and the time too whenever the customer named one: the result then says whether exactly that time is free and lists the closest open alternatives (possibly on nearby days).',
+    parameters: {
+      type: 'object',
+      properties: {
+        date: { type: 'string', description: 'The date to check, as YYYY-MM-DD.' },
+        time: {
+          type: 'string',
+          description: 'Optional. The time the customer asked for, as 24-hour HH:mm in business local time (e.g. 20:00 for 8 pm).',
+        },
+        ...(clinic
+          ? {
+              professional_id: { ...PROFESSIONAL_ID_PARAM, description: 'Optional. Only this doctor\'s agenda.' },
+              specialty: {
+                type: 'string',
+                description: 'Optional. Search every doctor with this specialty (e.g. "Pediatría"), when no specific doctor was chosen.',
+              },
+              ...(services ? { service_id: { ...SERVICE_ID_PARAM, description: `Optional. ${SERVICE_ID_PARAM.description}` } } : {}),
+            }
+          : {}),
+      },
+      required: ['date'],
+    },
+  }
+  const book: BookingToolDefinition = {
+    name: BOOK_APPOINTMENT_TOOL_NAME,
+    description:
+      'Confirm a real appointment booking once the customer has clearly accepted a specific offered time. Only call this after check_availability offered the slot and the customer confirmed it.' +
+      (clinic ? ' Pass the professional_id of that slot.' : '') +
+      (services ? ' Pass the same service_id you searched with.' : ''),
+    parameters: clinic
+      ? {
+          ...BOOK_APPOINTMENT_PARAMETERS,
+          properties: {
+            ...(BOOK_APPOINTMENT_PARAMETERS.properties as Record<string, unknown>),
+            professional_id: PROFESSIONAL_ID_PARAM,
+            ...(services ? { service_id: SERVICE_ID_PARAM } : {}),
+            ...(insurance ? { insurance: INSURANCE_PARAM } : {}),
+          },
+          required: [
+            ...(BOOK_APPOINTMENT_PARAMETERS.required as string[]),
+            'professional_id',
+            ...(insurance ? ['insurance'] : []),
+          ],
+        }
+      : BOOK_APPOINTMENT_PARAMETERS,
+  }
+  const defs = [availability, book]
+  if (tool.manage) {
+    for (const def of MANAGE_APPOINTMENT_TOOLS) {
+      if (clinic && def.name === RESCHEDULE_APPOINTMENT_TOOL_NAME) {
+        defs.push({
+          ...def,
+          parameters: {
+            ...def.parameters,
+            properties: {
+              ...(def.parameters.properties as Record<string, unknown>),
+              professional_id: {
+                ...PROFESSIONAL_ID_PARAM,
+                description: 'Optional. The doctor of the new slot, when it is with a different doctor. Defaults to the same one.',
+              },
+            },
+          },
+        })
+      } else {
+        defs.push(def)
+      }
+    }
+  }
+  if (clinic) {
+    defs.push({
+      name: FIND_PROFESSIONALS_TOOL_NAME,
+      description:
+        "Search the clinic's doctors by name or specialty. Returns each doctor's professional_id, name, specialties and working hours. Use it when the customer asks which doctors there are, who sees a specialty, or names a doctor you need to identify.",
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Optional. A doctor name or a specialty, as the customer said it.' },
+          specialty: { type: 'string', description: 'Optional. Only doctors with this specialty.' },
+        },
+      },
+    })
+  }
+  return defs
+}
+
+/**
+ * Run any booking tool call against `tool`, recording what happened in
+ * `outcome` (offered slots / the booked or moved appointment). Returns
+ * the tool-result JSON, or null when `name` isn't a booking tool.
+ */
+export async function runBookingTool(
+  tool: BookingSearchTool,
+  name: string,
+  rawArgs: unknown,
+  outcome: BookingOutcome,
+): Promise<string | null> {
+  if (name === CHECK_AVAILABILITY_TOOL_NAME) {
+    const { date, time, professionalId, specialty, serviceId } = parseAvailabilityArgs(rawArgs)
+    if (!date) return JSON.stringify({ available: false })
+    try {
+      const clinic = tool.clinic
+        ? {
+            ...(professionalId ? { professionalId } : {}),
+            ...(specialty ? { specialty } : {}),
+            ...(serviceId && tool.clinic.services ? { serviceId } : {}),
+          }
+        : {}
+      const { resultJson, offer } = await runAvailabilityCheck(tool, date, time, clinic)
+      if (offer.length > 0) outcome.offer = offer
+      return resultJson
+    } catch {
+      return JSON.stringify({ available: false })
+    }
+  }
+
+  if (name === BOOK_APPOINTMENT_TOOL_NAME) {
+    const { resultJson, appointment } = await runBookAppointment(tool, rawArgs)
+    if (appointment) outcome.appointment = appointment
+    return resultJson
+  }
+
+  if (name === FIND_PROFESSIONALS_TOOL_NAME && tool.clinic) {
+    const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Record<string, unknown>
+    const query = typeof args.query === 'string' ? args.query.trim() : ''
+    const specialty = typeof args.specialty === 'string' ? args.specialty.trim() : ''
+    try {
+      const professionals = await tool.clinic.find({
+        ...(query ? { query } : {}),
+        ...(specialty ? { specialty } : {}),
+      })
+      return JSON.stringify(
+        professionals.length > 0
+          ? { professionals }
+          : { professionals: [], note: 'No doctor matches that. Offer the specialties and doctors from the list instead.' },
+      )
+    } catch (err) {
+      console.error('[ai booking] find_professionals executor threw:', err)
+      return JSON.stringify({ professionals: [], error: 'the doctors could not be looked up' })
+    }
+  }
+
+  if (tool.manage) {
+    const managed = await runManageAppointmentTool(tool.manage, name, rawArgs)
+    if (managed) {
+      if (managed.appointment) outcome.appointment = managed.appointment
+      return managed.resultJson
+    }
+  }
+  return null
 }
 
 /** Title for one offered-slot WhatsApp button (20-char cap). Just the time
@@ -581,9 +840,15 @@ export function parseAvailabilityArgs(rawArgs: unknown): { date: string; time?: 
 export function slotButtonTitle(slot: TimeSlot, offer: TimeSlot[]): string {
   const sameDay = offer.every((s) => businessDate(s.startsAt) === businessDate(offer[0].startsAt))
   const time = formatLocalHHMM(slot.startsAt)
-  if (sameDay) return time
   const [, mm, dd] = businessDate(slot.startsAt).split('-')
-  return `${dd}/${mm} ${time}`
+  const when = sameDay ? time : `${dd}/${mm} ${time}`
+  // Clinic module: when the offer spans several doctors, the tap must say
+  // which one, so the doctor's name fills what's left of the 20 chars.
+  const doctors = new Set(offer.map((s) => s.professionalId).filter(Boolean))
+  if (doctors.size > 1 && slot.professionalName) {
+    return `${when} ${shortProfessionalName(slot.professionalName)}`.slice(0, 20).trim()
+  }
+  return when
 }
 
 /**
@@ -612,7 +877,7 @@ export async function runBookAppointment(
   if (!tool.create) {
     return { resultJson: JSON.stringify({ confirmed: true }), appointment: parsed.appointment }
   }
-  let outcome: { confirmed: boolean; error?: string; reference?: string }
+  let outcome: { confirmed: boolean; error?: string; reference?: string; professional?: string }
   try {
     outcome = await tool.create(parsed.appointment)
   } catch (err) {
@@ -621,7 +886,13 @@ export async function runBookAppointment(
   }
   return {
     resultJson: JSON.stringify(outcome),
-    appointment: outcome.confirmed ? { ...parsed.appointment, reference: outcome.reference } : undefined,
+    appointment: outcome.confirmed
+      ? {
+          ...parsed.appointment,
+          reference: outcome.reference,
+          ...(outcome.professional ? { professionalName: outcome.professional } : {}),
+        }
+      : undefined,
   }
 }
 
@@ -639,6 +910,11 @@ export function parseBookAppointment(
   const notes = typeof args.notes === 'string' && args.notes.trim() ? args.notes.trim() : undefined
   const customerName = typeof args.customerName === 'string' ? args.customerName.trim().slice(0, 100) : ''
   const customerPhone = cleanPhone(args.customerPhone).slice(0, 40)
+  const professionalId =
+    typeof args.professional_id === 'string' && args.professional_id.trim() ? args.professional_id.trim() : undefined
+  const serviceId = typeof args.service_id === 'string' && args.service_id.trim() ? args.service_id.trim() : undefined
+  const insurance =
+    typeof args.insurance === 'string' && args.insurance.trim() ? args.insurance.trim().slice(0, 200) : undefined
 
   // A timestamp the model wrote without a zone means business-local
   // time — that's the only clock it was ever shown — so anchor it to the
@@ -668,7 +944,17 @@ export function parseBookAppointment(
   }
 
   return {
-    appointment: { startsAt: startsAtUtc, endsAt: endsAtUtc, service, notes, customerName, customerPhone },
+    appointment: {
+      startsAt: startsAtUtc,
+      endsAt: endsAtUtc,
+      service,
+      notes,
+      customerName,
+      customerPhone,
+      ...(professionalId ? { professionalId } : {}),
+      ...(serviceId ? { serviceId } : {}),
+      ...(insurance ? { insurance } : {}),
+    },
   }
 }
 

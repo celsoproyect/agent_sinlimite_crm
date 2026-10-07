@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Phone, Search } from "lucide-react";
 import { useTranslations } from "next-intl";
-import type { Booking } from "@/types";
+import type { Booking, Professional } from "@/types";
 import { businessDate, businessTime, businessToday } from "@/lib/business-timezone";
 import {
   bookingDisplayName,
@@ -52,11 +52,23 @@ interface BookingListProps {
   onFilterChange: (filter: BookingListFilter) => void;
   refreshKey: number;
   onBookingClick: (booking: Booking) => void;
+  /** Clinic module: the doctors, for the doctor filter and labels. */
+  professionals?: Professional[];
+  /** Clinic module: only this doctor's appointments ("" = all,
+   *  "__none__" = the ones without a doctor). */
+  professionalId?: string;
 }
 
 /** Filterable list of bookings: quick date ranges, a custom from/to,
  *  status and a free-text search over name, phone, service and reference. */
-export function BookingList({ filter, onFilterChange, refreshKey, onBookingClick }: BookingListProps) {
+export function BookingList({
+  filter,
+  onFilterChange,
+  refreshKey,
+  onBookingClick,
+  professionals = [],
+  professionalId = "",
+}: BookingListProps) {
   const t = useTranslations("Agenda.list");
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [query, setQuery] = useState("");
@@ -78,6 +90,13 @@ export function BookingList({ filter, onFilterChange, refreshKey, onBookingClick
     const q = query.trim().toLowerCase();
     const qDigits = q.replace(/\D/g, "");
     return (bookings ?? [])
+      .filter((b) =>
+        !professionalId
+          ? true
+          : professionalId === "__none__"
+            ? !b.professional_id
+            : b.professional_id === professionalId,
+      )
       .filter((b) => {
         if (filter.status === "active") return b.status !== "cancelled";
         if (filter.status === "all") return true;
@@ -92,7 +111,9 @@ export function BookingList({ filter, onFilterChange, refreshKey, onBookingClick
         return qDigits.length >= 3 && bookingDisplayPhone(b).replace(/\D/g, "").includes(qDigits);
       })
       .sort((a, b) => new Date(a.starts_at).getTime() - new Date(b.starts_at).getTime());
-  }, [bookings, filter.status, query]);
+  }, [bookings, filter.status, query, professionalId]);
+  const doctorName = (id: string | null | undefined) =>
+    id ? professionals.find((p) => p.id === id)?.name : undefined;
 
   const today = businessToday();
   const dayLabel = (iso: string) =>
@@ -229,6 +250,11 @@ export function BookingList({ filter, onFilterChange, refreshKey, onBookingClick
                       </span>
                       <span className="flex flex-wrap items-center gap-x-3 text-xs text-muted-foreground">
                         {b.service && <span className="truncate">{b.service}</span>}
+                        {doctorName(b.professional_id) && (
+                          <span className="truncate font-medium text-foreground/80">
+                            {doctorName(b.professional_id)}
+                          </span>
+                        )}
                         {phone && (
                           <span className="inline-flex items-center gap-1">
                             <Phone className="size-3" />

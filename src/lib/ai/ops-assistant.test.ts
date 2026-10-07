@@ -251,7 +251,9 @@ describe('runOpsTool — owner tools', () => {
       slots: [{ startsAt: '2026-10-08T13:00:00.000Z', endsAt: '2026-10-08T14:00:00.000Z' }],
     })
     const out = JSON.parse(await runOpsTool(makeDb({}) as never, 'acct-1', 'check_free_slots', { date: '2026-10-08' }))
-    expect(h.checkAvailability).toHaveBeenCalledWith(expect.anything(), 'acct-1', '2026-10-08', undefined, 6)
+    expect(h.checkAvailability).toHaveBeenCalledWith(expect.anything(), 'acct-1', '2026-10-08', undefined, 6, {
+      directory: null,
+    })
     expect(out.freeSlots).toEqual([{ date: '2026-10-08', time: '09:00', endsAt: '10:00' }])
   })
 

@@ -6,6 +6,12 @@ import {
 } from './reminder-message'
 
 describe('renderReminderMessage', () => {
+  it('fills {{doctor}}, and blanks it when the appointment has none', () => {
+    const vars = { contactName: 'Ana', service: 'Consulta', startsAt: '2026-08-25T14:30:00.000Z' }
+    expect(renderReminderMessage('Con {{doctor}}', { ...vars, doctor: 'Dra. Pérez' })).toBe('Con Dra. Pérez')
+    expect(renderReminderMessage('Cita{{ doctor }}.', vars)).toBe('Cita.')
+  })
+
   it('substitutes all known placeholders, converting UTC to America/Santo_Domingo', () => {
     // 14:30 UTC - 4h (Santo Domingo, no DST) = 10:30 local.
     const out = renderReminderMessage(

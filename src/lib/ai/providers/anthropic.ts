@@ -20,20 +20,14 @@ import {
   parseSentiment,
   providerHttpError,
   runAttachmentSearch,
-  parseAvailabilityArgs,
-  runAvailabilityCheck,
-  runBookAppointment,
-  runManageAppointmentTool,
-  BOOK_APPOINTMENT_PARAMETERS,
-  MANAGE_APPOINTMENT_TOOLS,
+  bookingToolDefinitions,
+  runBookingTool,
   toNetworkError,
   ADD_NOTE_TOOL_NAME,
-  BOOK_APPOINTMENT_TOOL_NAME,
   CAPTURE_FIELD_TOOL_NAME,
   CAPTURE_LEAD_STAGE_TOOL_NAME,
   CAPTURE_NAME_TOOL_NAME,
   CAPTURE_SENTIMENT_TOOL_NAME,
-  CHECK_AVAILABILITY_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
   MAX_TOOL_ROUNDS,
@@ -113,8 +107,7 @@ function normalizeForAnthropic(messages: ChatMessage[]): ChatMessage[] {
 function buildTools(
   knowledgeBaseNames: string[] | null,
   attachmentsEnabled: boolean,
-  bookingEnabled: boolean,
-  bookingManageEnabled: boolean,
+  bookingTool: BookingSearchTool | undefined,
   nameCaptureEnabled: boolean,
   noteCaptureEnabled: boolean,
   customFieldNames: string[] | null,
@@ -155,33 +148,9 @@ function buildTools(
       },
     })
   }
-  if (bookingEnabled) {
-    tools.push({
-      name: CHECK_AVAILABILITY_TOOL_NAME,
-      description:
-        'Look up open appointment slots. Pass the date, and the time too whenever the customer named one: the result then says whether exactly that time is free and lists the closest open alternatives (possibly on nearby days).',
-      input_schema: {
-        type: 'object',
-        properties: {
-          date: { type: 'string', description: 'The date to check, as YYYY-MM-DD.' },
-          time: {
-            type: 'string',
-            description: 'Optional. The time the customer asked for, as 24-hour HH:mm in business local time (e.g. 20:00 for 8 pm).',
-          },
-        },
-        required: ['date'],
-      },
-    })
-    tools.push({
-      name: BOOK_APPOINTMENT_TOOL_NAME,
-      description:
-        'Confirm a real appointment booking once the customer has clearly accepted a specific offered time. Only call this after check_availability offered the slot and the customer confirmed it.',
-      input_schema: BOOK_APPOINTMENT_PARAMETERS,
-    })
-    if (bookingManageEnabled) {
-      for (const tool of MANAGE_APPOINTMENT_TOOLS) {
-        tools.push({ name: tool.name, description: tool.description, input_schema: tool.parameters })
-      }
+  if (bookingTool) {
+    for (const def of bookingToolDefinitions(bookingTool)) {
+      tools.push({ name: def.name, description: def.description, input_schema: def.parameters })
     }
   }
   if (nameCaptureEnabled) {
@@ -300,8 +269,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   const tools = buildTools(
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
-    !!bookingTool,
-    !!bookingTool?.manage,
+    bookingTool,
     nameCaptureEnabled,
     noteCaptureEnabled,
     customFieldNames,
@@ -468,30 +436,9 @@ async function runAnthropicTool(
     }
   }
 
-  if (toolUse.name === CHECK_AVAILABILITY_TOOL_NAME && bookingTool) {
-    const { date, time } = parseAvailabilityArgs(toolUse.input)
-    if (!date) return JSON.stringify({ available: false })
-    try {
-      const { resultJson, offer } = await runAvailabilityCheck(bookingTool, date, time)
-      if (offer.length > 0) booking.offer = offer
-      return resultJson
-    } catch {
-      return JSON.stringify({ available: false })
-    }
-  }
-
-  if (toolUse.name === BOOK_APPOINTMENT_TOOL_NAME && bookingTool) {
-    const { resultJson, appointment } = await runBookAppointment(bookingTool, toolUse.input)
-    if (appointment) booking.appointment = appointment
-    return resultJson
-  }
-
-  if (bookingTool?.manage) {
-    const managed = await runManageAppointmentTool(bookingTool.manage, toolUse.name ?? '', toolUse.input)
-    if (managed) {
-      if (managed.appointment) booking.appointment = managed.appointment
-      return managed.resultJson
-    }
+  if (bookingTool) {
+    const result = await runBookingTool(bookingTool, toolUse.name ?? '', toolUse.input, booking)
+    if (result !== null) return result
   }
 
   if (toolUse.name === CAPTURE_NAME_TOOL_NAME && nameCaptureEnabled) {

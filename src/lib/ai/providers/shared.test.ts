@@ -10,6 +10,9 @@ import {
   parseSentiment,
   runBookAppointment,
   runManageAppointmentTool,
+  bookingToolDefinitions,
+  runBookingTool,
+  offerToToolResult,
   type BookingManageTool,
 } from './shared'
 
@@ -345,5 +348,126 @@ describe('runManageAppointmentTool', () => {
     })
     expect(tool.cancel).toHaveBeenCalledWith({ phone: '8095551234', reference: 'cita-3f9a2c' })
     expect(JSON.parse(result!.resultJson)).toEqual({ cancelled: true, reference: 'CITA-3F9A2C' })
+  })
+})
+
+describe('clinic module tools', () => {
+  const slotAna = {
+    startsAt: '2026-09-14T13:00:00.000Z',
+    endsAt: '2026-09-14T14:00:00.000Z',
+    professionalId: 'p1',
+    professionalName: 'Dra. Ana Pérez',
+  }
+  const slotLuis = { ...slotAna, professionalId: 'p2', professionalName: 'Dr. Luis Gómez' }
+
+  it('parses the doctor and specialty filters only when present', () => {
+    expect(parseAvailabilityArgs({ date: '2026-09-08', professional_id: ' p1 ', specialty: '' })).toEqual({
+      date: '2026-09-08',
+      time: undefined,
+      professionalId: 'p1',
+    })
+  })
+
+  it('offers find_professionals and requires professional_id only in clinic mode', () => {
+    const execute = async () => ({ slots: [] })
+    const plain = bookingToolDefinitions({ execute })
+    expect(plain.map((d) => d.name)).not.toContain('find_professionals')
+    expect(plain.find((d) => d.name === 'book_appointment')?.parameters.required).not.toContain('professional_id')
+
+    const clinic = bookingToolDefinitions({ execute, clinic: { find: async () => [] } })
+    expect(clinic.map((d) => d.name)).toContain('find_professionals')
+    expect(clinic.find((d) => d.name === 'book_appointment')?.parameters.required).toContain('professional_id')
+  })
+
+  it('offers service_id and a required insurance only when the clinic has them', () => {
+    const execute = async () => ({ slots: [] })
+    const basic = bookingToolDefinitions({ execute, clinic: { find: async () => [] } })
+    const book = basic.find((d) => d.name === 'book_appointment')!
+    expect(book.parameters.properties).not.toHaveProperty('service_id')
+    expect(book.parameters.properties).not.toHaveProperty('insurance')
+
+    const full = bookingToolDefinitions({ execute, clinic: { find: async () => [], services: true, insurance: true } })
+    const fullBook = full.find((d) => d.name === 'book_appointment')!
+    expect(fullBook.parameters.properties).toHaveProperty('service_id')
+    expect(fullBook.parameters.required).toContain('insurance')
+    expect(full.find((d) => d.name === 'check_availability')?.parameters.properties).toHaveProperty('service_id')
+  })
+
+  it('passes service_id to the availability lookup only when services exist', async () => {
+    const execute = vi.fn().mockResolvedValue({ slots: [] })
+    await runBookingTool({ execute, clinic: { find: async () => [], services: true } }, 'check_availability', { date: '2026-09-14', service_id: 'svc-1' }, {})
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ serviceId: 'svc-1' }))
+
+    execute.mockClear()
+    await runBookingTool({ execute, clinic: { find: async () => [] } }, 'check_availability', { date: '2026-09-14', service_id: 'svc-1' }, {})
+    expect(execute.mock.calls[0][0]).not.toHaveProperty('serviceId')
+  })
+
+  it('reads service_id and insurance from book_appointment', () => {
+    const parsed = parseBookAppointment({
+      startsAt: '2026-09-08T13:00:00.000Z',
+      endsAt: '2026-09-08T14:00:00.000Z',
+      service: 'Eco',
+      customerName: 'Ana Pérez',
+      customerPhone: '809-555-1234',
+      service_id: 'svc-1',
+      insurance: ' Humano, afiliado 123 ',
+    })
+    expect(parsed).toMatchObject({ appointment: { serviceId: 'svc-1', insurance: 'Humano, afiliado 123' } })
+  })
+
+  it('names the doctor on slot buttons when the offer spans several doctors', () => {
+    expect(slotButtonTitle(slotAna, [slotAna, slotLuis])).toBe('09:00 Ana Pérez')
+    expect(slotButtonTitle(slotAna, [slotAna])).toBe('09:00')
+  })
+
+  it('passes the filters to the availability lookup and tags each slot with its doctor', async () => {
+    const execute = vi.fn().mockResolvedValue({ slots: [slotAna] })
+    const outcome = {}
+    const json = await runBookingTool(
+      { execute, clinic: { find: async () => [] } },
+      'check_availability',
+      { date: '2026-09-14', specialty: 'Pediatría' },
+      outcome,
+    )
+    expect(execute).toHaveBeenCalledWith(expect.objectContaining({ date: '2026-09-14', specialty: 'Pediatría' }))
+    expect(json).toContain('"professional_id":"p1"')
+    expect(json).toContain('Dra. Ana Pérez')
+  })
+
+  it('runs find_professionals and explains an empty result', async () => {
+    const find = vi.fn().mockResolvedValue([])
+    const json = await runBookingTool(
+      { execute: async () => ({ slots: [] }), clinic: { find } },
+      'find_professionals',
+      { query: ' cardio ' },
+      {},
+    )
+    expect(find).toHaveBeenCalledWith({ query: 'cardio' })
+    expect(JSON.parse(json!)).toMatchObject({ professionals: [] })
+    expect(JSON.parse(json!).note).toBeTruthy()
+
+    // Not a booking tool outside clinic mode.
+    expect(await runBookingTool({ execute: async () => ({ slots: [] }) }, 'find_professionals', {}, {})).toBeNull()
+  })
+})
+
+describe('offerToToolResult — holidays', () => {
+  it('tells the model the asked-for date is a holiday', () => {
+    const json = JSON.parse(
+      offerToToolResult({
+        requested: { date: '2026-12-25', time: '10:00', available: false },
+        holiday: { date: '2026-12-25', name: 'Navidad' },
+        slots: [{ startsAt: '2026-12-26T14:00:00.000Z', endsAt: '2026-12-26T15:00:00.000Z' }],
+      }),
+    )
+    expect(json.holiday.name).toBe('Navidad')
+    expect(json.holiday.note).toContain('2026-12-25 (Navidad) is a holiday')
+    expect(json.slots).toHaveLength(1)
+  })
+
+  it('adds nothing on an ordinary day', () => {
+    const json = JSON.parse(offerToToolResult({ slots: [] }))
+    expect(json.holiday).toBeUndefined()
   })
 })

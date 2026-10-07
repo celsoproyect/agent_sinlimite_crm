@@ -91,6 +91,19 @@ async function claimSend(admin: SupabaseClient, row: DueReminderRow): Promise<{ 
   return data
 }
 
+/** The booking's doctor (clinic module), for {{doctor}}. Undefined when
+ *  it has none or migration 066 hasn't run. */
+async function bookingDoctorName(admin: SupabaseClient, bookingId: string): Promise<string | undefined> {
+  const { data, error } = await admin
+    .from('bookings')
+    .select('professional:professionals(name)')
+    .eq('id', bookingId)
+    .maybeSingle()
+  if (error || !data) return undefined
+  const professional = (data as unknown as { professional?: { name?: string } | null }).professional
+  return professional?.name || undefined
+}
+
 async function sendReminder(
   admin: SupabaseClient,
   row: DueReminderRow,
@@ -117,6 +130,7 @@ async function sendReminder(
     service: row.service || '',
     startsAt: row.starts_at,
     reference: bookingReference(row.booking_id),
+    doctor: /\{\{\s*doctor\s*\}\}/.test(row.message_text) ? await bookingDoctorName(admin, row.booking_id) : undefined,
   }
 
   try {

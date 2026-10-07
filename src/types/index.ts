@@ -469,9 +469,77 @@ export interface Booking {
    *  062). The AI agent finds the booking again by this phone. */
   customer_name?: string | null;
   customer_phone?: string | null;
+  /** Clinic module (migration 066): the doctor the appointment is with. */
+  professional_id?: string | null;
+  /** Clinic module (migration 067): the service it is for. */
+  clinic_service_id?: string | null;
+  /** Clinic module (migration 067): health insurance (ARS) + affiliate
+   *  number as the customer gave it, or "privado". */
+  insurance?: string | null;
   created_at: string;
   updated_at: string;
   contact?: Contact;
+}
+
+/** Clinic module (migration 066): a specialty (Pediatría, Cardiología…). */
+export interface Specialty {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Clinic module (migration 066): a doctor with their own agenda. */
+export interface Professional {
+  id: string;
+  account_id: string;
+  name: string;
+  bio?: string | null;
+  active: boolean;
+  /** Own weekly hours; null = the business hours. */
+  hours?: BookingSettings['hours'] | null;
+  /** Own appointment length; null = the business slot length. */
+  slot_minutes?: number | null;
+  sort_order: number;
+  specialty_ids: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/** Clinic module (migration 067): a kind of appointment with its own
+ *  length, optionally limited to one specialty's doctors. */
+export interface ClinicServiceRow {
+  id: string;
+  account_id: string;
+  name: string;
+  description?: string | null;
+  specialty_id?: string | null;
+  duration_minutes: number;
+  price?: number | null;
+  active: boolean;
+  sort_order: number;
+  created_at: string;
+  updated_at: string;
+}
+
+/** Clinic module (migration 067): days a doctor doesn't work. Dates are
+ *  business-local and inclusive. */
+export interface ProfessionalTimeOff {
+  id: string;
+  account_id: string;
+  professional_id: string;
+  starts_on: string;
+  ends_on: string;
+  reason?: string | null;
+  created_at: string;
+}
+
+/** Clinic module (migration 067): `accounts.clinic_settings`. */
+export interface ClinicSettings {
+  ask_insurance: boolean;
+  insurers: string[];
 }
 
 /** Per-account business-hours/slot config — `accounts.booking_settings`
@@ -489,6 +557,8 @@ export interface BookingSettings {
    *  hours above — e.g. national/local holidays the business doesn't
    *  work regardless of what weekday they fall on. */
   holidays?: string[];
+  /** Optional name per holiday date ("2026-12-25" → "Navidad"). */
+  holidayNames?: Record<string, string>;
 }
 
 /** Account-level reminder rule — `booking_reminder_rules` (migration 052). */

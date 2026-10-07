@@ -1,24 +1,36 @@
 "use client";
 
 import { useMemo } from "react";
-import {
-  startOfWeek,
-  eachDayOfInterval,
-  addDays,
-  format,
-  isSameDay,
-  isToday,
-} from "date-fns";
+import { useLocale, useTranslations } from "next-intl";
 import type { Booking } from "@/types";
 import { cn } from "@/lib/utils";
+import { addDaysISO } from "@/lib/bookings/ranges";
+import { businessDate, businessTime, businessToday } from "@/lib/business-timezone";
 
-const HOURS = Array.from({ length: 13 }, (_, i) => 8 + i); // 08:00–20:00
+/** Hours always drawn; widened when a booking falls outside them. */
+const FIRST_HOUR = 8;
+const LAST_HOUR = 20;
 
 interface AgendaCalendarProps {
-  weekStart: Date;
+  /** Monday of the week shown, as a business-local "YYYY-MM-DD". */
+  weekStart: string;
   bookings: Booking[];
-  onSlotClick: (day: Date, hour: number) => void;
+  onSlotClick: (dateISO: string, hour: number) => void;
   onBookingClick: (booking: Booking) => void;
+  /** Clinic module: doctor id -> name, shown on each appointment. */
+  doctorNames?: Map<string, string>;
+  /** The business's holidays: date -> name ("" when unnamed). */
+  holidays?: Map<string, string>;
+  /** Clinic module: dates the doctor being filtered on is away. */
+  awayDates?: Set<string>;
+}
+
+/** Day label for a business-local date, independent of the browser's
+ *  timezone (noon UTC is the same calendar day everywhere it matters). */
+function dayLabel(dateISO: string, locale: string, options: Intl.DateTimeFormatOptions): string {
+  return new Intl.DateTimeFormat(locale, { ...options, timeZone: "UTC" }).format(
+    new Date(`${dateISO}T12:00:00Z`),
+  );
 }
 
 export function AgendaCalendar({
@@ -26,63 +38,93 @@ export function AgendaCalendar({
   bookings,
   onSlotClick,
   onBookingClick,
+  doctorNames,
+  holidays,
+  awayDates,
 }: AgendaCalendarProps) {
+  const t = useTranslations("Agenda.page");
+  const locale = useLocale();
+  const today = businessToday();
   const days = useMemo(
-    () =>
-      eachDayOfInterval({
-        start: startOfWeek(weekStart, { weekStartsOn: 1 }),
-        end: addDays(startOfWeek(weekStart, { weekStartsOn: 1 }), 6),
-      }),
+    () => Array.from({ length: 7 }, (_, i) => addDaysISO(weekStart, i)),
     [weekStart],
   );
 
-  const bookingsByDay = useMemo(() => {
+  // Every booking keyed by its Santo Domingo day and hour.
+  const byDayHour = useMemo(() => {
     const map = new Map<string, Booking[]>();
-    for (const day of days) {
-      map.set(
-        format(day, "yyyy-MM-dd"),
-        bookings.filter((b) => isSameDay(new Date(b.starts_at), day)),
-      );
+    for (const b of bookings) {
+      const key = `${businessDate(b.starts_at)}|${Number(businessTime(b.starts_at).slice(0, 2))}`;
+      map.set(key, [...(map.get(key) ?? []), b]);
     }
     return map;
-  }, [days, bookings]);
+  }, [bookings]);
+
+  const hours = useMemo(() => {
+    let first = FIRST_HOUR;
+    let last = LAST_HOUR;
+    for (const b of bookings) {
+      if (!days.includes(businessDate(b.starts_at))) continue;
+      const h = Number(businessTime(b.starts_at).slice(0, 2));
+      first = Math.min(first, h);
+      last = Math.max(last, h);
+    }
+    return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+  }, [bookings, days]);
+
+  const closedLabel = (day: string): string | null => {
+    if (holidays?.has(day)) return holidays.get(day) || t("holiday");
+    if (awayDates?.has(day)) return t("doctorAway");
+    return null;
+  };
 
   return (
     <div className="overflow-x-auto rounded-xl border border-border bg-card">
       <div className="grid min-w-[840px] grid-cols-[60px_repeat(7,1fr)]">
         <div className="border-b border-border" />
-        {days.map((day) => (
-          <div
-            key={day.toISOString()}
-            className={cn(
-              "border-b border-l border-border px-2 py-2 text-center",
-              isToday(day) && "bg-primary/5",
-            )}
-          >
-            <div className="text-xs text-muted-foreground">{format(day, "EEE")}</div>
+        {days.map((day) => {
+          const closed = closedLabel(day);
+          return (
             <div
+              key={day}
               className={cn(
-                "text-sm font-medium",
-                isToday(day) ? "text-primary" : "text-foreground",
+                "border-b border-l border-border px-2 py-2 text-center",
+                day === today && "bg-primary/5",
+                closed && "bg-amber-500/10",
               )}
             >
-              {format(day, "d")}
+              <div className="text-xs text-muted-foreground">{dayLabel(day, locale, { weekday: "short" })}</div>
+              <div
+                className={cn(
+                  "text-sm font-medium",
+                  day === today ? "text-primary" : "text-foreground",
+                )}
+              >
+                {Number(day.slice(8, 10))}
+              </div>
+              {closed && (
+                <div
+                  className="mx-auto mt-0.5 line-clamp-2 break-words text-[0.625rem] font-medium leading-tight text-amber-600"
+                  title={closed}
+                >
+                  {closed}
+                </div>
+              )}
             </div>
-          </div>
-        ))}
+          );
+        })}
 
-        {HOURS.map((hour) => (
+        {hours.map((hour) => (
           <div key={hour} className="contents">
             <div className="border-b border-border px-1.5 py-3 text-right text-[0.6875rem] text-muted-foreground">
               {String(hour).padStart(2, "0")}:00
             </div>
             {days.map((day) => {
-              const dayBookings = (
-                bookingsByDay.get(format(day, "yyyy-MM-dd")) ?? []
-              ).filter((b) => new Date(b.starts_at).getHours() === hour);
+              const dayBookings = byDayHour.get(`${day}|${hour}`) ?? [];
+              const closed = !!closedLabel(day);
               return (
                 <button
-                  key={day.toISOString() + hour}
+                  key={day + hour}
                   type="button"
                   onClick={() =>
                     dayBookings.length === 0
@@ -91,10 +133,14 @@ export function AgendaCalendar({
                   }
                   className={cn(
                     "min-h-[52px] border-b border-l border-border p-1 text-left align-top hover:bg-muted/50",
-                    isToday(day) && "bg-primary/5",
+                    day === today && "bg-primary/5",
+                    closed &&
+                      "bg-[repeating-linear-gradient(135deg,transparent,transparent_6px,rgb(245_158_11/0.08)_6px,rgb(245_158_11/0.08)_12px)]",
                   )}
                 >
-                  {dayBookings.map((b) => (
+                  {dayBookings.map((b) => {
+                    const doctor = b.professional_id ? doctorNames?.get(b.professional_id) : undefined;
+                    return (
                     <div
                       key={b.id}
                       role="button"
@@ -110,10 +156,12 @@ export function AgendaCalendar({
                           : "bg-primary/15 text-primary",
                       )}
                     >
-                      {format(new Date(b.starts_at), "HH:mm")}{" "}
+                      {businessTime(b.starts_at)}{" "}
                       {b.contact?.name || b.contact?.phone || b.service}
+                      {doctor && <span className="block truncate font-normal opacity-80">{doctor}</span>}
                     </div>
-                  ))}
+                    );
+                  })}
                 </button>
               );
             })}

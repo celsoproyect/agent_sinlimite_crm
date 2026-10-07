@@ -14,6 +14,7 @@ import {
   rescheduleAiBooking,
 } from './booking'
 import { generateReply } from './generate'
+import { formatClinicRoster, clinicSearchTool, getClinicDirectory } from '@/lib/clinic/directory'
 import { buildSystemPrompt } from './defaults'
 import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
@@ -202,6 +203,7 @@ export async function dispatchInboundToAiReply(
       businessHoursSummary,
       customFieldRoster,
       leadStageRoster,
+      clinic,
     ] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
@@ -212,6 +214,8 @@ export async function dispatchInboundToAiReply(
       config.leadPipelineId
         ? getLeadPipelineStages(db, config.leadPipelineId)
         : Promise.resolve([]),
+      // Clinic module: per-doctor agendas (null = one shared agenda).
+      getClinicDirectory(db, accountId),
     ])
     const attachmentsEnabled = attachmentRoster.length > 0
     const customFieldNames = customFieldRoster.map((f) => f.field_name)
@@ -228,6 +232,7 @@ export async function dispatchInboundToAiReply(
       bookingAvailable,
       businessHoursSummary,
       bookingManageAvailable: bookingAvailable,
+      clinicRoster: clinic ? formatClinicRoster(clinic) : null,
       customerWhatsappPhone: contactRow?.phone || null,
       needsCustomerName,
       handoffOnMissingInfo: config.handoffOnMissingInfo,
@@ -251,20 +256,22 @@ export async function dispatchInboundToAiReply(
           ? ({ query }) => searchAttachments(db, accountId, query)
           : undefined,
         checkAvailability: bookingAvailable
-          ? ({ date, time }) => checkAvailability(db, accountId, date, time)
+          ? ({ date, time, professionalId, specialty, serviceId }) =>
+              checkAvailability(db, accountId, date, time, 3, { directory: clinic, professionalId, specialty, serviceId })
           : undefined,
+        clinicTool: bookingAvailable && clinic ? clinicSearchTool(clinic) : undefined,
         // Booking is written inside the tool call, not after the send, so
         // a rejected slot (taken / closed / past) or a failed insert
         // reaches the model while it can still say so to the customer.
         bookAppointment: bookingAvailable
           ? (appointment) =>
-              confirmAiBooking(db, { accountId, contactId, conversationId, appointment })
+              confirmAiBooking(db, { accountId, contactId, conversationId, appointment, directory: clinic })
           : undefined,
         manageAppointments: bookingAvailable
           ? {
-              find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone }),
-              reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a }),
-              cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a }),
+              find: ({ phone }) => findCustomerBookings(db, { accountId, contactId, phone, directory: clinic }),
+              reschedule: (a) => rescheduleAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
+              cancel: (a) => cancelAiBooking(db, { accountId, contactId, conversationId, ...a, directory: clinic }),
             }
           : undefined,
         captureCustomerName: needsCustomerName,
