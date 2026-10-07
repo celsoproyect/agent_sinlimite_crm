@@ -46,8 +46,9 @@
     "menuSettings": "설정",
     "menuSignOut": "로그아웃",
     "aiMessagesModule": "AI 메시지 (보고서)",
-    "weeklySummaryModule": "주간 요약 (텔레그램)",
-    "googleCalendarModule": "Google 캘린더 (예약)"
+    "googleCalendarModule": "Google 캘린더 (예약)",
+    "telegramModule": "텔레그램 (알림, 어시스턴트, 주간 요약)",
+    "widgetBookingModule": "웹 위젯 예약"
   },
   "Header": {
     "dashboard": "대시보드",

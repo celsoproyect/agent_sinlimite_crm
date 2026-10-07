@@ -19,6 +19,7 @@ import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
+import { accountModuleEnabled } from '@/lib/modules-server'
 
 interface WidgetReplyArgs {
   db: SupabaseClient
@@ -100,7 +101,10 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
-    bookingEnabled(db, accountId),
+    // Saved hours AND the widget_booking module on.
+    Promise.all([bookingEnabled(db, accountId), accountModuleEnabled(db, accountId, 'widget_booking')]).then(
+      ([hours, moduleOn]) => hours && moduleOn,
+    ),
     getBusinessHoursSummary(db, accountId),
     getCustomFieldRoster(db, accountId),
     config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),

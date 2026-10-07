@@ -121,7 +121,7 @@ export async function sendDueWeeklySummaries(db: SupabaseClient, now: Date = new
   let sent = 0
   for (const acc of (data ?? []) as AccountRow[]) {
     if (acc.weekly_report_enabled === false) continue
-    if (!isModuleEnabled(acc.enabled_modules, 'weekly_summary')) continue
+    if (!isModuleEnabled(acc.enabled_modules, 'telegram')) continue
     if (!weeklySummaryDue(now, acc.weekly_report_sent_at)) continue
     try {
       // Claim first so a slow send or a second instance can't double-send.

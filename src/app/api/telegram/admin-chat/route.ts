@@ -2,6 +2,7 @@ import crypto from 'node:crypto'
 import { NextResponse } from 'next/server'
 
 import { requireRole, toErrorResponse, UnauthorizedError, ForbiddenError } from '@/lib/auth/account'
+import { accountModuleEnabled } from '@/lib/modules-server'
 import { setTelegramWebhook, deleteTelegramWebhook } from '@/lib/telegram/send'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 
@@ -24,6 +25,9 @@ function appUrl(): string {
 export async function POST(): Promise<NextResponse> {
   try {
     const { supabase, accountId, userId } = await requireRole('admin')
+    if (!(await accountModuleEnabled(supabase, accountId, 'telegram'))) {
+      return NextResponse.json({ error: 'Module disabled' }, { status: 403 })
+    }
 
     const limit = checkRateLimit(`telegram-admin-chat:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)

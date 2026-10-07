@@ -11,11 +11,15 @@ export async function accountModuleEnabled(
   accountId: string,
   key: ModuleKey,
 ): Promise<boolean> {
-  const { data, error } = await db
-    .from('accounts')
-    .select('enabled_modules')
-    .eq('id', accountId)
-    .maybeSingle()
-  if (error || !data) return true
-  return isModuleEnabled(data.enabled_modules as EnabledModules | null, key)
+  try {
+    const { data, error } = await db
+      .from('accounts')
+      .select('enabled_modules')
+      .eq('id', accountId)
+      .maybeSingle()
+    if (error || !data) return true
+    return isModuleEnabled(data.enabled_modules as EnabledModules | null, key)
+  } catch {
+    return true
+  }
 }

@@ -46,8 +46,9 @@
     "menuSettings": "Configuración",
     "menuSignOut": "Cerrar sesión",
     "aiMessagesModule": "Mensajes de la IA (Reportes)",
-    "weeklySummaryModule": "Resumen semanal (Telegram)",
-    "googleCalendarModule": "Google Calendar (Agenda)"
+    "googleCalendarModule": "Google Calendar (Agenda)",
+    "telegramModule": "Telegram (alertas, asistente y resumen semanal)",
+    "widgetBookingModule": "Citas desde el widget web"
   },
   "Header": {
     "dashboard": "Panel",

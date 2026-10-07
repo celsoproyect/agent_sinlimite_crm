@@ -6,6 +6,7 @@ import { generateOpsReply } from '@/lib/ai/ops-assistant'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import type { ChatMessage } from '@/lib/ai/types'
+import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
 
 // ============================================================
 // POST /api/telegram/webhook/[accountId]
@@ -58,11 +59,12 @@ export async function POST(
     const db = supabaseAdmin()
     const { data: account, error } = await db
       .from('accounts')
-      .select('telegram_admin_chat_enabled, telegram_webhook_secret, telegram_bot_token, telegram_chat_id')
+      .select('telegram_admin_chat_enabled, telegram_webhook_secret, telegram_bot_token, telegram_chat_id, enabled_modules')
       .eq('id', accountId)
       .maybeSingle()
     if (error || !account) return ok()
     if (!account.telegram_admin_chat_enabled) return ok()
+    if (!isModuleEnabled(account.enabled_modules as EnabledModules | null, 'telegram')) return ok()
     if (!account.telegram_webhook_secret || account.telegram_webhook_secret !== secretHeader) return ok()
     if (!account.telegram_bot_token || !account.telegram_chat_id) return ok()
 

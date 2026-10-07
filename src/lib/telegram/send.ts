@@ -10,6 +10,7 @@
  * surfaces as a TypeScript error, not a runtime mix-up).
  */
 
+import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
 import type { SupabaseClient } from '@supabase/supabase-js'
 
 const TELEGRAM_API_BASE = 'https://api.telegram.org'
@@ -108,13 +109,14 @@ export async function notifyOwnerOfHandoff(
   try {
     const { data: account, error } = await db
       .from('accounts')
-      .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id')
+      .select('telegram_notify_enabled, telegram_bot_token, telegram_chat_id, enabled_modules')
       .eq('id', accountId)
       .maybeSingle()
     if (error || !account) {
       console.warn('[telegram] notifyOwnerOfHandoff: could not load account row', { accountId, error })
       return
     }
+    if (!isModuleEnabled(account.enabled_modules as EnabledModules | null, 'telegram')) return
     if (!account.telegram_notify_enabled || !account.telegram_bot_token || !account.telegram_chat_id) {
       console.warn('[telegram] notifyOwnerOfHandoff: skipped — notifications not configured/enabled', {
         accountId,

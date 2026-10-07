@@ -46,8 +46,9 @@
     "menuSettings": "Settings",
     "menuSignOut": "Sign out",
     "aiMessagesModule": "AI messages (Reports)",
-    "weeklySummaryModule": "Weekly summary (Telegram)",
-    "googleCalendarModule": "Google Calendar (Agenda)"
+    "googleCalendarModule": "Google Calendar (Agenda)",
+    "telegramModule": "Telegram (alerts, assistant and weekly summary)",
+    "widgetBookingModule": "Bookings from the web widget"
   },
   "Header": {
     "dashboard": "Dashboard",

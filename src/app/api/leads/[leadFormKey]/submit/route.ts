@@ -5,6 +5,7 @@ import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import { mintSyntheticPhone } from '@/lib/contacts/synthetic-phone'
 import { sendTelegramMessage } from '@/lib/telegram/send'
+import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
 
 // ============================================================
 // POST /api/leads/[leadFormKey]/submit
@@ -92,7 +93,7 @@ export async function POST(
   const { data: account, error: accountErr } = await db
     .from('accounts')
     .select(
-      'id, owner_user_id, lead_form_enabled, telegram_notify_enabled, telegram_bot_token, telegram_chat_id',
+      'id, owner_user_id, lead_form_enabled, telegram_notify_enabled, telegram_bot_token, telegram_chat_id, enabled_modules',
     )
     .eq('lead_form_key', leadFormKey)
     .maybeSingle()
@@ -141,7 +142,12 @@ export async function POST(
 
     const dealId = await createLeadDeal(db, account.id, account.owner_user_id, contact.id, fullName)
 
-    if (account.telegram_notify_enabled && account.telegram_bot_token && account.telegram_chat_id) {
+    if (
+      isModuleEnabled(account.enabled_modules as EnabledModules | null, 'telegram') &&
+      account.telegram_notify_enabled &&
+      account.telegram_bot_token &&
+      account.telegram_chat_id
+    ) {
       const summary = buildTelegramSummary({ fullName, email: emailRaw, company, service, employeeCount, message })
       // Best-effort — a Telegram hiccup must never fail the lead
       // capture itself (the contact/deal are already committed).

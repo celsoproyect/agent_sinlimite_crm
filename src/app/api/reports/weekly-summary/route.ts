@@ -11,7 +11,7 @@ import { buildWeeklySummary } from '@/lib/reports/weekly-summary'
 export async function POST() {
   try {
     const { supabase, accountId, account } = await requireRole('admin')
-    if (!(await accountModuleEnabled(supabase, accountId, 'weekly_summary'))) {
+    if (!(await accountModuleEnabled(supabase, accountId, 'telegram'))) {
       return NextResponse.json({ error: 'Module disabled' }, { status: 403 })
     }
 

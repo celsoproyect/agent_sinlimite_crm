@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse, UnauthorizedError, ForbiddenError } from '@/lib/auth/account'
+import { accountModuleEnabled } from '@/lib/modules-server'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 
 // "Send test message" button on the Channels settings UI — confirms
@@ -8,6 +9,9 @@ import { sendTelegramMessage } from '@/lib/telegram/send'
 export async function POST(): Promise<NextResponse> {
   try {
     const { supabase, accountId } = await requireRole('admin')
+    if (!(await accountModuleEnabled(supabase, accountId, 'telegram'))) {
+      return NextResponse.json({ error: 'Module disabled' }, { status: 403 })
+    }
 
     const { data: account, error } = await supabase
       .from('accounts')

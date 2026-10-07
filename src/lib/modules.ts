@@ -13,9 +13,11 @@
 // Page modules must match the sidebar's `navSections[].items` hrefs
 // (src/components/layout/sidebar.tsx), minus the leading slash — the
 // sidebar filter and each page's `useModuleGate` call both key off this
-// list. Feature modules (`ai_messages`, `weekly_summary`,
+// list. Feature modules (`ai_messages`, `telegram`, `widget_booking`,
 // `google_calendar`) have no menu entry: their UI hides itself and the
 // server checks them with `accountModuleEnabled` (modules-server.ts).
+// `telegram` covers everything Telegram: handoff and lead alerts, the
+// owner assistant and the weekly summary.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -27,7 +29,8 @@ export const MODULE_KEYS = [
   "broadcasts",
   "reports",
   "ai_messages",
-  "weekly_summary",
+  "telegram",
+  "widget_booking",
   "google_calendar",
   "automations",
   "flows",

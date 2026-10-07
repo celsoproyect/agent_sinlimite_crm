@@ -42,7 +42,6 @@ interface TelegramRow {
 export function TelegramSettings() {
   const supabase = createClient();
   const { accountId, account, canEditSettings, profileLoading } = useAuth();
-  const weeklyModule = isModuleEnabled(account?.enabled_modules, 'weekly_summary');
   const t = useTranslations('Channels.telegram');
 
   const [row, setRow] = useState<TelegramRow | null>(null);
@@ -364,7 +363,7 @@ export function TelegramSettings() {
         </Card>
       )}
 
-      {weeklyModule && hasToken && hasChat && (
+      {hasToken && hasChat && (
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-foreground">

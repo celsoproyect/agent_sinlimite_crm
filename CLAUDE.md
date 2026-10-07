@@ -28,7 +28,9 @@
 - **Background jobs:** `src/lib/server-schedulers.ts`, started from `instrumentation.ts` in production. It drains automation Wait steps every 60s (`drain-pending.ts`, also behind `/api/automations/cron`), runs deal auto-lose hourly and checks the weekly summary every 15 min. Flows still need the external `/api/flows/cron`.
 - **Modules:** every new capability must be a module the owner can switch on and off in Super admin → Módulos (`MODULE_KEYS` in `src/lib/modules.ts`; missing key = on).
   - Page modules gate their page with `useModuleGate`.
-  - Feature modules (`ai_messages`, `weekly_summary`, `google_calendar`) hide their UI with `isModuleEnabled(account.enabled_modules, …)`.
+  - Feature modules (`ai_messages`, `telegram`, `widget_booking`, `google_calendar`) hide their UI with `isModuleEnabled(account.enabled_modules, …)`.
+  - `telegram` is one switch for everything Telegram: handoff and lead alerts, the owner assistant webhook, the settings card and the weekly summary.
+  - `widget_booking` adds the booking tools to the web widget on top of saved hours.
   - On the server, routes and jobs check `accountModuleEnabled` (`src/lib/modules-server.ts`).
 - **Reports** (`/reports`, module key `reports`, `src/lib/reports/`, migration 065):
   - `computeOverview` in `overview.ts` is pure, and the loaders page past Supabase's 1000-row cap. It covers conversations handled by the AI alone vs with a person, response times (median/avg, AI vs human), the daily series, new contacts by channel (a contact's channel is its first conversation's), won deals by channel, "AI-assisted" revenue (the AI wrote to the contact before `closed_at`) and bookings (by the AI = `created_by` null).

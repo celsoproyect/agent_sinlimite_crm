@@ -7,9 +7,13 @@ import { useModuleGate } from '@/hooks/use-module-gate';
 import { WidgetSettings } from '@/components/channels/widget-settings';
 import { LeadFormSettings } from '@/components/channels/lead-form-settings';
 import { TelegramSettings } from '@/components/channels/telegram-settings';
+import { useAuth } from '@/hooks/use-auth';
+import { isModuleEnabled } from '@/lib/modules';
 
 export default function ChannelsPage() {
   const t = useTranslations('Channels.page');
+  const { account } = useAuth();
+  const telegramModule = isModuleEnabled(account?.enabled_modules, 'telegram');
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate('channels');
 
   if (moduleGateLoading || !moduleReady) {
@@ -35,9 +39,11 @@ export default function ChannelsPage() {
         <div className="pt-8">
           <LeadFormSettings />
         </div>
-        <div className="pt-8">
-          <TelegramSettings />
-        </div>
+        {telegramModule && (
+          <div className="pt-8">
+            <TelegramSettings />
+          </div>
+        )}
       </div>
     </div>
   );
