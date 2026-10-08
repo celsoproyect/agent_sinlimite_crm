@@ -12,8 +12,8 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const BRAND = 'SiempreIA'
-const SIGNUP = 'https://app.crm.sinlimiteia.com/signup'
+const BRAND = 'Agentes Sin Límite'
+const SIGNUP = 'https://app.crm.agentesinlimite.com/signup'
 
 const ICONS = {
   clinicas: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
@@ -415,22 +415,12 @@ const up = (html) =>
     .replace(/href="#([^"]*)"/g, 'href="../index.html#$1"')
     .replace(/href="(privacidad|terminos)\.html"/g, 'href="../$1.html"')
     .replace(/href="sectores\//g, 'href="')
+    .replace(/src="logo\.png"/g, 'src="../logo.png"')
 const header = up(index.match(/<header class="nav">[\s\S]*?<\/header>/)[0])
 const footer = up(index.match(/<footer>[\s\S]*?<\/footer>/)[0])
 
 const script = `<script>
 (function () {
-  var root = document.documentElement;
-  var saved = null;
-  try { saved = localStorage.getItem('theme'); } catch (e) {}
-  if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
-  document.getElementById('themeBtn').addEventListener('click', function () {
-    var isDark = root.getAttribute('data-theme') === 'dark' ||
-      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    var next = isDark ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    try { localStorage.setItem('theme', next); } catch (e) {}
-  });
   var carousel = document.getElementById('carousel');
   document.querySelectorAll('.car-btn').forEach(function (b) {
     b.addEventListener('click', function () {
@@ -452,6 +442,7 @@ function page(s) {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="icon" type="image/png" href="../mark.png">
 <title>${BRAND} para ${esc(s.name.toLowerCase())}</title>
 <meta name="description" content="${esc(s.lede)}">
 ${fonts}

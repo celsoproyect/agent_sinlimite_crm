@@ -3,83 +3,47 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>SiempreIA</title>
-<meta name="description" content="SiempreIA: un agente de IA que atiende, vende y agenda por WhatsApp, con un CRM para tu equipo. Un producto de Sin Limite IA.">
+<title>Agentes Sin Límite</title>
+<link rel="icon" type="image/png" href="mark.png">
+<meta name="description" content="Agentes Sin Límite: un agente de IA que atiende, vende y agenda por WhatsApp, con un CRM para tu equipo. Un producto de Sin Limite IA.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
 /* ============================================================
-   SiempreIA: public site. The brand name is plain text: swap it
-   with a find-and-replace of "SiempreIA" across website/*.html.
+   Agentes Sin Límite: public site. Light only, colors taken from
+   the logo (cyan → blue → royal blue, navy text). The phone keeps
+   WhatsApp's own colors so the demo reads as WhatsApp at a glance.
    ============================================================ */
 :root {
-  --bg: #F2F5F1;
-  --bg-2: #E6EDE7;
+  color-scheme: light;
+  --bg: #F6F9FD;
+  --bg-2: #EAF2FC;
   --surface: #FFFFFF;
-  --ink: #0E1D18;
-  --ink-2: #2B3B35;
-  --muted: #5A6B64;
-  --line: #D6E0D9;
-  --accent: #0A7A57;
-  --accent-hover: #086748;
+  --ink: #0B1F45;
+  --ink-2: #2C3E63;
+  --muted: #5A6A88;
+  --line: #DCE5F1;
+  --accent: #1B5BFF;
+  --accent-hover: #0F47E0;
   --accent-ink: #FFFFFF;
-  --accent-soft: #D7F0E3;
-  --sun: #F2B632;
-  --sun-ink: #3A2A00;
-  --chat-bg: #E5ECE3;
+  --accent-soft: #E6EEFF;
+  --cyan: #00C2F2;
+  --sky: #1E9BF5;
+  --sky-soft: #DDF4FD;
+  --grad: linear-gradient(120deg, #00C2F2 0%, #1E9BF5 45%, #1B5BFF 100%);
+  --sun: #FFB547;
+  --sun-ink: #3A2500;
+  --chat-bg: #EFEAE2;
   --bubble-in: #FFFFFF;
-  --bubble-out: #D4F4DD;
-  --tick: #2C9CDB;
-  --shadow: 0 1px 2px rgba(14, 29, 24, .06), 0 18px 40px -18px rgba(14, 29, 24, .22);
+  --bubble-out: #D9FDD3;
+  --tick: #34A8E0;
+  --wa-head: #008069;
+  --shadow: 0 1px 2px rgba(11, 31, 69, .06), 0 20px 44px -20px rgba(11, 31, 69, .28);
   --radius: 18px;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --display: "Montserrat", "Segoe UI", system-ui, sans-serif;
   --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
   --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
-}
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    color-scheme: dark;
-    --bg: #0A1210;
-    --bg-2: #0F1A16;
-    --surface: #121D19;
-    --ink: #E7F0EB;
-    --ink-2: #C3D2CA;
-    --muted: #8FA39A;
-    --line: #22332D;
-    --accent: #3CCB92;
-    --accent-hover: #5AD9A6;
-    --accent-ink: #04130D;
-    --accent-soft: #123527;
-    --sun: #F2C14E;
-    --sun-ink: #2A1E00;
-    --chat-bg: #0C1713;
-    --bubble-in: #1A2823;
-    --bubble-out: #134A35;
-    --tick: #53BDEB;
-    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
-  }
-}
-:root[data-theme="dark"] {
-  color-scheme: dark;
-  --bg: #0A1210;
-  --bg-2: #0F1A16;
-  --surface: #121D19;
-  --ink: #E7F0EB;
-  --ink-2: #C3D2CA;
-  --muted: #8FA39A;
-  --line: #22332D;
-  --accent: #3CCB92;
-  --accent-hover: #5AD9A6;
-  --accent-ink: #04130D;
-  --accent-soft: #123527;
-  --sun: #F2C14E;
-  --sun-ink: #2A1E00;
-  --chat-bg: #0C1713;
-  --bubble-in: #1A2823;
-  --bubble-out: #134A35;
-  --tick: #53BDEB;
-  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
 }
 
 *, *::before, *::after { box-sizing: border-box; }
@@ -133,24 +97,24 @@ section { padding-block: 88px; }
   border-bottom: 1px solid var(--line);
 }
 .nav .wrap { display: flex; align-items: center; gap: 24px; height: 66px; }
-.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 800 21px/1 var(--display); letter-spacing: -0.02em; }
-.brand-mark { width: 32px; height: 32px; flex: none; }
+.brand { display: inline-flex; align-items: center; text-decoration: none; flex: none; }
+.brand-logo { height: 46px; width: auto; display: block; }
 .nav-links { display: flex; gap: 22px; margin-left: 12px; }
 .nav-links a { text-decoration: none; color: var(--ink-2); font-weight: 500; font-size: 15px; }
 .nav-links a:hover { color: var(--accent); }
 .nav-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
 .nav-actions .btn { padding: 10px 16px; font-size: 14px; }
-.theme-btn {
-  width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--line);
-  background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center;
-}
-.theme-btn svg { width: 18px; height: 18px; }
 @media (max-width: 900px) { .nav-links { display: none; } }
 @media (max-width: 520px) { .nav-actions .login { display: none; } }
 
 /* Hero */
-.hero { padding-block: 64px 72px; }
-.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 56px; align-items: center; }
+.hero {
+  padding-block: 20px 64px;
+  background:
+    radial-gradient(60% 70% at 85% 30%, color-mix(in srgb, var(--cyan) 16%, transparent), transparent 70%),
+    radial-gradient(50% 60% at 10% 0%, color-mix(in srgb, var(--accent) 9%, transparent), transparent 70%);
+}
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 56px; align-items: stretch; }
 .hero-copy { display: grid; gap: 22px; }
 .pain {
   display: inline-flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%;
@@ -158,13 +122,8 @@ section { padding-block: 88px; }
   font-size: 14px; color: var(--ink-2);
 }
 .pain .time { font-family: var(--mono); font-size: 12px; background: var(--ink); color: var(--bg); padding: 4px 8px; border-radius: 999px; }
-.hero h1 { font-size: clamp(42px, 6.4vw, 76px); font-weight: 800; letter-spacing: -0.035em; }
-.hero h1 .always { color: var(--accent); position: relative; white-space: nowrap; }
-.hero h1 .always::after {
-  content: ""; position: absolute; left: 2%; right: 2%; bottom: .04em; height: .14em;
-  background: var(--sun); border-radius: 4px; z-index: -1; opacity: .85;
-}
-.hero h1 .always { z-index: 0; display: inline-block; }
+.hero h1 { font-size: clamp(40px, 5.6vw, 66px); font-weight: 800; letter-spacing: -0.035em; }
+.hero h1 .always { background: var(--grad); -webkit-background-clip: text; background-clip: text; color: transparent; white-space: nowrap; padding-right: .04em; }
 .hero .lede { font-size: 19px; }
 .hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
 .hero-notes { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 14px; }
@@ -172,6 +131,7 @@ section { padding-block: 88px; }
 .hero-notes svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
 @media (max-width: 900px) {
   .hero .wrap { grid-template-columns: 1fr; gap: 44px; }
+  .hero .phone-col { contain: none; height: 600px; }
 }
 
 /* Phone + chat */
@@ -183,7 +143,7 @@ section { padding-block: 88px; }
 .phone-screen { border-radius: 26px; overflow: hidden; background: var(--chat-bg); display: flex; flex-direction: column; }
 .chat-top {
   display: flex; align-items: center; gap: 10px; padding: 12px 14px;
-  background: var(--accent); color: var(--accent-ink);
+  background: var(--wa-head); color: #FFFFFF;
 }
 .chat-avatar { width: 34px; height: 34px; border-radius: 999px; background: color-mix(in srgb, var(--accent-ink) 22%, transparent); display: grid; place-items: center; font: 700 13px/1 var(--display); flex: none; }
 .chat-top b { display: block; font-size: 15px; line-height: 1.2; }
@@ -214,13 +174,11 @@ section { padding-block: 88px; }
 @keyframes blink { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
 .chat-step { transition: opacity .25s, transform .25s; }
 .chat-step.pending { opacity: 0; transform: translateY(6px); }
-.replay {
-  margin: 14px auto 0; display: flex; align-items: center; gap: 8px; background: none; border: 0;
-  color: var(--muted); font: 500 14px/1 var(--body); cursor: pointer;
-}
-.replay:hover { color: var(--accent); }
-.replay svg { width: 16px; height: 16px; }
-.phone-col { display: grid; justify-items: center; }
+.hero .phone-col { contain: size; display: flex; flex-direction: column; align-items: center; min-height: 0; }
+.hero .phone { flex: 1 1 0; min-height: 0; display: flex; }
+.hero .phone-screen { flex: 1; min-height: 0; }
+.hero .chat-body { flex: 1; min-height: 0; overflow: hidden; scroll-behavior: smooth; }
+.hero .chat-body > * { flex: none; }
 
 /* Channels */
 .channels { padding-block: 26px; border-block: 1px solid var(--line); background: var(--surface); }
@@ -267,9 +225,7 @@ section { padding-block: 88px; }
 .hero-tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
 .sys-pill { align-self: center; text-align: center; font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 8px; background: color-mix(in srgb, var(--sun) 30%, var(--surface)); color: var(--ink); max-width: 92%; }
 .product { align-self: flex-end; width: 64%; background: var(--bubble-out); border-radius: 10px; padding: 5px 5px 8px; display: grid; gap: 1px; box-shadow: 0 1px 1px rgba(0, 0, 0, .08); font-size: 13.5px; }
-.product-img { height: 64px; border-radius: 7px; margin-bottom: 5px; }
-.product-img.p1 { background: linear-gradient(135deg, #F4C9B8, #E89A7F 55%, #C8705A); }
-.product-img.p2 { background: linear-gradient(135deg, #CFE6D8, #8FC4A6 55%, #4F9474); }
+.product-img { display: block; width: 100%; height: auto; border-radius: 7px; margin-bottom: 5px; }
 .product b, .product small, .product-price { padding-inline: 5px; }
 .product small { color: var(--muted); font-size: 12px; }
 .product-price { font-weight: 700; color: var(--accent); }
@@ -285,8 +241,8 @@ section { padding-block: 88px; }
   content: ""; position: absolute; left: 4.5px; top: calc(.2em + 5px); width: 8px; height: 4.5px;
   border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg);
 }
-.pillar.dark .checks li::before { background: color-mix(in srgb, var(--sun) 22%, transparent); }
-.pillar.dark .checks li::after { border-color: var(--sun); }
+.pillar.dark .checks li::before { background: color-mix(in srgb, #FFFFFF 22%, transparent); }
+.pillar.dark .checks li::after { border-color: #FFFFFF; }
 
 /* Pillars */
 .pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
@@ -295,11 +251,11 @@ section { padding-block: 88px; }
 .pillar h3 { font-size: 34px; letter-spacing: -0.03em; color: var(--accent); }
 .pillar-lede { font-weight: 600; font-size: 17px; color: var(--ink); }
 .pillar .checks li { font-size: 15px; }
-.pillar.dark { background: var(--ink); color: var(--bg); border-color: var(--ink); }
-.pillar.dark h3, .pillar.dark .pillar-lede { color: var(--bg); }
-.pillar.dark .checks li { color: color-mix(in srgb, var(--bg) 82%, transparent); }
-.pillar.dark .pillar-num { color: var(--sun); }
-.pillar.dark .quote { background: color-mix(in srgb, var(--bg) 10%, transparent); color: var(--bg); border-left-color: var(--sun); }
+.pillar.dark { background: var(--accent); color: #FFFFFF; border-color: var(--accent); box-shadow: 0 24px 48px -24px color-mix(in srgb, var(--accent) 70%, transparent); }
+.pillar.dark h3, .pillar.dark .pillar-lede { color: #FFFFFF; }
+.pillar.dark .checks li { color: color-mix(in srgb, #FFFFFF 88%, transparent); }
+.pillar.dark .pillar-num { color: color-mix(in srgb, #FFFFFF 80%, transparent); }
+.pillar.dark .quote { background: color-mix(in srgb, #FFFFFF 14%, transparent); color: #FFFFFF; border-left-color: var(--cyan); }
 .quote { font-size: 14px; color: var(--ink-2); background: var(--bg); border-radius: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); }
 @media (max-width: 900px) { .pillars { grid-template-columns: 1fr; } }
 
@@ -323,8 +279,8 @@ section { padding-block: 88px; }
 .sectors-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 28px; }
 .sectors-head .section-head { margin-bottom: 0; }
 .car-nav { display: flex; gap: 8px; flex: none; }
-.car-btn { width: 46px; height: 46px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
-.car-btn:hover { border-color: var(--accent); color: var(--accent); }
+.car-btn { width: 46px; height: 46px; border-radius: 999px; border: 0; background: var(--accent); color: #FFFFFF; cursor: pointer; display: grid; place-items: center; box-shadow: 0 8px 18px -8px color-mix(in srgb, var(--accent) 70%, transparent); }
+.car-btn:hover { background: var(--accent-hover); }
 .car-btn svg { width: 20px; height: 20px; }
 .carousel {
   display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 285px); gap: 16px;
@@ -337,6 +293,8 @@ section { padding-block: 88px; }
   transition: border-color .15s, transform .15s;
 }
 .sec-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.sec-card:nth-child(even) { background: var(--sky-soft); border-color: color-mix(in srgb, var(--cyan) 30%, transparent); }
+.sec-card:nth-child(even) .sec-ico, .sec-card:nth-child(even) .bubble { background: var(--surface); }
 .sec-ico { width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
 .sec-ico svg { width: 25px; height: 25px; }
 .sec-card h3 { font-size: 21px; }
@@ -369,7 +327,7 @@ section { padding-block: 88px; }
   .ba-row > div:last-child { padding-top: 4px; }
   .ba-head { display: none; }
   .ba-row:not(.ba-head) > div:first-child::before { content: "Hoy: "; font-weight: 600; }
-  .ba-row:not(.ba-head) > div:last-child::before { content: "Con SiempreIA: "; font-weight: 700; color: var(--accent); }
+  .ba-row:not(.ba-head) > div:last-child::before { content: "Con Agentes Sin Límite: "; font-weight: 700; color: var(--accent); }
 }
 .rec { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .rec > div { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: grid; gap: 10px; align-content: start; }
@@ -385,17 +343,17 @@ section { padding-block: 88px; }
 .feat p { color: var(--muted); font-size: 15px; }
 .feat .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
 .feat .ico svg { width: 21px; height: 21px; }
-.feat.hero-feat { grid-column: span 4; grid-row: span 2; background: var(--ink); color: var(--bg); border-color: var(--ink); padding: 32px; gap: 16px; }
-.feat.hero-feat p { color: color-mix(in srgb, var(--bg) 72%, transparent); }
+.feat.hero-feat { grid-column: span 4; grid-row: span 2; background: var(--accent); color: #FFFFFF; border-color: var(--accent); padding: 32px; gap: 16px; }
+.feat.hero-feat p { color: color-mix(in srgb, #FFFFFF 84%, transparent); }
 .feat.hero-feat h3 { font-size: clamp(24px, 2.6vw, 30px); }
-.feat.hero-feat .ico { background: color-mix(in srgb, var(--bg) 14%, transparent); color: var(--sun); }
+.feat.hero-feat .ico { background: color-mix(in srgb, #FFFFFF 18%, transparent); color: #FFFFFF; }
 .feat.span2 { grid-column: span 2; }
 .feat.span3 { grid-column: span 3; }
 .ai-points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin-top: 8px; }
-.ai-points div { border-top: 1px solid color-mix(in srgb, var(--bg) 18%, transparent); padding-top: 12px; font-size: 14.5px; color: color-mix(in srgb, var(--bg) 78%, transparent); }
-.ai-points b { display: block; color: var(--bg); font-size: 15px; margin-bottom: 2px; }
+.ai-points div { border-top: 1px solid color-mix(in srgb, #FFFFFF 28%, transparent); padding-top: 12px; font-size: 14.5px; color: color-mix(in srgb, #FFFFFF 86%, transparent); }
+.ai-points b { display: block; color: #FFFFFF; font-size: 15px; margin-bottom: 2px; }
 .providers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
-.providers span { font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--bg) 25%, transparent); }
+.providers span { font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, #FFFFFF 40%, transparent); }
 @media (max-width: 980px) {
   .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .feat.hero-feat { grid-column: span 2; grid-row: auto; }
@@ -484,7 +442,7 @@ details p { padding-bottom: 18px; color: var(--muted); font-size: 15px; max-widt
 @media (max-width: 860px) { .faq-grid { grid-template-columns: 1fr; gap: 28px; } }
 
 /* Final CTA */
-.cta-box { background: var(--accent); color: var(--accent-ink); border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.cta-box { background: var(--grad); color: var(--accent-ink); border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
 .cta-box h2 { font-size: clamp(32px, 4.4vw, 50px); }
 .cta-box p { opacity: .88; margin-top: 14px; font-size: 17px; }
 .cta-box .btn-primary { background: var(--accent-ink); color: var(--accent); }
@@ -526,13 +484,8 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
 <!-- ==================== NAV ==================== -->
 <header class="nav">
   <div class="wrap">
-    <a class="brand" href="#inicio" aria-label="SiempreIA, inicio">
-      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-        <path d="M16 3C8.8 3 3 8.4 3 15.1c0 2.6.9 5 2.4 7L4 28l6.3-1.9c1.7.8 3.6 1.2 5.7 1.2 7.2 0 13-5.4 13-12.1S23.2 3 16 3Z" fill="var(--accent)"/>
-        <circle cx="16" cy="15.2" r="6.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/>
-        <path d="M16 11.6v3.8l2.6 1.6" fill="none" stroke="var(--sun)" stroke-width="2.2" stroke-linecap="round"/>
-      </svg>
-      <span>SiempreIA</span>
+    <a class="brand" href="#inicio" aria-label="Agentes Sin Límite, inicio">
+      <img class="brand-logo" src="logo.png" alt="Agentes Sin Límite" width="640" height="192">
     </a>
     <nav class="nav-links" aria-label="Secciones">
       <a href="#que-hace">Qué hace</a>
@@ -542,11 +495,8 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
       <a href="#preguntas">Preguntas</a>
     </nav>
     <div class="nav-actions">
-      <button class="theme-btn" id="themeBtn" type="button" aria-label="Cambiar tema">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
-      </button>
-      <a class="btn btn-ghost login" href="https://app.crm.sinlimiteia.com/login">Entrar</a>
-      <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Prueba gratis</a>
+      <a class="btn btn-ghost login" href="https://app.crm.agentesinlimite.com/login">Entrar</a>
+      <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Prueba gratis</a>
     </div>
   </div>
 </header>
@@ -557,10 +507,10 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
   <div class="wrap">
     <div class="hero-copy">
       <span class="pain"><span class="time">23:47</span> Un cliente quiere comprar. Tu equipo ya se fue a dormir.</span>
-      <h1>Atiende, vende y agenda por WhatsApp. <span class="always">Siempre.</span></h1>
-      <p class="lede">SiempreIA es un agente de inteligencia artificial que trabaja en el WhatsApp de tu negocio a cualquier hora: resuelve dudas con tu información, vende con tu catálogo y precios reales, y agenda citas y reservas. Tu equipo ve cada conversación en un CRM sencillo y entra cuando quiera.</p>
+      <h1>Atiende, vende y agenda por WhatsApp. <span class="always">Sin límite.</span></h1>
+      <p class="lede">Agentes Sin Límite es un agente de inteligencia artificial que trabaja en el WhatsApp de tu negocio a cualquier hora: resuelve dudas con tu información, vende con tu catálogo y precios reales, y agenda citas y reservas. Tu equipo ve cada conversación en un CRM sencillo y entra cuando quiera.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Prueba gratis 14 días</a>
+        <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Prueba gratis 14 días</a>
         <a class="btn btn-ghost" href="#demo">Agenda una demo</a>
       </div>
       <div class="hero-notes">
@@ -598,8 +548,8 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
             <span class="day-pill">Hoy</span>
             <div class="msg in chat-step">¿Qué tarjetas de regalo tienen? Es para mi mamá<div class="meta">20:41</div></div>
             <div class="msg out chat-step"><span class="ai-tag">Agente IA</span><br>¡Qué buen detalle! Estas son las más pedidas:<div class="meta">20:41 <i class="tk"></i></div></div>
-            <div class="product chat-step"><span class="product-img p1"></span><b>Día de Spa</b><small>Masaje + facial + almuerzo</small><span class="product-price">RD$4,500</span></div>
-            <div class="product chat-step"><span class="product-img p2"></span><b>Masaje relajante</b><small>60 minutos</small><span class="product-price">RD$2,800</span></div>
+            <div class="product chat-step"><svg class="product-img" viewBox="0 0 220 120" role="img" aria-label="Tarjeta de regalo Día de Spa"><defs><linearGradient id="gc1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#FF9A7A"/><stop offset="1" stop-color="#E8577E"/></linearGradient></defs><rect width="220" height="120" rx="8" fill="url(#gc1)"/><circle cx="196" cy="18" r="42" fill="#fff" opacity=".12"/><rect x="150" y="0" width="12" height="120" fill="#F7D57E"/><rect x="0" y="80" width="220" height="10" fill="#F7D57E"/><path d="M156 85c-20-18-34-6-24 4 6 6 18 2 24-4Zm0 0c20-18 34-6 24 4-6 6-18 2-24-4Z" fill="#F2C45A" stroke="#D9A53A" stroke-width="1.5"/><circle cx="156" cy="85" r="5" fill="#E0AE44"/><text x="14" y="24" fill="#fff" font-family="Figtree, sans-serif" font-size="9" font-weight="700" letter-spacing="1.4">TARJETA DE REGALO</text><text x="14" y="48" fill="#fff" font-family="Montserrat, sans-serif" font-size="19" font-weight="800">Día de Spa</text><text x="14" y="66" fill="#fff" opacity=".92" font-family="Figtree, sans-serif" font-size="11" font-weight="600">Masaje + facial + almuerzo</text><g transform="translate(14 96)"><ellipse cx="20" cy="14" rx="20" ry="6" fill="#fff" opacity=".95"/><ellipse cx="20" cy="5" rx="14" ry="5" fill="#fff" opacity=".8"/><ellipse cx="20" cy="-3" rx="9" ry="4" fill="#fff" opacity=".65"/><path d="M34 -4c8-10 18-8 20-6-4 8-12 10-20 6Z" fill="#fff" opacity=".9"/></g></svg><b>Día de Spa</b><small>Masaje + facial + almuerzo</small><span class="product-price">RD$4,500</span></div>
+            <div class="product chat-step"><svg class="product-img" viewBox="0 0 220 120" role="img" aria-label="Tarjeta de regalo Masaje relajante"><defs><linearGradient id="gc2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#00C2F2"/><stop offset="1" stop-color="#1B5BFF"/></linearGradient></defs><rect width="220" height="120" rx="8" fill="url(#gc2)"/><circle cx="196" cy="18" r="42" fill="#fff" opacity=".12"/><rect x="150" y="0" width="12" height="120" fill="#F7D57E"/><rect x="0" y="80" width="220" height="10" fill="#F7D57E"/><path d="M156 85c-20-18-34-6-24 4 6 6 18 2 24-4Zm0 0c20-18 34-6 24 4-6 6-18 2-24-4Z" fill="#F2C45A" stroke="#D9A53A" stroke-width="1.5"/><circle cx="156" cy="85" r="5" fill="#E0AE44"/><text x="14" y="24" fill="#fff" font-family="Figtree, sans-serif" font-size="9" font-weight="700" letter-spacing="1.4">TARJETA DE REGALO</text><text x="14" y="48" fill="#fff" font-family="Montserrat, sans-serif" font-size="19" font-weight="800">Masaje relajante</text><text x="14" y="66" fill="#fff" opacity=".92" font-family="Figtree, sans-serif" font-size="11" font-weight="600">60 minutos</text><g transform="translate(34 104)" fill="#fff"><path d="M0 0c-6-8-6-16 0-22 6 6 6 14 0 22Z" opacity=".95"/><path d="M0 0c-10-2-17-8-18-16 8 0 15 6 18 16Z" opacity=".8"/><path d="M0 0c10-2 17-8 18-16-8 0-15 6-18 16Z" opacity=".8"/><rect x="-20" y="1" width="40" height="3" rx="1.5" opacity=".7"/></g></svg><b>Masaje relajante</b><small>60 minutos</small><span class="product-price">RD$2,800</span></div>
             <div class="msg in chat-step">La del Día de Spa. A nombre de Ana Rosario<div class="meta">20:43</div></div>
             <div class="msg out chat-step">Perfecto. Te envío los datos para el pago y la tarjeta a nombre de Ana Rosario sale hoy mismo.<div class="meta">20:43 <i class="tk"></i></div></div>
             <span class="sys-pill chat-step">Oportunidad · Día de Spa · RD$4,500 → Por pagar</span>
@@ -617,10 +567,6 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
           </div>
         </div>
       </div>
-      <button class="replay" id="replay" type="button">
-        <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M4 2.8v10.4c0 .6.6.9 1.1.6l8.3-5.2c.5-.3.5-.9 0-1.2L5.1 2.2c-.5-.3-1.1 0-1.1.6Z"/></svg>
-        Ver la conversación en vivo
-      </button>
     </div>
   </div>
 </section>
@@ -911,7 +857,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         <dl><div><dt>Atiende</dt><dd>Seguros y horarios</dd></div><div><dt>Agenda</dt><dd>Con el doctor correcto</dd></div></dl>
       </article>
     </div>
-    <p class="example-note">Casos ilustrativos de cómo se usa SiempreIA en cada sector. No son testimonios de clientes reales.</p>
+    <p class="example-note">Casos ilustrativos de cómo se usa Agentes Sin Límite en cada sector. No son testimonios de clientes reales.</p>
   </div>
 </section>
 
@@ -939,7 +885,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         </div>
         <div class="price"><b data-base="49">$49</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-ghost" href="https://app.crm.sinlimiteia.com/signup">Probar gratis</a>
+        <a class="btn btn-ghost" href="https://app.crm.agentesinlimite.com/signup">Probar gratis</a>
         <span class="group">Incluye</span>
         <ul class="checks">
           <li>1 número de WhatsApp Business</li>
@@ -961,7 +907,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         </div>
         <div class="price"><b data-base="99">$99</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Probar gratis</a>
+        <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Probar gratis</a>
         <span class="group">Todo lo de Inicial, más</span>
         <ul class="checks">
           <li>5 usuarios</li>
@@ -1055,7 +1001,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
     <div class="faq-list">
       <details open>
         <summary>¿Necesito la API oficial de WhatsApp?</summary>
-        <p>Sí. SiempreIA usa la API oficial de WhatsApp Business de Meta, así tu número no corre riesgo de bloqueo como pasa con las herramientas no oficiales. Te guiamos para conectarlo.</p>
+        <p>Sí. Agentes Sin Límite usa la API oficial de WhatsApp Business de Meta, así tu número no corre riesgo de bloqueo como pasa con las herramientas no oficiales. Te guiamos para conectarlo.</p>
       </details>
       <details>
         <summary>¿El agente sirve solo para agendar citas?</summary>
@@ -1101,7 +1047,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         <h2>Esta noche, que conteste tu agente.</h2>
         <p>Pruébalo 14 días gratis o pide una demo y te enseñamos cómo atendería, vendería y agendaría en tu negocio.</p>
         <div class="hero-ctas" style="margin-top: 26px">
-          <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Crear mi cuenta gratis</a>
+          <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Crear mi cuenta gratis</a>
         </div>
       </div>
       <!-- TODO: connect this form (e.g. to the CRM's leads API or a webhook). -->
@@ -1142,13 +1088,8 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
   <div class="wrap">
     <div class="foot">
       <div>
-        <a class="brand" href="#inicio">
-          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
-            <path d="M16 3C8.8 3 3 8.4 3 15.1c0 2.6.9 5 2.4 7L4 28l6.3-1.9c1.7.8 3.6 1.2 5.7 1.2 7.2 0 13-5.4 13-12.1S23.2 3 16 3Z" fill="var(--accent)"/>
-            <circle cx="16" cy="15.2" r="6.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/>
-            <path d="M16 11.6v3.8l2.6 1.6" fill="none" stroke="var(--sun)" stroke-width="2.2" stroke-linecap="round"/>
-          </svg>
-          <span>SiempreIA</span>
+        <a class="brand" href="#inicio" aria-label="Agentes Sin Límite">
+          <img class="brand-logo" src="logo.png" alt="Agentes Sin Límite" width="640" height="192">
         </a>
         <p>El agente de IA que atiende, vende y agenda por WhatsApp. Hecho en República Dominicana.</p>
       </div>
@@ -1175,12 +1116,12 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         <ul>
           <li><a href="privacidad.html">Privacidad</a></li>
           <li><a href="terminos.html">Términos</a></li>
-          <li><a href="https://app.crm.sinlimiteia.com/login">Entrar</a></li>
+          <li><a href="https://app.crm.agentesinlimite.com/login">Entrar</a></li>
         </ul>
       </div>
     </div>
     <div class="foot-bottom">
-      <span>© <span id="year">2026</span> SiempreIA. Todos los derechos reservados.</span>
+      <span>© <span id="year">2026</span> Agentes Sin Límite. Todos los derechos reservados.</span>
       <span>Un producto de <b>Sin Limite IA</b></span>
     </div>
   </div>
@@ -1188,66 +1129,52 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
 
 <script>
 (function () {
-  // Theme: system → light → dark, remembered per browser.
-  var root = document.documentElement;
-  var btn = document.getElementById('themeBtn');
-  var saved = null;
-  try { saved = localStorage.getItem('theme'); } catch (e) {}
-  if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
-  btn.addEventListener('click', function () {
-    var isDark = root.getAttribute('data-theme') === 'dark' ||
-      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
-    var next = isDark ? 'light' : 'dark';
-    root.setAttribute('data-theme', next);
-    try { localStorage.setItem('theme', next); } catch (e) {}
-  });
-
-  // Hero chats: Atiende / Vende / Agenda. Each is shown complete at rest;
-  // the button replays the visible one step by step.
-  var replayBtn = document.getElementById('replay');
-  var heroTabs = document.querySelectorAll('.hero-tab');
+  // Hero chats: Atiende / Vende / Agenda play on their own, one after the
+  // other, forever. A tab click jumps to that chat. Reduced motion shows
+  // each chat complete and doesn't cycle.
+  var heroTabs = Array.prototype.slice.call(document.querySelectorAll('.hero-tab'));
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var timers = [];
-  function activeChat() { return document.querySelector('.phone .chat-body:not([hidden])'); }
-  function stopReplay() {
+  function later(fn, ms) { timers.push(setTimeout(fn, ms)); }
+  function stopChat() {
     timers.forEach(clearTimeout); timers = [];
     document.querySelectorAll('.phone .typing').forEach(function (el) { el.remove(); });
-    document.querySelectorAll('.phone .chat-step').forEach(function (el) { el.classList.remove('pending'); });
   }
-  function replay() {
-    stopReplay();
-    var chat = activeChat();
+  function show(i) {
+    heroTabs.forEach(function (t, k) {
+      t.setAttribute('aria-selected', k === i ? 'true' : 'false');
+      document.getElementById(t.getAttribute('data-chat')).hidden = k !== i;
+    });
+  }
+  function play(i) {
+    stopChat();
+    show(i);
+    var chat = document.getElementById(heroTabs[i].getAttribute('data-chat'));
     var steps = Array.prototype.slice.call(chat.querySelectorAll('.chat-step'));
-    steps.forEach(function (s) { s.classList.add('pending'); });
-    var t = 400;
+    if (still) { steps.forEach(function (s) { s.classList.remove('pending'); }); return; }
+    steps.forEach(function (s) { s.classList.add('pending'); s.hidden = true; });
+    var t = 500;
     steps.forEach(function (s) {
       var fromAgent = s.classList.contains('out') || s.classList.contains('slot-btns') || s.classList.contains('product');
-      var typed = s.classList.contains('out');
-      if (typed) {
-        timers.push(setTimeout(function () {
+      if (s.classList.contains('out')) {
+        later(function () {
           var typing = document.createElement('div');
           typing.className = 'typing'; typing.innerHTML = '<i></i><i></i><i></i>';
           s.parentNode.insertBefore(typing, s);
-        }, t));
-        t += 1100;
+        }, t);
+        t += 1200;
       }
-      timers.push(setTimeout(function () {
+      later(function () {
         var typing = chat.querySelector('.typing'); if (typing) typing.remove();
-        s.classList.remove('pending');
-      }, t));
-      t += fromAgent ? 600 : 1000;
+        s.hidden = false;
+        requestAnimationFrame(function () { s.classList.remove('pending'); chat.scrollTop = chat.scrollHeight; });
+      }, t);
+      t += fromAgent ? 900 : 1300;
     });
+    later(function () { play((i + 1) % heroTabs.length); }, t + 3500);
   }
-  replayBtn.addEventListener('click', replay);
-  heroTabs.forEach(function (tab) {
-    tab.addEventListener('click', function () {
-      stopReplay();
-      heroTabs.forEach(function (t) {
-        var on = t === tab;
-        t.setAttribute('aria-selected', on ? 'true' : 'false');
-        document.getElementById(t.getAttribute('data-chat')).hidden = !on;
-      });
-    });
-  });
+  heroTabs.forEach(function (tab, i) { tab.addEventListener('click', function () { play(i); }); });
+  play(0);
 
   // Sector carousel arrows: scroll by roughly one viewport of cards.
   var carousel = document.getElementById('carousel');

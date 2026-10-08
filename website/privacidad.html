@@ -3,26 +3,24 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Privacidad · SiempreIA</title>
+<title>Privacidad · Agentes Sin Límite</title>
+<link rel="icon" type="image/png" href="mark.png">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@600;700;800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
 <style>
 :root {
-  --bg: #F2F5F1; --surface: #FFFFFF; --ink: #0E1D18; --muted: #5A6B64; --line: #D6E0D9;
-  --accent: #0A7A57; --accent-soft: #D7F0E3;
-  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  color-scheme: light;
+  --bg: #F6F9FD; --surface: #FFFFFF; --ink: #0B1F45; --muted: #5A6A88; --line: #DCE5F1;
+  --accent: #1B5BFF; --accent-soft: #E6EEFF;
+  --display: "Montserrat", "Segoe UI", system-ui, sans-serif;
   --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) { color-scheme: dark; --bg: #0A1210; --surface: #121D19; --ink: #E7F0EB; --muted: #8FA39A; --line: #22332D; --accent: #3CCB92; --accent-soft: #123527; }
-}
-:root[data-theme="dark"] { color-scheme: dark; --bg: #0A1210; --surface: #121D19; --ink: #E7F0EB; --muted: #8FA39A; --line: #22332D; --accent: #3CCB92; --accent-soft: #123527; }
 * { box-sizing: border-box; }
 body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.7 var(--body); padding-inline: 20px; }
 .top { max-width: 760px; margin: 0 auto; padding-block: 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); }
 .top a { text-decoration: none; color: inherit; }
-.brand { font: 800 20px/1 var(--display); letter-spacing: -0.02em; }
+.brand img { height: 36px; width: auto; display: block; }
 .back { font-size: 15px; color: var(--accent) !important; font-weight: 600; }
 main { max-width: 760px; margin: 0 auto; padding-block: 40px 72px; }
 h1 { font: 800 clamp(34px, 5vw, 46px)/1.1 var(--display); letter-spacing: -0.03em; margin: 0 0 10px; text-wrap: balance; }
@@ -39,17 +37,17 @@ footer a { color: var(--muted); }
 </head>
 <body>
 <header class="top">
-  <a class="brand" href="index.html">SiempreIA</a>
+  <a class="brand" href="index.html" aria-label="Agentes Sin Límite, inicio"><img class="brand-logo" src="logo.png" alt="Agentes Sin Límite" width="640" height="192"></a>
   <a class="back" href="index.html">Volver al inicio</a>
 </header>
 <main>
   <h1>Política de privacidad</h1>
   <p class="updated">Última actualización: 7 de octubre de 2026</p>
 
-  <p>SiempreIA es un producto de Sin Limite IA ("nosotros"). Esta política explica qué datos tratamos cuando un negocio ("el cliente") usa SiempreIA para atender a sus propios clientes por WhatsApp, por el chat de su página web y por otros canales, y cuando conecta servicios de terceros como Google Calendar.</p>
+  <p>Agentes Sin Límite es un producto de Sin Limite IA ("nosotros"). Esta política explica qué datos tratamos cuando un negocio ("el cliente") usa Agentes Sin Límite para atender a sus propios clientes por WhatsApp, por el chat de su página web y por otros canales, y cuando conecta servicios de terceros como Google Calendar.</p>
 
   <h2>1. Quién es responsable de los datos</h2>
-  <p>Cada negocio que usa SiempreIA es responsable de los datos de sus propios contactos (sus clientes y pacientes). Nosotros los tratamos por cuenta del negocio, solo para prestarle el servicio. Para los datos de la cuenta del negocio (nombre, correo de los usuarios, facturación) somos responsables nosotros.</p>
+  <p>Cada negocio que usa Agentes Sin Límite es responsable de los datos de sus propios contactos (sus clientes y pacientes). Nosotros los tratamos por cuenta del negocio, solo para prestarle el servicio. Para los datos de la cuenta del negocio (nombre, correo de los usuarios, facturación) somos responsables nosotros.</p>
 
   <h2>2. Qué datos tratamos</h2>
   <ul>
@@ -72,13 +70,13 @@ footer a { color: var(--muted); }
   <p>No vendemos datos personales. No usamos las conversaciones de un negocio para dar servicio a otro negocio, ni para publicidad.</p>
 
   <h2>4. Google Calendar</h2>
-  <p>Si el negocio conecta su cuenta de Google Calendar, SiempreIA solicita acceso a su calendario solo para:</p>
+  <p>Si el negocio conecta su cuenta de Google Calendar, Agentes Sin Límite solicita acceso a su calendario solo para:</p>
   <ul>
-    <li>crear, actualizar y eliminar en ese calendario los eventos de las citas que se agendan en SiempreIA, y</li>
+    <li>crear, actualizar y eliminar en ese calendario los eventos de las citas que se agendan en Agentes Sin Límite, y</li>
     <li>consultar los horarios ocupados del calendario, para que el agente no ofrezca horas en las que el negocio ya tiene otro compromiso.</li>
   </ul>
   <p>No leemos el contenido de los demás eventos más allá de su horario de ocupado, no los compartimos con terceros y no los usamos para entrenar modelos de inteligencia artificial. El token de acceso se guarda cifrado. El negocio puede desconectar Google Calendar en cualquier momento desde Agenda → Google Calendar, o retirar el permiso desde <a href="https://myaccount.google.com/permissions">su cuenta de Google</a>.</p>
-  <p class="note">El uso y la transferencia a cualquier otra aplicación de la información recibida de las APIs de Google por parte de SiempreIA se ajustan a la <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios de API de Google</a>, incluidos los requisitos de Uso Limitado.</p>
+  <p class="note">El uso y la transferencia a cualquier otra aplicación de la información recibida de las APIs de Google por parte de Agentes Sin Límite se ajustan a la <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios de API de Google</a>, incluidos los requisitos de Uso Limitado.</p>
 
   <h2>5. Con quién compartimos datos</h2>
   <p>Solo con los proveedores que necesitamos para prestar el servicio, bajo sus propios términos de protección de datos:</p>
@@ -97,16 +95,16 @@ footer a { color: var(--muted); }
   <p>Usamos conexiones cifradas (HTTPS), control de acceso por cuenta y cifrado de las credenciales de terceros. Ningún sistema es perfecto, pero tomamos medidas razonables para proteger la información.</p>
 
   <h2>8. Tus derechos</h2>
-  <p>Puedes pedir acceso, corrección o eliminación de tus datos. Si eres cliente de un negocio que usa SiempreIA, escribe primero a ese negocio: él decide sobre tus datos y nosotros lo ayudamos a cumplir tu solicitud. Esta política se rige por la Ley 172-13 de la República Dominicana sobre protección de datos personales.</p>
+  <p>Puedes pedir acceso, corrección o eliminación de tus datos. Si eres cliente de un negocio que usa Agentes Sin Límite, escribe primero a ese negocio: él decide sobre tus datos y nosotros lo ayudamos a cumplir tu solicitud. Esta política se rige por la Ley 172-13 de la República Dominicana sobre protección de datos personales.</p>
 
   <h2>9. Cambios</h2>
   <p>Si cambiamos esta política, publicaremos la nueva versión aquí con su fecha.</p>
 
   <h2>10. Contacto</h2>
-  <p>Sin Limite IA · República Dominicana<br>Correo: contacto@siempreia.com</p>
+  <p>Sin Limite IA · República Dominicana<br>Correo: contacto@agentesinlimite.com</p>
 </main>
 <footer>
-  <span>© 2026 SiempreIA · Un producto de Sin Limite IA</span>
+  <span>© 2026 Agentes Sin Límite · Un producto de Sin Limite IA</span>
   <span><a href="terminos.html">Términos de uso</a></span>
 </footer>
 </body>
