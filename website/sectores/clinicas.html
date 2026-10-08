@@ -1,0 +1,816 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>SiempreIA para clínicas y consultorios</title>
+<meta name="description" content="El agente resuelve las dudas de seguros, precios y preparación, ofrece chequeos y servicios, y agenda con el doctor y la especialidad correctos.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500&display=swap">
+<style>
+/* ============================================================
+   SiempreIA: public site. The brand name is plain text: swap it
+   with a find-and-replace of "SiempreIA" across website/*.html.
+   ============================================================ */
+:root {
+  --bg: #F2F5F1;
+  --bg-2: #E6EDE7;
+  --surface: #FFFFFF;
+  --ink: #0E1D18;
+  --ink-2: #2B3B35;
+  --muted: #5A6B64;
+  --line: #D6E0D9;
+  --accent: #0A7A57;
+  --accent-hover: #086748;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #D7F0E3;
+  --sun: #F2B632;
+  --sun-ink: #3A2A00;
+  --chat-bg: #E5ECE3;
+  --bubble-in: #FFFFFF;
+  --bubble-out: #D4F4DD;
+  --tick: #2C9CDB;
+  --shadow: 0 1px 2px rgba(14, 29, 24, .06), 0 18px 40px -18px rgba(14, 29, 24, .22);
+  --radius: 18px;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0A1210;
+    --bg-2: #0F1A16;
+    --surface: #121D19;
+    --ink: #E7F0EB;
+    --ink-2: #C3D2CA;
+    --muted: #8FA39A;
+    --line: #22332D;
+    --accent: #3CCB92;
+    --accent-hover: #5AD9A6;
+    --accent-ink: #04130D;
+    --accent-soft: #123527;
+    --sun: #F2C14E;
+    --sun-ink: #2A1E00;
+    --chat-bg: #0C1713;
+    --bubble-in: #1A2823;
+    --bubble-out: #134A35;
+    --tick: #53BDEB;
+    --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0A1210;
+  --bg-2: #0F1A16;
+  --surface: #121D19;
+  --ink: #E7F0EB;
+  --ink-2: #C3D2CA;
+  --muted: #8FA39A;
+  --line: #22332D;
+  --accent: #3CCB92;
+  --accent-hover: #5AD9A6;
+  --accent-ink: #04130D;
+  --accent-soft: #123527;
+  --sun: #F2C14E;
+  --sun-ink: #2A1E00;
+  --chat-bg: #0C1713;
+  --bubble-in: #1A2823;
+  --bubble-out: #134A35;
+  --tick: #53BDEB;
+  --shadow: 0 1px 2px rgba(0, 0, 0, .4), 0 18px 44px -18px rgba(0, 0, 0, .7);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 400 16px/1.6 var(--body);
+  -webkit-font-smoothing: antialiased;
+}
+img, svg { max-width: 100%; }
+a { color: inherit; }
+h1, h2, h3 { font-family: var(--display); line-height: 1.08; margin: 0; text-wrap: balance; letter-spacing: -0.02em; }
+h2 { font-size: clamp(30px, 4.2vw, 46px); font-weight: 700; }
+h3 { font-size: 20px; font-weight: 700; letter-spacing: -0.01em; }
+p { margin: 0; }
+.wrap { max-width: 1160px; margin: 0 auto; padding-inline: 20px; }
+.eyebrow {
+  font: 600 13px/1 var(--body);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--accent);
+}
+.lede { color: var(--muted); font-size: 18px; max-width: 60ch; }
+section { padding-block: 88px; }
+.section-head { display: grid; gap: 14px; margin-bottom: 44px; max-width: 720px; }
+.mono { font-family: var(--mono); font-size: .92em; letter-spacing: 0; }
+
+/* Buttons */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  padding: 13px 22px; border-radius: 999px; border: 1px solid transparent;
+  font: 600 15px/1 var(--body); text-decoration: none; cursor: pointer;
+  transition: background .15s, border-color .15s, transform .15s;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: var(--accent-ink); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { border-color: var(--ink-2); }
+.btn:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, summary:focus-visible {
+  outline: 2px solid var(--accent); outline-offset: 3px;
+}
+
+/* Nav */
+.nav {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20;
+  background: color-mix(in srgb, var(--bg) 86%, transparent);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--line);
+}
+.nav .wrap { display: flex; align-items: center; gap: 24px; height: 66px; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; font: 800 21px/1 var(--display); letter-spacing: -0.02em; }
+.brand-mark { width: 32px; height: 32px; flex: none; }
+.nav-links { display: flex; gap: 22px; margin-left: 12px; }
+.nav-links a { text-decoration: none; color: var(--ink-2); font-weight: 500; font-size: 15px; }
+.nav-links a:hover { color: var(--accent); }
+.nav-actions { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.nav-actions .btn { padding: 10px 16px; font-size: 14px; }
+.theme-btn {
+  width: 38px; height: 38px; border-radius: 999px; border: 1px solid var(--line);
+  background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center;
+}
+.theme-btn svg { width: 18px; height: 18px; }
+@media (max-width: 900px) { .nav-links { display: none; } }
+@media (max-width: 520px) { .nav-actions .login { display: none; } }
+
+/* Hero */
+.hero { padding-block: 64px 72px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 56px; align-items: center; }
+.hero-copy { display: grid; gap: 22px; }
+.pain {
+  display: inline-flex; align-items: center; gap: 10px; width: fit-content; max-width: 100%;
+  padding: 7px 14px 7px 8px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line);
+  font-size: 14px; color: var(--ink-2);
+}
+.pain .time { font-family: var(--mono); font-size: 12px; background: var(--ink); color: var(--bg); padding: 4px 8px; border-radius: 999px; }
+.hero h1 { font-size: clamp(42px, 6.4vw, 76px); font-weight: 800; letter-spacing: -0.035em; }
+.hero h1 .always { color: var(--accent); position: relative; white-space: nowrap; }
+.hero h1 .always::after {
+  content: ""; position: absolute; left: 2%; right: 2%; bottom: .04em; height: .14em;
+  background: var(--sun); border-radius: 4px; z-index: -1; opacity: .85;
+}
+.hero h1 .always { z-index: 0; display: inline-block; }
+.hero .lede { font-size: 19px; }
+.hero-ctas { display: flex; flex-wrap: wrap; gap: 12px; }
+.hero-notes { display: flex; flex-wrap: wrap; gap: 8px 20px; color: var(--muted); font-size: 14px; }
+.hero-notes span { display: inline-flex; align-items: center; gap: 7px; }
+.hero-notes svg { width: 16px; height: 16px; color: var(--accent); flex: none; }
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: 1fr; gap: 44px; }
+}
+
+/* Phone + chat */
+.phone {
+  justify-self: center; width: 100%; max-width: 380px;
+  border-radius: 34px; padding: 10px; background: var(--ink);
+  box-shadow: var(--shadow);
+}
+.phone-screen { border-radius: 26px; overflow: hidden; background: var(--chat-bg); display: flex; flex-direction: column; }
+.chat-top {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px;
+  background: var(--accent); color: var(--accent-ink);
+}
+.chat-avatar { width: 34px; height: 34px; border-radius: 999px; background: color-mix(in srgb, var(--accent-ink) 22%, transparent); display: grid; place-items: center; font: 700 13px/1 var(--display); flex: none; }
+.chat-top b { display: block; font-size: 15px; line-height: 1.2; }
+.chat-top small { font-size: 12px; opacity: .85; }
+.chat-body {
+  padding: 14px 12px 16px; display: flex; flex-direction: column; gap: 8px; min-height: 470px;
+  background-image: radial-gradient(color-mix(in srgb, var(--ink) 6%, transparent) 1px, transparent 1px);
+  background-size: 14px 14px;
+}
+.day-pill { align-self: center; font-size: 11.5px; padding: 4px 10px; border-radius: 8px; background: var(--surface); color: var(--muted); }
+.msg {
+  max-width: 84%; padding: 7px 10px 6px; border-radius: 10px; font-size: 14px; line-height: 1.42;
+  box-shadow: 0 1px 1px rgba(0, 0, 0, .08); color: var(--ink); position: relative;
+}
+.msg.in { align-self: flex-start; background: var(--bubble-in); border-top-left-radius: 3px; }
+.msg.out { align-self: flex-end; background: var(--bubble-out); border-top-right-radius: 3px; }
+.msg .meta { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 2px; font-size: 11px; color: var(--muted); font-family: var(--body); }
+.msg .meta svg { width: 16px; height: 11px; color: var(--tick); }
+.msg .ai-tag { display: inline-block; font: 600 10.5px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; color: var(--accent); margin-bottom: 3px; }
+.msg code { font-family: var(--mono); font-size: 12.5px; background: color-mix(in srgb, var(--sun) 32%, transparent); padding: 1px 5px; border-radius: 4px; }
+.slot-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; align-self: flex-end; width: 84%; }
+.slot-btns span { text-align: center; padding: 7px 4px; border-radius: 9px; background: var(--bubble-in); color: var(--tick); font-weight: 600; font-size: 13px; box-shadow: 0 1px 1px rgba(0, 0, 0, .08); }
+.slot-btns span.picked { outline: 2px solid var(--tick); outline-offset: -2px; }
+.typing { align-self: flex-end; display: inline-flex; gap: 4px; padding: 10px 12px; border-radius: 10px; background: var(--bubble-out); }
+.typing i { width: 6px; height: 6px; border-radius: 99px; background: var(--muted); animation: blink 1s infinite; }
+.typing i:nth-child(2) { animation-delay: .15s; }
+.typing i:nth-child(3) { animation-delay: .3s; }
+@keyframes blink { 0%, 100% { opacity: .3; } 50% { opacity: 1; } }
+.chat-step { transition: opacity .25s, transform .25s; }
+.chat-step.pending { opacity: 0; transform: translateY(6px); }
+.replay {
+  margin: 14px auto 0; display: flex; align-items: center; gap: 8px; background: none; border: 0;
+  color: var(--muted); font: 500 14px/1 var(--body); cursor: pointer;
+}
+.replay:hover { color: var(--accent); }
+.replay svg { width: 16px; height: 16px; }
+.phone-col { display: grid; justify-items: center; }
+
+/* Channels */
+.channels { padding-block: 26px; border-block: 1px solid var(--line); background: var(--surface); }
+.channels .wrap { display: flex; align-items: center; gap: 18px 28px; flex-wrap: wrap; }
+.channels .label { font-size: 14px; color: var(--muted); }
+.chan-list { display: flex; flex-wrap: wrap; gap: 10px; }
+.chan {
+  display: inline-flex; align-items: center; gap: 8px; padding: 8px 14px; border-radius: 999px;
+  border: 1px solid var(--line); font-weight: 600; font-size: 14px; background: var(--bg);
+}
+.chan svg { width: 18px; height: 18px; flex: none; }
+.chan.live svg { color: var(--accent); }
+.chan.soon { color: var(--muted); border-style: dashed; background: transparent; }
+.chan .soon-tag { font-weight: 500; font-size: 12px; }
+
+/* Figures */
+.figures { padding-block: 56px 0; }
+.fig-row { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); }
+.fig { padding: 22px 22px 0 0; display: grid; gap: 6px; align-content: start; }
+.fig + .fig { padding-left: 22px; border-left: 1px solid var(--line); }
+.fig b { font: 800 clamp(34px, 4vw, 46px)/1 var(--display); letter-spacing: -0.03em; }
+.fig span { color: var(--muted); font-size: 15px; }
+@media (max-width: 760px) {
+  .fig-row { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 24px; }
+  .fig:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+
+/* Sectors */
+.sectors { background: var(--bg-2); }
+.mini-chat { background: var(--chat-bg); border-radius: 18px; padding: 16px 12px; display: flex; flex-direction: column; gap: 8px; align-self: start; }
+.mini-chat .msg { max-width: 90%; }
+.mini-label { font-size: 12px; color: var(--muted); text-align: center; margin-bottom: 2px; }
+.also { margin-top: 22px; color: var(--muted); font-size: 15px; }
+.also a { color: var(--accent); font-weight: 600; }
+
+/* Hero chat extras */
+.tk {
+  display: inline-block; width: 16px; height: 11px; background: var(--tick);
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 11' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 6l3 3 6-7M6 9l1 1 6-8'/%3E%3C/svg%3E") center / contain no-repeat;
+          mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 11' fill='none' stroke='black' stroke-width='1.6' stroke-linecap='round'%3E%3Cpath d='M1 6l3 3 6-7M6 9l1 1 6-8'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.hero-tabs { display: inline-flex; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 16px; }
+.hero-tab { border: 0; background: transparent; color: var(--ink-2); padding: 9px 18px; border-radius: 999px; font: 600 14.5px/1 var(--body); cursor: pointer; }
+.hero-tab[aria-selected="true"] { background: var(--accent); color: var(--accent-ink); }
+.sys-pill { align-self: center; text-align: center; font-size: 11.5px; font-weight: 600; padding: 5px 10px; border-radius: 8px; background: color-mix(in srgb, var(--sun) 30%, var(--surface)); color: var(--ink); max-width: 92%; }
+.product { align-self: flex-end; width: 64%; background: var(--bubble-out); border-radius: 10px; padding: 5px 5px 8px; display: grid; gap: 1px; box-shadow: 0 1px 1px rgba(0, 0, 0, .08); font-size: 13.5px; }
+.product-img { height: 64px; border-radius: 7px; margin-bottom: 5px; }
+.product-img.p1 { background: linear-gradient(135deg, #F4C9B8, #E89A7F 55%, #C8705A); }
+.product-img.p2 { background: linear-gradient(135deg, #CFE6D8, #8FC4A6 55%, #4F9474); }
+.product b, .product small, .product-price { padding-inline: 5px; }
+.product small { color: var(--muted); font-size: 12px; }
+.product-price { font-weight: 700; color: var(--accent); }
+
+[hidden] { display: none !important; }
+.checks { list-style: none; margin: 0; padding: 0; display: grid; gap: 10px; }
+.checks li { position: relative; padding-left: 26px; }
+.checks li::before {
+  content: ""; position: absolute; left: 0; top: .2em; width: 17px; height: 17px; border-radius: 999px;
+  background: var(--accent-soft);
+}
+.checks li::after {
+  content: ""; position: absolute; left: 4.5px; top: calc(.2em + 5px); width: 8px; height: 4.5px;
+  border-left: 2px solid var(--accent); border-bottom: 2px solid var(--accent); transform: rotate(-45deg);
+}
+.pillar.dark .checks li::before { background: color-mix(in srgb, var(--sun) 22%, transparent); }
+.pillar.dark .checks li::after { border-color: var(--sun); }
+
+/* Pillars */
+.pillars { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.pillar { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 28px; display: grid; gap: 14px; align-content: start; grid-template-rows: auto auto auto 1fr auto; }
+.pillar-num { font: 500 13px/1 var(--mono); color: var(--muted); }
+.pillar h3 { font-size: 34px; letter-spacing: -0.03em; color: var(--accent); }
+.pillar-lede { font-weight: 600; font-size: 17px; color: var(--ink); }
+.pillar .checks li { font-size: 15px; }
+.pillar.dark { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.pillar.dark h3, .pillar.dark .pillar-lede { color: var(--bg); }
+.pillar.dark .checks li { color: color-mix(in srgb, var(--bg) 82%, transparent); }
+.pillar.dark .pillar-num { color: var(--sun); }
+.pillar.dark .quote { background: color-mix(in srgb, var(--bg) 10%, transparent); color: var(--bg); border-left-color: var(--sun); }
+.quote { font-size: 14px; color: var(--ink-2); background: var(--bg); border-radius: 10px; padding: 10px 12px; border-left: 3px solid var(--accent); }
+@media (max-width: 900px) { .pillars { grid-template-columns: 1fr; } }
+
+/* Setup steps */
+.how { padding-top: 0; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 1px solid var(--line); }
+.steps li { padding: 24px 22px 0 0; display: grid; gap: 8px; align-content: start; }
+.steps li + li { padding-left: 22px; border-left: 1px solid var(--line); }
+.step-n { width: 34px; height: 34px; border-radius: 999px; display: grid; place-items: center; background: var(--sun); color: var(--sun-ink); font: 800 16px/1 var(--display); }
+.steps p { color: var(--muted); font-size: 15px; }
+@media (max-width: 900px) {
+  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); row-gap: 28px; }
+  .steps li:nth-child(3) { padding-left: 0; border-left: 0; }
+}
+@media (max-width: 520px) {
+  .steps { grid-template-columns: 1fr; }
+  .steps li + li { padding-left: 0; border-left: 0; }
+}
+
+/* Sector carousel */
+.sectors-head { display: flex; justify-content: space-between; align-items: flex-end; gap: 20px; margin-bottom: 28px; }
+.sectors-head .section-head { margin-bottom: 0; }
+.car-nav { display: flex; gap: 8px; flex: none; }
+.car-btn { width: 46px; height: 46px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; display: grid; place-items: center; }
+.car-btn:hover { border-color: var(--accent); color: var(--accent); }
+.car-btn svg { width: 20px; height: 20px; }
+.carousel {
+  display: grid; grid-auto-flow: column; grid-auto-columns: minmax(250px, 285px); gap: 16px;
+  overflow-x: auto; scroll-snap-type: x mandatory; padding: 2px 2px 14px;
+  scrollbar-width: thin; scrollbar-color: var(--line) transparent; overscroll-behavior-x: contain;
+}
+.sec-card {
+  scroll-snap-align: start; background: var(--surface); border: 1px solid var(--line); border-radius: 22px;
+  padding: 22px; display: grid; gap: 12px; grid-template-rows: auto auto auto 1fr auto; text-decoration: none; color: var(--ink);
+  transition: border-color .15s, transform .15s;
+}
+.sec-card:hover { border-color: var(--accent); transform: translateY(-2px); }
+.sec-ico { width: 48px; height: 48px; border-radius: 14px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.sec-ico svg { width: 25px; height: 25px; }
+.sec-card h3 { font-size: 21px; }
+.sec-card > p { color: var(--muted); font-size: 14.5px; }
+.sec-card .bubble { align-self: end; font-size: 13.5px; background: var(--chat-bg); border-radius: 12px; padding: 10px 12px; color: var(--ink-2); }
+.sec-card .go { font-weight: 600; font-size: 14.5px; color: var(--accent); }
+@media (max-width: 640px) { .car-nav { display: none; } .sectors-head { display: block; } }
+
+/* Sector pages */
+.crumb { font-size: 14px; color: var(--muted); display: flex; gap: 8px; flex-wrap: wrap; }
+.crumb a { color: var(--muted); text-decoration: none; }
+.crumb a:hover { color: var(--accent); }
+.sec-hero { padding-block: 48px 72px; }
+.sec-hero .wrap { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr); gap: 48px; align-items: center; }
+.sec-hero h1 { font-size: clamp(38px, 5.4vw, 62px); font-weight: 800; letter-spacing: -0.035em; }
+.sec-hero .sec-ico { width: 56px; height: 56px; }
+.sec-hero .mini-chat { max-width: 400px; width: 100%; justify-self: center; padding: 18px 14px; box-shadow: var(--shadow); }
+@media (max-width: 900px) { .sec-hero .wrap { grid-template-columns: 1fr; } }
+.before-after { border: 1px solid var(--line); border-radius: 20px; overflow: hidden; background: var(--surface); }
+.ba-row { display: grid; grid-template-columns: 1fr 1fr; }
+.ba-row + .ba-row { border-top: 1px solid var(--line); }
+.ba-row > div { padding: 18px 22px; font-size: 15.5px; }
+.ba-row > div:first-child { color: var(--muted); border-right: 1px solid var(--line); }
+.ba-row > div:last-child { font-weight: 500; }
+.ba-head > div { font: 700 12.5px/1 var(--body); text-transform: uppercase; letter-spacing: .07em; background: var(--bg); padding-block: 14px; }
+.ba-head > div:last-child { color: var(--accent); }
+@media (max-width: 600px) {
+  .ba-row { grid-template-columns: 1fr; }
+  .ba-row > div:first-child { border-right: 0; padding-bottom: 4px; }
+  .ba-row > div:last-child { padding-top: 4px; }
+  .ba-head { display: none; }
+  .ba-row:not(.ba-head) > div:first-child::before { content: "Hoy: "; font-weight: 600; }
+  .ba-row:not(.ba-head) > div:last-child::before { content: "Con SiempreIA: "; font-weight: 700; color: var(--accent); }
+}
+.rec { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
+.rec > div { background: var(--surface); border: 1px solid var(--line); border-radius: 20px; padding: 24px; display: grid; gap: 10px; align-content: start; }
+.rec h3 { font-size: 20px; }
+.rec p { color: var(--muted); font-size: 15px; }
+.rec .plan-name { font: 800 30px/1 var(--display); color: var(--accent); letter-spacing: -0.02em; }
+.rec .checks li { font-size: 15px; }
+@media (max-width: 760px) { .rec { grid-template-columns: 1fr; } }
+
+/* Features bento */
+.bento { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 16px; }
+.feat { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 24px; display: grid; gap: 10px; align-content: start; }
+.feat p { color: var(--muted); font-size: 15px; }
+.feat .ico { width: 40px; height: 40px; border-radius: 12px; background: var(--accent-soft); color: var(--accent); display: grid; place-items: center; }
+.feat .ico svg { width: 21px; height: 21px; }
+.feat.hero-feat { grid-column: span 4; grid-row: span 2; background: var(--ink); color: var(--bg); border-color: var(--ink); padding: 32px; gap: 16px; }
+.feat.hero-feat p { color: color-mix(in srgb, var(--bg) 72%, transparent); }
+.feat.hero-feat h3 { font-size: clamp(24px, 2.6vw, 30px); }
+.feat.hero-feat .ico { background: color-mix(in srgb, var(--bg) 14%, transparent); color: var(--sun); }
+.feat.span2 { grid-column: span 2; }
+.feat.span3 { grid-column: span 3; }
+.ai-points { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 20px; margin-top: 8px; }
+.ai-points div { border-top: 1px solid color-mix(in srgb, var(--bg) 18%, transparent); padding-top: 12px; font-size: 14.5px; color: color-mix(in srgb, var(--bg) 78%, transparent); }
+.ai-points b { display: block; color: var(--bg); font-size: 15px; margin-bottom: 2px; }
+.providers { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 4px; }
+.providers span { font-size: 12.5px; padding: 5px 10px; border-radius: 999px; border: 1px solid color-mix(in srgb, var(--bg) 25%, transparent); }
+@media (max-width: 980px) {
+  .bento { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .feat.hero-feat { grid-column: span 2; grid-row: auto; }
+  .feat.span2, .feat.span3 { grid-column: span 1; }
+}
+@media (max-width: 560px) {
+  .bento { grid-template-columns: 1fr; }
+  .feat.hero-feat, .feat.span2, .feat.span3 { grid-column: auto; }
+  .ai-points { grid-template-columns: 1fr; }
+}
+
+/* Scenarios */
+.scen-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.scen { border-radius: var(--radius); border: 1px solid var(--line); padding: 24px; display: grid; gap: 14px; align-content: start; background: var(--surface); }
+.scen .who { display: flex; align-items: center; gap: 10px; font-weight: 600; }
+.scen .who small { display: block; font-weight: 400; color: var(--muted); font-size: 13px; }
+.scen .badge { width: 38px; height: 38px; border-radius: 12px; display: grid; place-items: center; background: var(--sun); color: var(--sun-ink); font: 800 15px/1 var(--display); flex: none; }
+.scen blockquote { margin: 0; font-size: 16px; color: var(--ink-2); }
+.scen dl { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; border-top: 1px solid var(--line); padding-top: 14px; }
+.scen dt { font-size: 12.5px; color: var(--muted); }
+.scen dd { margin: 0; font: 700 17px/1.2 var(--display); }
+.example-note { margin-top: 16px; font-size: 13px; color: var(--muted); }
+@media (max-width: 900px) { .scen-grid { grid-template-columns: 1fr; } }
+
+/* Pricing */
+.pricing { background: var(--bg-2); }
+.period { display: inline-flex; flex-wrap: wrap; gap: 4px; padding: 4px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); margin-bottom: 30px; }
+.period button {
+  border: 0; background: transparent; color: var(--ink-2); padding: 9px 14px; border-radius: 999px;
+  font: 600 14px/1 var(--body); cursor: pointer; display: inline-flex; gap: 6px; align-items: center;
+}
+.period button small { font-weight: 700; font-size: 11.5px; color: var(--accent); }
+.period button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.period button[aria-pressed="true"] small { color: var(--sun); }
+.plans { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
+.plan { background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 28px; display: flex; flex-direction: column; gap: 18px; }
+.plan.featured { border: 2px solid var(--accent); box-shadow: var(--shadow); position: relative; }
+.plan .tag { position: absolute; top: -13px; left: 28px; background: var(--accent); color: var(--accent-ink); font: 700 12px/1 var(--body); letter-spacing: .04em; text-transform: uppercase; padding: 7px 12px; border-radius: 999px; }
+.plan h3 { font-size: 24px; }
+.plan .for { color: var(--muted); font-size: 15px; margin-top: 6px; }
+.price { display: flex; align-items: baseline; gap: 6px; }
+.price b { font: 800 52px/1 var(--display); letter-spacing: -0.04em; font-variant-numeric: tabular-nums; }
+.price span { color: var(--muted); font-size: 15px; }
+.billed { font-size: 13px; color: var(--muted); min-height: 1.4em; margin-top: -10px; }
+.plan .btn { width: 100%; }
+.plan .checks li { font-size: 14.5px; }
+.plan .group { font-size: 13px; font-weight: 700; color: var(--ink-2); text-transform: uppercase; letter-spacing: .06em; }
+.addons { margin-top: 18px; background: var(--surface); border: 1px solid var(--line); border-radius: 22px; padding: 26px 28px; display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 2.2fr); gap: 24px; align-items: center; }
+.addons h3 { font-size: 22px; }
+.addons > div:first-child p { color: var(--muted); font-size: 15px; margin-top: 6px; }
+.addon-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.addon { border: 1px solid var(--line); border-radius: 14px; padding: 16px; display: grid; gap: 6px; align-content: start; background: var(--bg); }
+.addon b { font-size: 16px; display: flex; justify-content: space-between; gap: 8px; }
+.addon b span { color: var(--accent); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.addon p { font-size: 13.5px; color: var(--muted); }
+.price-notes { margin-top: 18px; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: 13.5px; color: var(--muted); }
+@media (max-width: 980px) {
+  .plans { grid-template-columns: 1fr; max-width: 520px; }
+  .addons { grid-template-columns: 1fr; }
+}
+@media (max-width: 640px) { .addon-list { grid-template-columns: 1fr; } }
+
+/* Compare table */
+.compare { margin-top: 44px; }
+.compare h3 { margin-bottom: 16px; }
+.table-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); }
+table { border-collapse: collapse; width: 100%; min-width: 620px; font-size: 14.5px; }
+th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+thead th { font: 700 15px/1.2 var(--display); background: var(--bg); position: sticky; top: 0; }
+th:not(:first-child), td:not(:first-child) { text-align: center; width: 18%; }
+tbody tr:last-child td { border-bottom: 0; }
+tbody th { font-weight: 500; }
+.yes { color: var(--accent); font-weight: 700; }
+.no { color: var(--muted); }
+tr.group-row th { background: var(--bg-2); font: 700 12.5px/1 var(--body); text-transform: uppercase; letter-spacing: .06em; color: var(--ink-2); }
+
+/* FAQ */
+.faq-grid { display: grid; grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr); gap: 48px; }
+.faq-list { display: grid; gap: 10px; }
+details { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px 20px; }
+summary { cursor: pointer; list-style: none; padding: 16px 0; font-weight: 600; display: flex; justify-content: space-between; gap: 16px; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: "+"; font: 500 22px/1 var(--body); color: var(--accent); transition: transform .2s; }
+details[open] summary::after { transform: rotate(45deg); }
+details p { padding-bottom: 18px; color: var(--muted); font-size: 15px; max-width: 65ch; }
+@media (max-width: 860px) { .faq-grid { grid-template-columns: 1fr; gap: 28px; } }
+
+/* Final CTA */
+.cta-box { background: var(--accent); color: var(--accent-ink); border-radius: 28px; padding: clamp(28px, 5vw, 56px); display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 40px; align-items: center; }
+.cta-box h2 { font-size: clamp(32px, 4.4vw, 50px); }
+.cta-box p { opacity: .88; margin-top: 14px; font-size: 17px; }
+.cta-box .btn-primary { background: var(--accent-ink); color: var(--accent); }
+.cta-box .btn-primary:hover { background: var(--sun); color: var(--sun-ink); }
+.demo-form { background: var(--surface); color: var(--ink); border-radius: 20px; padding: 24px; display: grid; gap: 12px; }
+.demo-form h3 { font-size: 19px; }
+.demo-form label { display: grid; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
+.demo-form input, .demo-form select {
+  font: 400 15px/1.3 var(--body); padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
+  background: var(--bg); color: var(--ink); width: 100%;
+}
+.demo-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.demo-form .btn { background: var(--accent); color: var(--accent-ink); }
+.demo-form .btn:hover { background: var(--accent-hover); }
+.form-ok { font-size: 14px; color: var(--accent); font-weight: 600; }
+@media (max-width: 860px) { .cta-box { grid-template-columns: 1fr; } }
+@media (max-width: 480px) { .demo-form .row { grid-template-columns: 1fr; } }
+
+/* Footer */
+footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top: 88px; }
+.foot { display: grid; grid-template-columns: minmax(0, 1.4fr) repeat(3, minmax(0, 1fr)); gap: 32px; }
+.foot p { color: var(--muted); font-size: 14.5px; margin-top: 12px; max-width: 36ch; }
+.foot h4 { margin: 0 0 12px; font-size: 13px; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); }
+.foot ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; font-size: 15px; }
+.foot a { text-decoration: none; }
+.foot a:hover { color: var(--accent); }
+.foot-bottom { margin-top: 40px; padding-top: 22px; border-top: 1px solid var(--line); display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; font-size: 13.5px; color: var(--muted); }
+.foot-bottom b { color: var(--ink); }
+@media (max-width: 760px) { .foot { grid-template-columns: 1fr 1fr; } .foot > div:first-child { grid-column: 1 / -1; } }
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .chat-step, .typing i { transition: none; animation: none; }
+}
+</style>
+</head>
+<body>
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="../index.html#inicio" aria-label="SiempreIA, inicio">
+      <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 3C8.8 3 3 8.4 3 15.1c0 2.6.9 5 2.4 7L4 28l6.3-1.9c1.7.8 3.6 1.2 5.7 1.2 7.2 0 13-5.4 13-12.1S23.2 3 16 3Z" fill="var(--accent)"/>
+        <circle cx="16" cy="15.2" r="6.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/>
+        <path d="M16 11.6v3.8l2.6 1.6" fill="none" stroke="var(--sun)" stroke-width="2.2" stroke-linecap="round"/>
+      </svg>
+      <span>SiempreIA</span>
+    </a>
+    <nav class="nav-links" aria-label="Secciones">
+      <a href="../index.html#que-hace">Qué hace</a>
+      <a href="../index.html#sectores">Sectores</a>
+      <a href="../index.html#funciones">Funciones</a>
+      <a href="../index.html#precios">Precios</a>
+      <a href="../index.html#preguntas">Preguntas</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="theme-btn" id="themeBtn" type="button" aria-label="Cambiar tema">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.5"/><path d="M12 2v2.5M12 19.5V22M2 12h2.5M19.5 12H22M4.9 4.9l1.8 1.8M17.3 17.3l1.8 1.8M4.9 19.1l1.8-1.8M17.3 6.7l1.8-1.8"/></svg>
+      </button>
+      <a class="btn btn-ghost login" href="https://app.crm.sinlimiteia.com/login">Entrar</a>
+      <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Prueba gratis</a>
+    </div>
+  </div>
+</header>
+
+<main>
+<section class="sec-hero">
+  <div class="wrap">
+    <div class="hero-copy">
+      <nav class="crumb" aria-label="Ruta"><a href="../index.html">Inicio</a><span>/</span><a href="../index.html#sectores">Sectores</a><span>/</span><span>Clínicas y consultorios</span></nav>
+      <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/></svg></span>
+      <h1>Tu clínica responde a cada paciente, a cualquier hora</h1>
+      <p class="lede">El agente resuelve las dudas de seguros, precios y preparación, ofrece chequeos y servicios, y agenda con el doctor y la especialidad correctos.</p>
+      <div class="hero-ctas">
+        <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Prueba gratis 14 días</a>
+        <a class="btn btn-ghost" href="../index.html#demo">Agenda una demo</a>
+      </div>
+    </div>
+    <div class="mini-chat" aria-label="Ejemplo de conversación">
+      <span class="mini-label">Ejemplo de conversación</span>
+      <div class="msg in">¿Aceptan seguro Humano? ¿Hay pediatra el sábado?</div>
+      <div class="msg out">Sí, aceptamos Humano. El Dr. Almonte atiende pediatría el sábado a las 9:00 o a las 11:30. ¿Cuál prefieres?<div class="meta"><i class="tk"></i></div></div>
+      <div class="slot-btns"><span>9:00</span><span class="picked">11:30</span><span>Otro día</span></div>
+      <div class="msg in">Nombre: Pedro Vargas, 809-555-0188</div>
+      <div class="msg out">Listo. Sábado 11:30 con el Dr. Almonte. Tu código es <code>CITA-4C19A0</code>. Recuerda traer tu carnet del seguro.<div class="meta"><i class="tk"></i></div></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top: 0">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Qué hace por tu negocio</span>
+      <h2>Atiende, vende y agenda</h2>
+    </div>
+    <div class="pillars">
+      <article class="pillar">
+        <span class="pillar-num">01</span>
+        <h3>Atiende</h3>
+        <ul class="checks"><li>Seguros que aceptan, precios de consultas y estudios</li><li>Preparación para análisis y procedimientos, desde tus documentos</li><li>Pasa a recepción los casos que necesitan a una persona</li></ul>
+      </article>
+      <article class="pillar dark">
+        <span class="pillar-num">02</span>
+        <h3>Vende</h3>
+        <ul class="checks"><li>Chequeos y paquetes con su precio, desde tu catálogo</li><li>Registra cada interesado como oportunidad en tu embudo</li><li>Seguimiento después de la consulta para el control</li></ul>
+      </article>
+      <article class="pillar">
+        <span class="pillar-num">03</span>
+        <h3>Agenda</h3>
+        <ul class="checks"><li>Cada doctor con su horario y su duración de cita</li><li>Busca por nombre del doctor o por especialidad</li><li>Recordatorios con el nombre del doctor y cambios con código</li></ul>
+      </article>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top: 0">
+  <div class="wrap">
+    <div class="section-head">
+      <span class="eyebrow">Lo que cambia</span>
+      <h2>Antes y después de SiempreIA</h2>
+    </div>
+    <div class="before-after">
+      <div class="ba-row ba-head"><div>Hoy</div><div>Con SiempreIA</div></div>
+      <div class="ba-row"><div>Recepción contesta el WhatsApp entre paciente y paciente</div><div>El agente contesta al instante y recepción atiende en persona</div></div>
+      <div class="ba-row"><div>Las preguntas de seguros llegan de noche y esperan al día siguiente</div><div>Se responden en el momento, con tu lista de seguros</div></div>
+      <div class="ba-row"><div>Pacientes que olvidan su cita</div><div>Recordatorio automático con el doctor y la hora</div></div>
+    </div>
+  </div>
+</section>
+
+<section style="padding-top: 0">
+  <div class="wrap">
+    <div class="rec">
+      <div>
+        <span class="eyebrow">Plan recomendado</span>
+        <span class="plan-name">Profesional</span>
+        <p>Incluye agenda, recordatorios y embudos.</p>
+        <a class="btn btn-ghost" href="../index.html#precios" style="width: fit-content">Ver precios</a>
+      </div>
+      <div>
+        <span class="eyebrow">Módulos para tu sector</span>
+        <ul class="checks"><li><span><b>Profesionales</b> (+$29/mes): Agenda propia para cada profesional, especialidades, servicios con su duración, ausencias y pregunta de seguro si aplica. Solo hace falta si atienden varias personas.</span></li></ul>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="sectors">
+  <div class="wrap">
+    <div class="sectors-head">
+      <div class="section-head">
+        <span class="eyebrow">Otros sectores</span>
+        <h2>También lo usan</h2>
+      </div>
+      <div class="car-nav">
+        <button class="car-btn" type="button" data-dir="-1" aria-label="Sectores anteriores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 5-7 7 7 7"/></svg></button>
+        <button class="car-btn" type="button" data-dir="1" aria-label="Más sectores"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m9 5 7 7-7 7"/></svg></button>
+      </div>
+    </div>
+    <div class="carousel" id="carousel" tabindex="0" aria-label="Otros sectores">
+      <a class="sec-card" href="odontologia.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3c-2.5 0-4 2-4 4.5 0 3 1.5 4.5 2 7 .5 3 1 6.5 2.5 6.5S9.5 17 12 17s2.5 4 4.5 4 2-3.5 2.5-6.5c.5-2.5 2-4 2-7C21 5 19.5 3 17 3c-2 0-3 1-5 1S9 3 7 3Z"/></svg></span>
+        <h3>Odontología</h3>
+        <p>Cotiza tratamientos, explica procedimientos y llena la agenda de cada odontólogo.</p>
+        <span class="bubble">"¿Cuánto cuesta un blanqueamiento?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="fisioterapia.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="4.5" r="2"/><path d="M12 7v6l-3 7M12 13l3 7M5 10l7-1 7 1"/></svg></span>
+        <h3>Fisioterapia y rehabilitación</h3>
+        <p>Agenda sesiones, vende paquetes y recuerda cada cita del tratamiento.</p>
+        <span class="bubble">"¿Tienen paquete de 10 sesiones?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="salones.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M8.1 8.1 20 20M8.1 15.9 20 4"/></svg></span>
+        <h3>Salones de belleza y barberías</h3>
+        <p>Muestra servicios y precios, y reserva con el estilista que el cliente quiere.</p>
+        <span class="bubble">"¿Hay turno con Yeni el viernes?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="spa.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 21c-5 0-9-3-9-8 3 0 6 1 9 4 3-3 6-4 9-4 0 5-4 8-9 8Z"/><path d="M12 3c2 2.5 3 5 3 7.5S13.7 15 12 17c-1.7-2-3-4-3-6.5S10 5.5 12 3Z"/></svg></span>
+        <h3>Spa y estética</h3>
+        <p>Explica tratamientos, vende tarjetas de regalo y reserva cabina.</p>
+        <span class="bubble">"¿Tienen tarjetas de regalo?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="veterinarias.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="5.5" cy="10" r="2"/><circle cx="9" cy="5.5" r="2"/><circle cx="15" cy="5.5" r="2"/><circle cx="18.5" cy="10" r="2"/><path d="M12 11c-3 0-6 4.5-6 7 0 1.7 1.3 2.5 3 2.5 1.2 0 2-.5 3-.5s1.8.5 3 .5c1.7 0 3-.8 3-2.5 0-2.5-3-7-6-7Z"/></svg></span>
+        <h3>Veterinarias</h3>
+        <p>Agenda consultas y vacunas, y guarda los datos de cada mascota.</p>
+        <span class="bubble">"Toca la vacuna de Max, ¿hay espacio?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="gimnasios.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 7v10M18 7v10M3 9.5v5M21 9.5v5M6 12h12"/></svg></span>
+        <h3>Gimnasios y estudios</h3>
+        <p>Vende membresías, responde horarios y agenda clases de prueba.</p>
+        <span class="bubble">"¿Cuánto cuesta la mensualidad?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="restaurantes.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 3v8M4.5 3v5a2.5 2.5 0 0 0 5 0V3M7 11v10M17 21V3c-2.5 1.5-3.5 4-3.5 7.5 0 1.5 1 2.5 3.5 2.5"/></svg></span>
+        <h3>Restaurantes</h3>
+        <p>Responde el menú, reserva mesas y maneja la lista de espera.</p>
+        <span class="bubble">"Mesa para 8 el viernes a las 8"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="eventos.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8 3h8l-1 7a3 3 0 0 1-6 0L8 3ZM12 13v8M8.5 21h7"/></svg></span>
+        <h3>Salones de eventos</h3>
+        <p>Cotiza paquetes, bloquea fechas y da seguimiento hasta el depósito.</p>
+        <span class="bubble">"Cumpleaños de 60 personas en noviembre"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="tiendas.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 8h14l-1 13H6L5 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg></span>
+        <h3>Tiendas y ventas por WhatsApp</h3>
+        <p>Envía el catálogo con fotos y precios, recomienda y registra cada venta.</p>
+        <span class="bubble">"¿La tienen en talla M?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="inmobiliarias.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 11 12 4l9 7"/><path d="M5 10v10h14V10M10 20v-6h4v6"/></svg></span>
+        <h3>Inmobiliarias</h3>
+        <p>Envía propiedades, califica al interesado y agenda visitas.</p>
+        <span class="bubble">"¿Tienen apartamentos de 2 habitaciones?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+      <a class="sec-card" href="talleres.html">
+        <span class="sec-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5a1.4 1.4 0 0 0 2 2l5.8-5.8a4 4 0 0 0 5.4-5.4l-2.4 2.4-2-.4-.4-2 2.8-2Z"/></svg></span>
+        <h3>Talleres mecánicos</h3>
+        <p>Cotiza servicios, agenda la entrada del vehículo y recuerda el mantenimiento.</p>
+        <span class="bubble">"¿Cuánto cuesta el cambio de aceite?"</span>
+        <span class="go">Ver cómo funciona →</span>
+      </a>
+    </div>
+  </div>
+</section>
+
+<section style="padding-bottom: 0">
+  <div class="wrap">
+    <div class="cta-box">
+      <div>
+        <h2>Pruébalo en tu negocio.</h2>
+        <p>14 días gratis. Te ayudamos a configurar el agente con tu información.</p>
+      </div>
+      <div class="hero-ctas" style="justify-content: flex-end">
+        <a class="btn btn-primary" href="https://app.crm.sinlimiteia.com/signup">Crear mi cuenta gratis</a>
+        <a class="btn btn-ghost" href="../index.html#demo" style="color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 40%, transparent)">Agendar demo</a>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="foot">
+      <div>
+        <a class="brand" href="../index.html#inicio">
+          <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+            <path d="M16 3C8.8 3 3 8.4 3 15.1c0 2.6.9 5 2.4 7L4 28l6.3-1.9c1.7.8 3.6 1.2 5.7 1.2 7.2 0 13-5.4 13-12.1S23.2 3 16 3Z" fill="var(--accent)"/>
+            <circle cx="16" cy="15.2" r="6.2" fill="none" stroke="var(--accent-ink)" stroke-width="2"/>
+            <path d="M16 11.6v3.8l2.6 1.6" fill="none" stroke="var(--sun)" stroke-width="2.2" stroke-linecap="round"/>
+          </svg>
+          <span>SiempreIA</span>
+        </a>
+        <p>El agente de IA que atiende, vende y agenda por WhatsApp. Hecho en República Dominicana.</p>
+      </div>
+      <div>
+        <h4>Producto</h4>
+        <ul>
+          <li><a href="../index.html#como-funciona">Cómo funciona</a></li>
+          <li><a href="../index.html#funciones">Funciones</a></li>
+          <li><a href="../index.html#precios">Precios</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Sectores</h4>
+        <ul>
+          <li><a href="clinicas.html">Clínicas</a></li>
+          <li><a href="salones.html">Salones de belleza</a></li>
+          <li><a href="restaurantes.html">Restaurantes</a></li>
+          <li><a href="tiendas.html">Tiendas</a></li>
+          <li><a href="../index.html#sectores">Ver todos</a></li>
+        </ul>
+      </div>
+      <div>
+        <h4>Legal</h4>
+        <ul>
+          <li><a href="../privacidad.html">Privacidad</a></li>
+          <li><a href="../terminos.html">Términos</a></li>
+          <li><a href="https://app.crm.sinlimiteia.com/login">Entrar</a></li>
+        </ul>
+      </div>
+    </div>
+    <div class="foot-bottom">
+      <span>© <span id="year">2026</span> SiempreIA. Todos los derechos reservados.</span>
+      <span>Un producto de <b>Sin Limite IA</b></span>
+    </div>
+  </div>
+</footer>
+
+<script>
+(function () {
+  var root = document.documentElement;
+  var saved = null;
+  try { saved = localStorage.getItem('theme'); } catch (e) {}
+  if (saved === 'light' || saved === 'dark') root.setAttribute('data-theme', saved);
+  document.getElementById('themeBtn').addEventListener('click', function () {
+    var isDark = root.getAttribute('data-theme') === 'dark' ||
+      (!root.getAttribute('data-theme') && window.matchMedia('(prefers-color-scheme: dark)').matches);
+    var next = isDark ? 'light' : 'dark';
+    root.setAttribute('data-theme', next);
+    try { localStorage.setItem('theme', next); } catch (e) {}
+  });
+  var carousel = document.getElementById('carousel');
+  document.querySelectorAll('.car-btn').forEach(function (b) {
+    b.addEventListener('click', function () {
+      carousel.scrollBy({ left: +b.getAttribute('data-dir') * Math.max(280, carousel.clientWidth * 0.8), behavior: 'smooth' });
+    });
+  });
+  var year = document.getElementById('year');
+  if (year) year.textContent = new Date().getFullYear();
+})();
+</script>
+</body>
+</html>

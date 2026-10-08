@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Privacidad · SiempreIA</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,700;12..96,800&family=Figtree:wght@400;600;700&display=swap">
+<style>
+:root {
+  --bg: #F2F5F1; --surface: #FFFFFF; --ink: #0E1D18; --muted: #5A6B64; --line: #D6E0D9;
+  --accent: #0A7A57; --accent-soft: #D7F0E3;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) { color-scheme: dark; --bg: #0A1210; --surface: #121D19; --ink: #E7F0EB; --muted: #8FA39A; --line: #22332D; --accent: #3CCB92; --accent-soft: #123527; }
+}
+:root[data-theme="dark"] { color-scheme: dark; --bg: #0A1210; --surface: #121D19; --ink: #E7F0EB; --muted: #8FA39A; --line: #22332D; --accent: #3CCB92; --accent-soft: #123527; }
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 16px/1.7 var(--body); padding-inline: 20px; }
+.top { max-width: 760px; margin: 0 auto; padding-block: 22px; display: flex; justify-content: space-between; align-items: center; gap: 16px; border-bottom: 1px solid var(--line); }
+.top a { text-decoration: none; color: inherit; }
+.brand { font: 800 20px/1 var(--display); letter-spacing: -0.02em; }
+.back { font-size: 15px; color: var(--accent) !important; font-weight: 600; }
+main { max-width: 760px; margin: 0 auto; padding-block: 40px 72px; }
+h1 { font: 800 clamp(34px, 5vw, 46px)/1.1 var(--display); letter-spacing: -0.03em; margin: 0 0 10px; text-wrap: balance; }
+h2 { font: 700 22px/1.25 var(--display); margin: 40px 0 10px; letter-spacing: -0.01em; }
+p, li { color: var(--ink); }
+.updated { color: var(--muted); font-size: 15px; margin: 0 0 28px; }
+.note { background: var(--accent-soft); border-left: 3px solid var(--accent); padding: 16px 18px; border-radius: 10px; }
+ul { padding-left: 22px; }
+li { margin-bottom: 6px; }
+a { color: var(--accent); }
+footer { max-width: 760px; margin: 0 auto; padding-block: 24px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
+footer a { color: var(--muted); }
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">SiempreIA</a>
+  <a class="back" href="index.html">Volver al inicio</a>
+</header>
+<main>
+  <h1>Política de privacidad</h1>
+  <p class="updated">Última actualización: 7 de octubre de 2026</p>
+
+  <p>SiempreIA es un producto de Sin Limite IA ("nosotros"). Esta política explica qué datos tratamos cuando un negocio ("el cliente") usa SiempreIA para atender a sus propios clientes por WhatsApp, por el chat de su página web y por otros canales, y cuando conecta servicios de terceros como Google Calendar.</p>
+
+  <h2>1. Quién es responsable de los datos</h2>
+  <p>Cada negocio que usa SiempreIA es responsable de los datos de sus propios contactos (sus clientes y pacientes). Nosotros los tratamos por cuenta del negocio, solo para prestarle el servicio. Para los datos de la cuenta del negocio (nombre, correo de los usuarios, facturación) somos responsables nosotros.</p>
+
+  <h2>2. Qué datos tratamos</h2>
+  <ul>
+    <li><strong>Datos de la cuenta:</strong> nombre del negocio, nombre y correo de los usuarios, configuración y datos de facturación.</li>
+    <li><strong>Conversaciones:</strong> mensajes, fotos, audios y documentos que los contactos envían por WhatsApp o por el chat web, y las respuestas del negocio y del agente de IA.</li>
+    <li><strong>Datos de contacto:</strong> nombre, teléfono, notas, etiquetas, campos personalizados y datos de oportunidades de venta que el negocio o el agente registran.</li>
+    <li><strong>Citas y reservas:</strong> fecha, hora, servicio, profesional, seguro médico (si el negocio lo pide) y nombre y teléfono del cliente.</li>
+    <li><strong>Contenido del negocio:</strong> catálogo, precios y documentos que el negocio sube para entrenar a su agente.</li>
+    <li><strong>Datos técnicos:</strong> registros de acceso y de errores necesarios para operar y proteger el servicio.</li>
+  </ul>
+
+  <h2>3. Para qué los usamos</h2>
+  <ul>
+    <li>Recibir y enviar mensajes en nombre del negocio.</li>
+    <li>Generar las respuestas del agente de IA con la información del negocio.</li>
+    <li>Agendar, mover, cancelar y recordar citas.</li>
+    <li>Mostrar reportes al negocio sobre su propia atención y ventas.</li>
+    <li>Dar soporte, prevenir abusos y cumplir obligaciones legales.</li>
+  </ul>
+  <p>No vendemos datos personales. No usamos las conversaciones de un negocio para dar servicio a otro negocio, ni para publicidad.</p>
+
+  <h2>4. Google Calendar</h2>
+  <p>Si el negocio conecta su cuenta de Google Calendar, SiempreIA solicita acceso a su calendario solo para:</p>
+  <ul>
+    <li>crear, actualizar y eliminar en ese calendario los eventos de las citas que se agendan en SiempreIA, y</li>
+    <li>consultar los horarios ocupados del calendario, para que el agente no ofrezca horas en las que el negocio ya tiene otro compromiso.</li>
+  </ul>
+  <p>No leemos el contenido de los demás eventos más allá de su horario de ocupado, no los compartimos con terceros y no los usamos para entrenar modelos de inteligencia artificial. El token de acceso se guarda cifrado. El negocio puede desconectar Google Calendar en cualquier momento desde Agenda → Google Calendar, o retirar el permiso desde <a href="https://myaccount.google.com/permissions">su cuenta de Google</a>.</p>
+  <p class="note">El uso y la transferencia a cualquier otra aplicación de la información recibida de las APIs de Google por parte de SiempreIA se ajustan a la <a href="https://developers.google.com/terms/api-services-user-data-policy">Política de datos de usuario de los servicios de API de Google</a>, incluidos los requisitos de Uso Limitado.</p>
+
+  <h2>5. Con quién compartimos datos</h2>
+  <p>Solo con los proveedores que necesitamos para prestar el servicio, bajo sus propios términos de protección de datos:</p>
+  <ul>
+    <li><strong>Meta (WhatsApp Business Platform):</strong> para enviar y recibir los mensajes de WhatsApp.</li>
+    <li><strong>Proveedores de inteligencia artificial (OpenAI o Anthropic, según el que elija el negocio):</strong> reciben el texto necesario para generar cada respuesta. Usamos sus APIs comerciales, cuyos términos no permiten usar esos datos para entrenar sus modelos.</li>
+    <li><strong>Supabase:</strong> base de datos y almacenamiento de archivos.</li>
+    <li><strong>Telegram:</strong> solo si el negocio activa las alertas o el asistente del dueño.</li>
+    <li><strong>Google:</strong> solo si el negocio conecta Google Calendar, como se describe arriba.</li>
+  </ul>
+
+  <h2>6. Cuánto tiempo los guardamos</h2>
+  <p>Mientras la cuenta del negocio esté activa. Si el negocio cancela, borramos sus datos dentro de los 90 días siguientes, salvo lo que la ley nos obligue a conservar.</p>
+
+  <h2>7. Seguridad</h2>
+  <p>Usamos conexiones cifradas (HTTPS), control de acceso por cuenta y cifrado de las credenciales de terceros. Ningún sistema es perfecto, pero tomamos medidas razonables para proteger la información.</p>
+
+  <h2>8. Tus derechos</h2>
+  <p>Puedes pedir acceso, corrección o eliminación de tus datos. Si eres cliente de un negocio que usa SiempreIA, escribe primero a ese negocio: él decide sobre tus datos y nosotros lo ayudamos a cumplir tu solicitud. Esta política se rige por la Ley 172-13 de la República Dominicana sobre protección de datos personales.</p>
+
+  <h2>9. Cambios</h2>
+  <p>Si cambiamos esta política, publicaremos la nueva versión aquí con su fecha.</p>
+
+  <h2>10. Contacto</h2>
+  <p>Sin Limite IA · República Dominicana<br>Correo: contacto@siempreia.com</p>
+</main>
+<footer>
+  <span>© 2026 SiempreIA · Un producto de Sin Limite IA</span>
+  <span><a href="terminos.html">Términos de uso</a></span>
+</footer>
+</body>
+</html>
