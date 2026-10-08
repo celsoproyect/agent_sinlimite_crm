@@ -383,13 +383,13 @@ function chatLine(line) {
   throw new Error(`unknown chat line ${kind}`)
 }
 
-function card(s, prefix) {
+function card(s, prefix, imgPrefix) {
   return `<a class="sec-card" href="${prefix}${s.slug}.html">
-        <span class="sec-ico">${icon(s.slug)}</span>
-        <h3>${esc(s.name)}</h3>
-        <p>${esc(s.hook)}</p>
-        <span class="bubble">${esc(s.bubble)}</span>
-        <span class="go">Ver cómo funciona →</span>
+        <img src="${imgPrefix}img/sectores/${s.slug}.jpg" alt="" width="600" height="750" loading="lazy">
+        <span class="sec-cap">
+          <span><h3>${esc(s.name)}</h3><small>${esc(s.hook)}</small></span>
+          <span class="sec-arrow" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
+        </span>
       </a>`
 }
 
@@ -402,7 +402,7 @@ const END = '<!-- sectors:end -->'
 const a = index.indexOf(START)
 const b = index.indexOf(END)
 if (a < 0 || b < 0) throw new Error('sector markers missing in index.html')
-index = index.slice(0, a + START.length) + '\n      ' + SECTORS.map((s) => card(s, 'sectores/')).join('\n      ') + '\n' + index.slice(b)
+index = index.slice(0, a + START.length) + '\n      ' + SECTORS.map((s) => card(s, 'sectores/', '')).join('\n      ') + '\n' + index.slice(b)
 writeFileSync(indexPath, index)
 
 // ---------------------------------------------------------------- sector pages
@@ -413,7 +413,7 @@ const fonts = index.match(/<link rel="preconnect"[\s\S]*?display=swap">/)[0]
 const up = (html) =>
   html
     .replace(/href="#([^"]*)"/g, 'href="../index.html#$1"')
-    .replace(/href="(privacidad|terminos)\.html"/g, 'href="../$1.html"')
+    .replace(/href="(privacidad|terminos|cookies|aviso-legal)\.html"/g, 'href="../$1.html"')
     .replace(/href="sectores\//g, 'href="')
     .replace(/src="logo\.png"/g, 'src="../logo.png"')
 const header = up(index.match(/<header class="nav">[\s\S]*?<\/header>/)[0])
@@ -534,7 +534,7 @@ ${header}
       </div>
     </div>
     <div class="carousel" id="carousel" tabindex="0" aria-label="Otros sectores">
-      ${others.map((o) => card(o, '')).join('\n      ')}
+      ${others.map((o) => card(o, '', '../')).join('\n      ')}
     </div>
   </div>
 </section>
