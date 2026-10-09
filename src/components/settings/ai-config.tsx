@@ -314,7 +314,7 @@ export function AiConfig() {
                 disabled={disabled}
               >
                 <SelectTrigger className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(v: AiProvider) => PROVIDER_LABEL[v] ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
@@ -334,7 +334,7 @@ export function AiConfig() {
                   disabled={disabled}
                 >
                   <SelectTrigger id="ai-model" className="w-full">
-                    <SelectValue />
+                    <SelectValue>{(v: string) => OPENAI_CHAT_MODELS.find((m) => m.id === v)?.label ?? v}</SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {OPENAI_CHAT_MODELS.map((m) => (
@@ -380,6 +380,7 @@ export function AiConfig() {
                   <button
                     type="button"
                     onClick={() => setShowKey((s) => !s)}
+                    aria-label={showKey ? t('hideKey') : t('showKey')}
                     className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                     tabIndex={-1}
                   >
@@ -445,7 +446,7 @@ export function AiConfig() {
                 disabled={disabled}
               >
                 <SelectTrigger id="ai-embeddings-model" className="w-full">
-                  <SelectValue />
+                  <SelectValue>{(v: string) => OPENAI_EMBEDDING_MODELS.find((m) => m.id === v)?.label ?? v}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   {OPENAI_EMBEDDING_MODELS.map((m) => (
@@ -605,7 +606,11 @@ export function AiConfig() {
                 disabled={disabled || !autoReplyEnabled}
               >
                 <SelectTrigger id="ai-handoff">
-                  <SelectValue />
+                  <SelectValue>{(v: string) => {
+                    if (v === HANDOFF_QUEUE) return t('handoffQueue');
+                    const m = members.find((x) => x.user_id === v);
+                    return m ? memberLabel(m) : v;
+                  }}</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={HANDOFF_QUEUE}>
@@ -649,7 +654,11 @@ export function AiConfig() {
                 disabled={disabled}
               >
                 <SelectTrigger id="ai-lead-pipeline">
-                  <SelectValue />
+                  <SelectValue>{(v: string) =>
+                    v === NO_LEAD_PIPELINE
+                      ? t('leadPipelineNone')
+                      : (pipelines.find((p) => p.id === v)?.name ?? v)
+                  }</SelectValue>
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_LEAD_PIPELINE}>

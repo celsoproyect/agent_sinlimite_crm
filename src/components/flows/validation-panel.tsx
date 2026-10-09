@@ -79,6 +79,9 @@ export function IssueLine({
   onJump?: (key: string) => void;
   t?: ReturnType<typeof useTranslations>;
 }) {
+  const tv = useTranslations("Flows.validation");
+  const tNodes = useTranslations("Flows.builder.nodes");
+  const text = issueText(issue, tv, tNodes);
   const tone =
     issue.severity === "error" ? "text-red-300" : "text-amber-300";
   const iconTone =
@@ -92,7 +95,7 @@ export function IssueLine({
             {issue.node_key}
           </code>
         )}
-        {issue.message}
+        {text}
       </span>
     </>
   );
@@ -109,7 +112,7 @@ export function IssueLine({
           "flex w-full items-start gap-2 rounded-md px-2 py-1 text-left text-xs transition-colors hover:bg-muted/60",
           tone,
         )}
-        aria-label={t ? t("jumpToNode", { key: issue.node_key! }) : `Jump to node ${issue.node_key}`}
+        aria-label={(t ?? tv)("jumpToNode", { key: issue.node_key! })}
       >
         {body}
       </button>
@@ -125,4 +128,21 @@ export function IssueLine({
       {body}
     </div>
   );
+}
+
+/** Localized text for a validation issue: its `code` under
+ *  `Flows.validation.issues`, with a node-type param shown by its
+ *  translated label. Falls back to the English `message`. */
+function issueText(
+  issue: ValidationIssue,
+  tv: ReturnType<typeof useTranslations>,
+  tNodes: ReturnType<typeof useTranslations>,
+): string {
+  const key = issue.code ? `issues.${issue.code}` : null;
+  if (!key || !tv.has(key)) return issue.message;
+  const params = { ...(issue.params ?? {}) };
+  if (typeof params.type === "string" && tNodes.has(`${params.type}.label`)) {
+    params.type = tNodes(`${params.type}.label`);
+  }
+  return tv(key, params);
 }

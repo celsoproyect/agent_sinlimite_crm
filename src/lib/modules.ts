@@ -23,7 +23,10 @@
 // (/events: halls, packages, event requests) are page modules that start
 // OFF (DEFAULT_OFF_MODULES): most businesses don't need them, so they're
 // only on once a super admin switches them on. `waitlist` is a feature
-// module on top of `restaurant`.
+// module on top of `restaurant`. `leads` (/leads) lists every deal across
+// pipelines and the raw web form submissions (migration 070).
+// `web_push` sends handoff alerts as Web Push notifications to the
+// owners'/admins' phones (Notificaciones page).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -32,12 +35,14 @@ export const MODULE_KEYS = [
   "notifications",
   "contacts",
   "pipelines",
+  "leads",
   "broadcasts",
   "reports",
   "ai_messages",
   "telegram",
   "widget_booking",
   "google_calendar",
+  "web_push",
   "clinic",
   "restaurant",
   "events",

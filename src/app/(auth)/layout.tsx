@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
+
 // Shared metadata for auth pages (login / signup / forgot-password).
 // None of these should be indexed — they'd compete with the marketing
 // landing in SERPs and offer nothing to a searcher who hasn't already
@@ -20,5 +22,12 @@ export const metadata: Metadata = {
 };
 
 export default function AuthLayout({ children }: { children: ReactNode }) {
-  return children;
+  return (
+    <>
+      <div className="fixed top-[max(0.75rem,env(safe-area-inset-top))] right-3 z-40">
+        <LocaleSwitcher className="bg-card/80 shadow-sm ring-1 ring-border backdrop-blur" />
+      </div>
+      {children}
+    </>
+  );
 }

@@ -156,17 +156,31 @@ export default function FlowsPage() {
     }
   }
 
-  async function handleUseTemplate(slug: string) {
+  // Built-in templates are stored in English; show (and name the
+  // cloned flow) in the UI language when a translation exists.
+  function templateText(
+    template: TemplateSummary,
+    field: "name" | "description",
+  ): string {
+    const key = `templates.${template.slug}.${field}`;
+    return t.has(key) ? t(key) : template[field];
+  }
+
+  async function handleUseTemplate(template: TemplateSummary) {
+    const slug = template.slug;
     setCreating(true);
     try {
       const res = await fetch("/api/flows", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ template_slug: slug }),
+        body: JSON.stringify({
+          template_slug: slug,
+          name: templateText(template, "name"),
+        }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
-        throw new Error(json.error ?? `Clone failed: ${res.status}`);
+        throw new Error(json.error ?? t("cloneError"));
       }
       const json = (await res.json()) as { flow: FlowRow };
       setCreateOpen(false);
@@ -278,16 +292,16 @@ export default function FlowsPage() {
                     <button
                       key={template.slug}
                       type="button"
-                      onClick={() => handleUseTemplate(template.slug)}
+                      onClick={() => handleUseTemplate(template)}
                       disabled={creating}
                       className="flex flex-col gap-2.5 rounded-lg border border-border bg-background p-4 text-left transition-colors hover:border-primary/40 hover:bg-muted disabled:opacity-50"
                     >
                       <Icon className="h-5 w-5 text-primary" />
                       <span className="text-sm font-semibold text-popover-foreground">
-                        {template.name}
+                        {templateText(template, "name")}
                       </span>
                       <span className="text-xs leading-relaxed text-muted-foreground">
-                        {template.description}
+                        {templateText(template, "description")}
                       </span>
                       <span className="mt-auto border-t border-border pt-2 text-[0.6875rem] text-muted-foreground">
                         {t("nodeCount", { count: template.node_count })}

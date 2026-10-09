@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Loader2, RotateCcw, Search, Trophy, XCircle } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { Deal } from "@/types";
 import { useAuth } from "@/hooks/use-auth";
 import { formatCurrency } from "@/lib/currency";
@@ -57,6 +57,7 @@ interface ClosedDealsProps {
  */
 export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
   const t = useTranslations("Pipelines.closed");
+  const locale = useLocale();
   const { defaultCurrency } = useAuth();
   const today = businessToday();
 
@@ -125,7 +126,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
     isLostReason(r) ? t(`reasons.${r}`) : t("reasons.other");
 
   const dayLabel = (iso: string) =>
-    new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, {
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString(locale, {
       day: "numeric",
       month: "short",
       year: "numeric",

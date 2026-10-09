@@ -1,6 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import { useTranslations } from 'next-intl';
 import { Bot, Loader2, Sparkles, BarChart3 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiPlayground } from '@/components/agents/ai-playground';
@@ -16,6 +17,7 @@ import { useModuleGate } from '@/hooks/use-module-gate';
 // admin+) here.
 export default function AgentsPage() {
   const router = useRouter();
+  const t = useTranslations('Agents.page');
   const { accountRole, isSuperAdmin } = useAuth();
   const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agents");
@@ -33,22 +35,21 @@ export default function AgentsPage() {
       <div className="flex items-center gap-2">
         <Bot className="h-6 w-6 text-primary" />
         <h1 className="text-2xl font-bold tracking-tight text-foreground">
-          AI Agents
+          {t('title')}
         </h1>
       </div>
       <p className="mt-1 text-sm text-muted-foreground">
-        Your bring-your-own-key AI agent — set it up, then test it in the
-        playground before it replies to customers in the inbox.
+        {t('description')}
       </p>
 
       <Tabs defaultValue="playground" className="mt-6">
         <TabsList>
           <TabsTrigger value="playground">
-            <Sparkles className="mr-1.5 h-4 w-4" /> Playground
+            <Sparkles className="mr-1.5 h-4 w-4" /> {t('playgroundTab')}
           </TabsTrigger>
           {canViewUsage && (
             <TabsTrigger value="usage">
-              <BarChart3 className="mr-1.5 h-4 w-4" /> Usage
+              <BarChart3 className="mr-1.5 h-4 w-4" /> {t('usageTab')}
             </TabsTrigger>
           )}
         </TabsList>

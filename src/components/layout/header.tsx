@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ModeToggle } from "@/components/layout/mode-toggle";
+import { LocaleSwitcher } from "@/components/layout/locale-switcher";
 
 interface HeaderProps {
   /** Wired to the shell's drawer state. Used only on mobile — the
@@ -54,6 +55,7 @@ export function Header({ onOpenSidebar }: HeaderProps) {
       </div>
 
       <div className="flex shrink-0 items-center gap-1 sm:gap-2">
+        <LocaleSwitcher />
         <ModeToggle />
 
         <DropdownMenu>

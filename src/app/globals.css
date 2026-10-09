@@ -248,17 +248,25 @@ html[data-theme="rose"] {
     font-size: 100%;
   }
 }
-/* Light mode chat: WhatsApp-style green outgoing bubbles on a soft green
- * thread, like the marketing site's phone. Unlayered so it beats the
+/* Light mode chat: WhatsApp-style green outgoing bubbles on a very light
+ * green thread. The bubble is a solid, deep green with white text (the
+ * pale #d9fdd3 read as washed-out and glowing). Unlayered so it beats the
  * bg-* utilities. Re-pointing --primary inside the bubble also recolors
  * its timestamp, AI badge, reply quote and template chip. */
 html[data-mode="light"] .chat-bubble-out {
-  --primary: #d9fdd3;
-  --primary-foreground: #111b21;
+  --primary: #1f7a52;
+  --primary-foreground: #ffffff;
 }
 html[data-mode="light"] .chat-bubble-in {
   background-color: #ffffff;
 }
 html[data-mode="light"] .chat-area {
-  background-color: #e6f2e0;
+  background-color: #f3f8f1;
+}
+/* Buttons/list rows of an interactive message (e.g. the AI's time-slot
+ * buttons) sit on a white card inside the bubble. They are drawn in
+ * --primary, which the bubble re-points, so give them a dark ink of
+ * their own that reads on the white card. */
+html[data-mode="light"] .chat-bubble-out .interactive-preview {
+  --primary: #0b5a3a;
 }

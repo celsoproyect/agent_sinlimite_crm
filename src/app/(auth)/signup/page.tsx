@@ -4,6 +4,7 @@ import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { authErrorMessage } from "../auth-error-message";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -67,6 +68,7 @@ function SignupPageInner() {
   // step after verifying instead of being dropped on /dashboard.
   const inviteToken = searchParams.get("invite");
   const t = useTranslations("AuthPages");
+  const tErr = useTranslations("AuthErrors");
 
   const [gate, setGate] = useState<Gate>(
     inviteToken ? { status: "loading" } : { status: "no_invite" },
@@ -146,7 +148,7 @@ function SignupPageInner() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }

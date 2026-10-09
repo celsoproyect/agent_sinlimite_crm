@@ -1,6 +1,7 @@
 "use client";
 
 import { List, Reply } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
 
@@ -10,9 +11,9 @@ import type { InteractiveMessagePayload } from "@/lib/whatsapp/interactive";
  * sent buttons/list message shows the same way it does on the phone.
  *
  * Purely presentational — the buttons/rows are not clickable here (the
- * customer taps them on their own device). Kept namespace-free (plain
- * English) so it can be dropped into the composer, the automation
- * builder, and the quick-replies manager without namespace coupling.
+ * customer taps them on their own device). Its few placeholder labels
+ * live in the shared `Interactive` namespace so it can be dropped into
+ * the composer, the automation builder and the quick-replies manager.
  */
 export function InteractivePreview({
   payload,
@@ -21,10 +22,11 @@ export function InteractivePreview({
   payload: InteractiveMessagePayload;
   className?: string;
 }) {
+  const t = useTranslations("Interactive");
   return (
     <div
       className={cn(
-        "w-full max-w-[260px] overflow-hidden rounded-lg bg-card text-foreground shadow-sm ring-1 ring-border",
+        "interactive-preview w-full max-w-[260px] overflow-hidden rounded-lg bg-card text-foreground shadow-sm ring-1 ring-border",
         className,
       )}
     >
@@ -36,7 +38,7 @@ export function InteractivePreview({
         ) : null}
         <p className="whitespace-pre-wrap break-words text-sm">
           {payload.body || (
-            <span className="text-muted-foreground">Message body…</span>
+            <span className="text-muted-foreground">{t("bodyEmpty")}</span>
           )}
         </p>
         {payload.footer ? (
@@ -53,10 +55,10 @@ export function InteractivePreview({
               key={b.id || i}
               type="button"
               disabled
-              className="flex items-center justify-center gap-1.5 border-t border-border py-2 text-sm font-medium text-primary first:border-t-0"
+              className="flex items-center justify-center gap-1.5 border-t border-border py-2 text-sm font-semibold text-primary first:border-t-0"
             >
               <Reply className="h-3.5 w-3.5" />
-              <span className="truncate">{b.title || "Button"}</span>
+              <span className="truncate">{b.title || t("buttonFallback")}</span>
             </button>
           ))}
         </div>
@@ -64,10 +66,10 @@ export function InteractivePreview({
         <button
           type="button"
           disabled
-          className="flex w-full items-center justify-center gap-1.5 border-t border-border py-2 text-sm font-medium text-primary"
+          className="flex w-full items-center justify-center gap-1.5 border-t border-border py-2 text-sm font-semibold text-primary"
         >
           <List className="h-3.5 w-3.5" />
-          <span className="truncate">{payload.button_label || "Menu"}</span>
+          <span className="truncate">{payload.button_label || t("defaultMenu")}</span>
         </button>
       )}
     </div>

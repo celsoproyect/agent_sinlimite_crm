@@ -117,7 +117,7 @@ export function InviteMemberDialog({
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || 'Failed to create invitation');
+        toast.error(payload.error || t('createFailed'));
         return;
       }
 
@@ -140,7 +140,7 @@ export function InviteMemberDialog({
       onCreated();
     } catch (err) {
       console.error('[InviteMemberDialog] create error:', err);
-      toast.error('Could not reach the server. Try again?');
+      toast.error(t('networkError'));
     } finally {
       setSubmitting(false);
     }
@@ -164,7 +164,7 @@ export function InviteMemberDialog({
     // they're being invited to before clicking through. This matters
     // for users in multi-team contexts where "our Sin Limite IA account"
     // wouldn't be enough to disambiguate.
-    const accountName = result?.accountName ?? 'our Sin Limite IA account';
+    const accountName = result?.accountName ?? t('defaultAccountName');
     const message = t('whatsappMessage', { accountName, expiresInDays: result?.expiresInDays ?? 0, url });
     return `https://wa.me/?text=${encodeURIComponent(message)}`;
   }
@@ -294,7 +294,12 @@ export function InviteMemberDialog({
                   onValueChange={(v) => v && setExpiry(v)}
                 >
                   <SelectTrigger className="w-full bg-muted border-border text-foreground">
-                    <SelectValue />
+                    <SelectValue>
+                      {(v: string) => {
+                        const opt = EXPIRY_OPTIONS.find((o) => o.value === v);
+                        return opt ? t(opt.labelKey as Parameters<typeof t>[0]) : v;
+                      }}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {EXPIRY_OPTIONS.map((opt) => (

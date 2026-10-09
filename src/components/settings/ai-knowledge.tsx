@@ -513,7 +513,7 @@ function KnowledgeBaseDetail({
                           size="sm"
                           className="size-8 p-0 pointer-coarse:size-10"
                           onClick={() => void openEdit(doc.id)}
-                          title="Edit"
+                          title={t('editDoc')}
                         >
                           <Pencil className="h-4 w-4" />
                         </Button>
@@ -522,7 +522,7 @@ function KnowledgeBaseDetail({
                           size="sm"
                           className="size-8 p-0 text-destructive pointer-coarse:size-10 hover:text-destructive"
                           onClick={() => void remove(doc.id)}
-                          title="Delete"
+                          title={t('deleteDoc')}
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>

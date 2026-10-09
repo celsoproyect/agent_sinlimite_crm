@@ -529,14 +529,13 @@ describe("triggerMatches — keyword_match", () => {
   });
 
   it("`word` finds a space-delimited keyword in a non-Latin script", () => {
-    // ASCII `\b` fails outright here — every character of "안녕" is a
-    // non-word character to it, so /\b안녕\b/ matches nothing.
-    const a = automation({ keywords: ["안녕"], match_type: "word" });
-    expect(on(a, "안녕")).toBe(true);
-    expect(on(a, "저기 안녕 하세요")).toBe(true);
-    // Documented limitation, not an accident: a language written without
-    // spaces has no word edge inside a run of characters.
-    expect(on(a, "안녕하세요")).toBe(false);
+    // ASCII `\b` fails outright here — every character of "привет" is a
+    // non-word character to it, so /\bпривет\b/ matches nothing.
+    const a = automation({ keywords: ["привет"], match_type: "word" });
+    expect(on(a, "привет")).toBe(true);
+    expect(on(a, "ну привет всем")).toBe(true);
+    // A longer word that merely starts with the keyword is not a match.
+    expect(on(a, "приветствую")).toBe(false);
   });
 
   it("`exact` still requires the whole message to be the keyword", () => {

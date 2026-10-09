@@ -4,6 +4,7 @@ import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
+import { authErrorMessage } from "../auth-error-message";
 import { createClient } from "@/lib/supabase/client";
 import { useBranding } from "@/hooks/use-branding";
 import { BrandLogo } from "@/components/layout/brand-logo";
@@ -39,6 +40,7 @@ function LoginPageInner() {
   // page to accept rather than to /dashboard.
   const inviteToken = searchParams.get("invite");
   const t = useTranslations("LoginPage");
+  const tErr = useTranslations("AuthErrors");
   const { companyName, logoUrl, logoLightUrl } = useBranding();
 
   const [email, setEmail] = useState("");
@@ -58,7 +60,7 @@ function LoginPageInner() {
     });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }

@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { ArrowRight, CalendarClock } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import type { Booking } from '@/types'
 import { businessDate, businessTime, businessToday } from '@/lib/business-timezone'
 import { addDaysISO, bookingDisplayName, fetchBookings } from '@/lib/bookings/ranges'
@@ -17,6 +17,7 @@ const SHOWN = 5
  */
 export function UpcomingBookings() {
   const t = useTranslations('Dashboard.bookings')
+  const locale = useLocale()
   const [bookings, setBookings] = useState<Booking[] | null>(null)
   // When the list was fetched; appointments already over by then drop out.
   const [loadedAt, setLoadedAt] = useState(0)
@@ -98,7 +99,7 @@ export function UpcomingBookings() {
                   <p className="text-xs text-muted-foreground">
                     {day === today
                       ? t('today')
-                      : new Date(`${day}T12:00:00Z`).toLocaleDateString(undefined, {
+                      : new Date(`${day}T12:00:00Z`).toLocaleDateString(locale, {
                           day: 'numeric',
                           month: 'short',
                           timeZone: 'UTC',

@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { generateReply } from './generate'
 import { contentToText, type AiConfig, type ChatMessage } from './types'
 import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
+import { sendPushToUsers, trimPushBody } from '@/lib/push/send'
 
 /** Sent to the customer when the model hands off without writing its own
  *  goodbye (or comes back empty), so they're never left on read. */
@@ -54,8 +55,9 @@ export async function summarizeHandoff(
 
 /**
  * Tell the team a customer wants a person: a Telegram alert to the owner
- * (when that module is set up) and an in-app notification for every
- * owner/admin of the account. Best-effort, never throws.
+ * (when that module is set up), an in-app notification for every
+ * owner/admin of the account and a Web Push to those same users' devices
+ * (module `web_push`). Best-effort, never throws.
  */
 export async function notifyTeamOfHandoff(
   db: SupabaseClient,
@@ -80,6 +82,19 @@ export async function notifyTeamOfHandoff(
       .eq('account_id', args.accountId)
       .in('account_role', ['owner', 'admin'])
     if (error || !admins?.length) return
+    const title = `${args.contactName} quiere hablar con un agente humano`
+    const userIds = admins.map((a: { user_id: string }) => a.user_id)
+    const push = sendPushToUsers(
+      args.accountId,
+      userIds,
+      {
+        title,
+        body: trimPushBody(args.summary),
+        url: `/inbox?c=${args.conversationId}`,
+        tag: `handoff-${args.conversationId}`,
+      },
+      db,
+    )
     const row = (type: string) =>
       admins.map((a: { user_id: string }) => ({
         account_id: args.accountId,
@@ -87,7 +102,7 @@ export async function notifyTeamOfHandoff(
         type,
         conversation_id: args.conversationId,
         contact_id: args.contactId,
-        title: `${args.contactName} quiere hablar con un agente humano`,
+        title,
         body: args.summary,
       }))
     const { error: insertErr } = await db.from('notifications').insert(row('handoff_requested'))
@@ -97,6 +112,7 @@ export async function notifyTeamOfHandoff(
     } else if (insertErr) {
       console.error('[ai handoff] notification insert failed:', insertErr)
     }
+    await push
   } catch (err) {
     console.error('[ai handoff] in-app notification failed:', err)
   }

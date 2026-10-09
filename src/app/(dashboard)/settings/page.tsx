@@ -63,10 +63,10 @@ function SettingsPageInner() {
   // already in context.
   const hints: Partial<Record<SettingsSection, ReactNode>> = useMemo(
     () => ({
-      appearance: mode.charAt(0).toUpperCase() + mode.slice(1),
+      appearance: mode === 'light' ? t('appearance.modeLight') : t('appearance.modeDark'),
       deals: defaultCurrency,
     }),
-    [mode, defaultCurrency],
+    [mode, defaultCurrency, t],
   );
 
   const panel: Record<SettingsSection, ReactNode> = {

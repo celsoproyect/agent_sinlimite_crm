@@ -32,7 +32,7 @@ import {
   Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { setDealStatus } from "@/lib/deals/status-client";
 import { isLostReason, stageKind } from "@/lib/deals/reasons";
 import { businessDate } from "@/lib/business-timezone";
@@ -59,6 +59,7 @@ export function DealForm({
 }: DealFormProps) {
   const t = useTranslations("Pipelines.form");
   const tc = useTranslations("Pipelines.closed");
+  const locale = useLocale();
   const supabase = createClient();
   const { accountId, defaultCurrency } = useAuth();
 
@@ -406,7 +407,7 @@ export function DealForm({
                       {" · "}
                       {new Date(
                         `${businessDate(deal.closed_at || deal.updated_at || deal.created_at)}T12:00:00Z`,
-                      ).toLocaleDateString(undefined, {
+                      ).toLocaleDateString(locale, {
                         day: "numeric",
                         month: "short",
                         year: "numeric",

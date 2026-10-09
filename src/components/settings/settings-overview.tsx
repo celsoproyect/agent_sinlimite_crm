@@ -2,12 +2,11 @@
 
 import { useEffect, useState, type ReactNode } from 'react';
 import { ChevronRight, Loader2 } from 'lucide-react';
-import { useTranslations } from 'next-intl';
+import { useLocale, useTranslations } from 'next-intl';
 
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { useTheme } from '@/hooks/use-theme';
-import { THEMES } from '@/lib/themes';
 import { CURRENCIES } from '@/lib/currency';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Card } from '@/components/ui/card';
@@ -42,6 +41,8 @@ export function SettingsOverview({
   const t = useTranslations('Settings.overview');
   const tRoles = useTranslations('Settings.roles');
   const tSections = useTranslations('Settings.sections');
+  const tAppearance = useTranslations('Settings.appearance');
+  const locale = useLocale();
 
   const [counts, setCounts] = useState<OverviewCounts | null>(null);
   const [countsLoading, setCountsLoading] = useState(true);
@@ -146,10 +147,11 @@ export function SettingsOverview({
   const roleMeta = accountRole ? ROLE_META[accountRole] : null;
   const RoleIcon = roleMeta?.icon;
 
-  const currencyLabel =
-    CURRENCIES.find((c) => c.code === defaultCurrency)?.label ?? defaultCurrency;
-  const themeName = THEMES.find((t) => t.id === theme)?.name ?? theme;
-  const cap = (s: string) => s.charAt(0).toUpperCase() + s.slice(1);
+  const currencyLabel = currencyDisplayName(defaultCurrency, locale);
+  const themeName = tAppearance.has(`themes.${theme}.name`)
+    ? tAppearance(`themes.${theme}.name`)
+    : theme;
+  const modeName = mode === 'light' ? tAppearance('modeLight') : tAppearance('modeDark');
 
   // Per-tile loading + subtitle. `null` counts render as a graceful
   // fallback so a single failed query never blanks a tile.
@@ -215,7 +217,7 @@ export function SettingsOverview({
     {
       section: 'appearance',
       loading: false,
-      subtitle: t('appearance', { mode: cap(mode), theme: themeName }),
+      subtitle: t('appearance', { mode: modeName, theme: themeName }),
     },
   ];
 
@@ -288,4 +290,15 @@ export function SettingsOverview({
       </div>
     </section>
   );
+}
+
+/** Currency name in the active locale (e.g. "peso dominicano"), falling back to the catalog label. */
+function currencyDisplayName(code: string, locale: string): string {
+  try {
+    const name = new Intl.DisplayNames([locale], { type: 'currency' }).of(code);
+    if (name) return name;
+  } catch {
+    // Older runtimes without Intl.DisplayNames.
+  }
+  return CURRENCIES.find((c) => c.code === code)?.label ?? code;
 }

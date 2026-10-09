@@ -12,7 +12,8 @@ import { ContactAvatar } from "@/components/contacts/contact-avatar";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
 import { Search, ChevronDown, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { es as esLocale } from "date-fns/locale";
 import { useAuth } from "@/hooks/use-auth";
 import { Input } from "@/components/ui/input";
 import {
@@ -474,6 +475,7 @@ function ConversationItem({
   onSelect,
   t,
 }: ConversationItemProps) {
+  const dfLocale = useLocale() === "es" ? esLocale : undefined;
   const contact = conversation.contact;
   const displayName = contact?.name || contact?.phone || t("unknown");
 
@@ -484,6 +486,7 @@ function ConversationItem({
   const timeAgo = conversation.last_message_at
     ? formatDistanceToNow(new Date(conversation.last_message_at), {
         addSuffix: false,
+        locale: dfLocale,
       })
     : "";
 

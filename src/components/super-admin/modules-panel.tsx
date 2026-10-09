@@ -14,6 +14,7 @@ import {
   PartyPopper,
   ListOrdered,
   Bell,
+  BellRing,
   Bot,
   Calendar,
   GitBranch,
@@ -22,6 +23,7 @@ import {
   MessageSquare,
   PlugZap,
   Radio,
+  Target,
   Users,
   Workflow,
   Zap,
@@ -54,12 +56,14 @@ const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string }> = {
   notifications: { icon: Bell, labelKey: "notifications" },
   contacts: { icon: Users, labelKey: "contacts" },
   pipelines: { icon: GitBranch, labelKey: "pipelines" },
+  leads: { icon: Target, labelKey: "leads" },
   broadcasts: { icon: Radio, labelKey: "broadcasts" },
   reports: { icon: BarChart3, labelKey: "reports" },
   ai_messages: { icon: MessageSquareText, labelKey: "aiMessagesModule" },
   telegram: { icon: Send, labelKey: "telegramModule" },
   widget_booking: { icon: Globe, labelKey: "widgetBookingModule" },
   google_calendar: { icon: CalendarCheck2, labelKey: "googleCalendarModule" },
+  web_push: { icon: BellRing, labelKey: "webPushModule" },
   clinic: { icon: Stethoscope, labelKey: "clinicModule" },
   restaurant: { icon: UtensilsCrossed, labelKey: "restaurant" },
   events: { icon: PartyPopper, labelKey: "events" },
@@ -167,7 +171,9 @@ export function ModulesPanel() {
               onValueChange={(v) => v && setSelectedId(v)}
             >
               <SelectTrigger className="w-full border-border bg-muted text-foreground">
-                <SelectValue placeholder={t("accountPlaceholder")} />
+                <SelectValue placeholder={t("accountPlaceholder")}>
+                  {(v: string) => accounts.find((a) => a.id === v)?.name ?? v}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 {accounts.map((a) => (

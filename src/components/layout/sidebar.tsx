@@ -25,6 +25,7 @@ import {
   Settings,
   Shield,
   ShieldCheck,
+  Target,
   User,
   UserCog,
   Users,
@@ -120,6 +121,7 @@ const navSections: NavSection[] = [
       { href: "/notifications", labelKey: "notifications", icon: Bell },
       { href: "/contacts", labelKey: "contacts", icon: Users },
       { href: "/pipelines", labelKey: "pipelines", icon: GitBranch },
+      { href: "/leads", labelKey: "leads", icon: Target },
       { href: "/broadcasts", labelKey: "broadcasts", icon: Radio },
       { href: "/reports", labelKey: "reports", icon: BarChart3 },
     ],
@@ -241,7 +243,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
           // Desktop: static, always visible — reset all the mobile framing.
           "lg:static lg:z-0 lg:w-64 lg:max-w-none lg:translate-x-0 lg:transition-none",
         )}
-        aria-label="Primary"
+        aria-label={t("primaryNav")}
       >
         {/* Logo row. On mobile we put a close button here; on desktop the
             close button is hidden since the sidebar is always-visible.

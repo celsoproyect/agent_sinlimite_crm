@@ -21,6 +21,42 @@ export interface ValidationIssue {
   message: string
 }
 
+/**
+ * Message key (under `Automations.builder.issues`) for each fixed English
+ * issue message, so the builder can show the API's issues translated
+ * without changing the response shape. Messages built from data (unknown
+ * step type, interactive payload errors) have no key and render as-is.
+ */
+const ISSUE_CODES: Record<string, string> = {
+  'active automations need at least one step': 'noSteps',
+  'message text is required': 'textRequired',
+  'template name is required': 'templateRequired',
+  'tag is required': 'tagRequired',
+  'agent is required when mode is "specific"': 'agentRequired',
+  'field name is required': 'fieldRequired',
+  'field value is required': 'fieldValueRequired',
+  'pipeline is required': 'pipelineRequired',
+  'stage is required': 'stageRequired',
+  'title is required': 'titleRequired',
+  'wait amount must be greater than 0': 'waitAmount',
+  'wait unit must be minutes, hours, or days': 'waitUnit',
+  'condition subject is required': 'subjectRequired',
+  'condition operand is required': 'operandRequired',
+  'webhook URL is required': 'urlRequired',
+  'webhook URL must use http or https': 'urlProtocol',
+  'webhook URL is not a valid URL': 'urlInvalid',
+  'at least one keyword is required': 'keywordsRequired',
+  'keywords cannot be empty strings': 'keywordsBlank',
+  'match type must be "exact", "contains" or "word"': 'matchType',
+  'schedule is required': 'scheduleRequired',
+  'at least one reply id is required': 'replyIdsRequired',
+  'reply ids cannot be empty strings': 'replyIdsBlank',
+}
+
+export function issueCode(message: string): string | null {
+  return ISSUE_CODES[message] ?? null
+}
+
 interface StepLike {
   step_type: string
   step_config: Record<string, unknown>

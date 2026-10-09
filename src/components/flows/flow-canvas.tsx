@@ -133,6 +133,19 @@ function slotColor(nodeType: NodeType, slotId: string, fallback: string) {
   return fallback;
 }
 
+/** Condition branches carry the literal ids "true"/"false" (and
+ *  single-slot nodes "next") as labels; show them in the UI language. */
+function slotText(
+  id: string | null | undefined,
+  label: string | undefined,
+  t: ReturnType<typeof useTranslations>
+): string | undefined {
+  if (id === 'true') return t('slotTrue');
+  if (id === 'false') return t('slotFalse');
+  if (id === 'next') return t('slotNext');
+  return label;
+}
+
 function FlowNodeCard({ data, selected }: NodeProps) {
   const t = useTranslations('Flows.builder');
   const { node, isEntry, isFlashed } = data as NodeData;
@@ -219,8 +232,11 @@ function FlowNodeCard({ data, selected }: NodeProps) {
               key={slot.id}
               className="text-muted-foreground relative flex items-center justify-between gap-2 rounded px-1 py-0.5 text-[0.6875rem]"
             >
-              <span className="truncate" title={slot.label}>
-                {slot.label}
+              <span
+                className="truncate"
+                title={slotText(slot.id, slot.label, t)}
+              >
+                {slotText(slot.id, slot.label, t)}
               </span>
               <Handle
                 type="source"
@@ -369,7 +385,10 @@ function FlowCanvasInner() {
       source: e.source,
       target: e.target,
       sourceHandle: e.sourceHandle,
-      label: e.label,
+      label:
+        e.sourceHandle === 'true' || e.sourceHandle === 'false'
+          ? slotText(e.sourceHandle, e.label, t)
+          : e.label,
       // Mode-aware via CSS tokens so edge chrome flips with light/dark.
       labelStyle: { fill: 'var(--muted-foreground)', fontSize: 11 },
       labelBgStyle: { fill: 'var(--card)' },
@@ -379,7 +398,7 @@ function FlowCanvasInner() {
     }));
 
     return rfEdges;
-  }, [builderNodes]);
+  }, [builderNodes, t]);
 
   const handleNodesChange = useCallback(
     (changes: NodeChange<RfNode<NodeData>>[]) => {

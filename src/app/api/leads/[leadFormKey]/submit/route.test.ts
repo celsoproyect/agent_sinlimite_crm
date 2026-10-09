@@ -23,6 +23,8 @@ const contactInserts: Record<string, unknown>[] = []
 const customFieldInserts: Record<string, unknown>[] = []
 const customValueUpserts: Record<string, unknown>[] = []
 const dealInserts: Record<string, unknown>[] = []
+const submissionInserts: Record<string, unknown>[] = []
+let submissionInsertError: Record<string, unknown> | null = null
 
 function builder(table: string) {
   let didInsert = false
@@ -61,6 +63,10 @@ function builder(table: string) {
       customFieldInserts.push(insertPayload!)
       const created = { id: `cf-${(insertPayload as Record<string, unknown>).field_name}` }
       return { data: created, error: null }
+    }
+    if (table === 'lead_form_submissions') {
+      submissionInserts.push(insertPayload!)
+      return { data: null, error: submissionInsertError }
     }
     if (table === 'deals') {
       dealInserts.push(insertPayload!)
@@ -144,6 +150,8 @@ describe('POST /api/leads/[leadFormKey]/submit', () => {
     customFieldInserts.length = 0
     customValueUpserts.length = 0
     dealInserts.length = 0
+    submissionInserts.length = 0
+    submissionInsertError = null
     sendTelegramMessage.mockClear()
   })
 
@@ -205,6 +213,46 @@ describe('POST /api/leads/[leadFormKey]/submit', () => {
       stage_id: 'stage-1',
       contact_id: 'contact-new',
     })
+  })
+
+  it('keeps the raw submission with every field, linked to the contact and deal', async () => {
+    const res = await submit({ ...VALID_BODY, phone: '+1 809 555 0101', utm_source: 'google' })
+    expect(res.status).toBe(200)
+
+    expect(submissionInserts).toHaveLength(1)
+    expect(submissionInserts[0]).toMatchObject({
+      account_id: 'acct-1',
+      contact_id: 'contact-new',
+      deal_id: 'deal-new',
+      name: 'Jane Doe',
+      email: 'jane@example.com',
+      phone: '+1 809 555 0101',
+      message: 'Quiero más información',
+      ip: '203.0.113.9',
+    })
+    expect(submissionInserts[0].fields).toMatchObject({
+      full_name: 'Jane Doe',
+      service: 'Consultoría',
+      utm_source: 'google',
+    })
+  })
+
+  it('still succeeds when the submissions table is missing (migration 070 not run)', async () => {
+    submissionInsertError = { code: '42P01', message: 'relation "lead_form_submissions" does not exist' }
+    const res = await submit(VALID_BODY)
+    const json = await res.json()
+    expect(res.status).toBe(200)
+    expect(json.ok).toBe(true)
+    expect(json.deal_id).toBe('deal-new')
+  })
+
+  it('still succeeds on the PostgREST schema-cache error', async () => {
+    submissionInsertError = {
+      code: 'PGRST205',
+      message: "Could not find the table 'public.lead_form_submissions' in the schema cache",
+    }
+    const res = await submit(VALID_BODY)
+    expect(res.status).toBe(200)
   })
 
   it('reuses an existing contact matched by email instead of creating a duplicate', async () => {

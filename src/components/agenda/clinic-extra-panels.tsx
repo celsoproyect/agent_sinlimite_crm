@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { CalendarOff, Pencil, Plus, Trash2, X } from "lucide-react";
 import type { ClinicServiceRow, ClinicSettings, ProfessionalTimeOff, Specialty } from "@/types";
 import { businessToday } from "@/lib/business-timezone";
@@ -61,6 +61,7 @@ export function ClinicServicesPanel({
   onChanged: () => Promise<void> | void;
 }) {
   const t = useTranslations("Agenda.clinic");
+  const locale = useLocale();
   const [draft, setDraft] = useState<ServiceDraft | null>(null);
   const [saving, setSaving] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
@@ -210,7 +211,7 @@ export function ClinicServicesPanel({
                   {" · "}
                   {specialtyName(s.specialty_id)}
                   {s.price !== null && s.price !== undefined
-                    ? ` · RD$${Number(s.price).toLocaleString("en-US", { maximumFractionDigits: 2 })}`
+                    ? ` · RD$${Number(s.price).toLocaleString(locale, { maximumFractionDigits: 2 })}`
                     : ""}
                 </p>
               </div>

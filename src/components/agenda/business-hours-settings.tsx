@@ -17,9 +17,9 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { X } from "lucide-react";
 import { toast } from "sonner";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { addDaysISO } from "@/lib/bookings/ranges";
-import { businessToday, businessWeekday } from "@/lib/business-timezone";
+import { businessToday } from "@/lib/business-timezone";
 
 interface BusinessHoursSettingsProps {
   open: boolean;
@@ -32,12 +32,16 @@ interface BusinessHoursSettingsProps {
  *  hundreds of dates. */
 const MAX_HOLIDAY_RANGE_DAYS = 60;
 
-const WEEKDAY_SHORT_ES = ["dom", "lun", "mar", "mié", "jue", "vie", "sáb"];
-
-/** "2026-12-25" → "vie 25/12/2026". */
-function formatHoliday(dateISO: string): string {
-  const [y, m, d] = dateISO.split("-");
-  return `${WEEKDAY_SHORT_ES[businessWeekday(dateISO)]} ${d}/${m}/${y}`;
+/** "2026-12-25" → "vie, 25/12/2026" (es) / "Fri, 12/25/2026" (en). The
+ *  date is a business-local calendar day, so format it in UTC. */
+function formatHoliday(dateISO: string, locale: string): string {
+  return new Intl.DateTimeFormat(locale, {
+    weekday: "short",
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${dateISO}T12:00:00Z`));
 }
 
 type Weekday =
@@ -84,6 +88,7 @@ function fromSettings(settings: BookingSettings | null): Record<Weekday, DayStat
 
 export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessHoursSettingsProps) {
   const t = useTranslations("Agenda.businessHours");
+  const locale = useLocale();
   const supabase = createClient();
   const { accountId } = useAuth();
 
@@ -369,7 +374,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                       }
                     >
                       <span className="min-w-0">
-                        <span className="font-medium">{formatHoliday(date)}</span>
+                        <span className="font-medium">{formatHoliday(date, locale)}</span>
                         {holidayNames[date] && (
                           <span className="ml-1.5 break-words text-muted-foreground">{holidayNames[date]}</span>
                         )}

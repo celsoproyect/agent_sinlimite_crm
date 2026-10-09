@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { NextIntlClientProvider } from 'next-intl';
-import { getLocale, getMessages } from 'next-intl/server';
+import { getLocale, getMessages, getTranslations } from 'next-intl/server';
 import { Inter } from "next/font/google";
 import Script from "next/script";
 import "./globals.css";
@@ -40,13 +40,14 @@ export async function generateMetadata(): Promise<Metadata> {
   } catch {
     // Keep the default — this must never block the app from rendering.
   }
+  const t = await getTranslations("UiKit");
 
   return {
     title: {
       default: companyName,
       template: `%s — ${companyName}`,
     },
-    description: "Self-hostable CRM template for WhatsApp.",
+    description: t("metaDescription"),
     robots: {
       index: false,
       follow: false,

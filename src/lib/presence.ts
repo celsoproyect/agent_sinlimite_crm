@@ -65,27 +65,42 @@ export function derivePresence(
  * advance in lockstep and the unit tests stay deterministic — plus
  * full-sentence wording for the tooltip ("Offline — last seen …").
  */
+/**
+ * Optional translator for the "Presence" message namespace (a next-intl
+ * `useTranslations("Presence")` function). Without one the helpers
+ * return English, which keeps them pure and unit-testable.
+ */
+export type PresenceTranslator = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+
 export function formatLastSeen(
   lastSeenAt: string | null | undefined,
   now: number,
+  t?: PresenceTranslator,
 ): string {
-  if (!lastSeenAt) return "a while ago";
+  if (!lastSeenAt) return t ? t("whileAgo") : "a while ago";
   const last = new Date(lastSeenAt).getTime();
-  if (Number.isNaN(last)) return "a while ago";
+  if (Number.isNaN(last)) return t ? t("whileAgo") : "a while ago";
 
   const diff = Math.max(0, now - last);
   const mins = Math.floor(diff / 60_000);
-  if (mins < 1) return "just now";
-  if (mins === 1) return "1 minute ago";
-  if (mins < 60) return `${mins} minutes ago`;
+  if (mins < 1) return t ? t("justNow") : "just now";
+  if (mins < 60) {
+    if (t) return t("minutesAgo", { count: mins });
+    return mins === 1 ? "1 minute ago" : `${mins} minutes ago`;
+  }
 
   const hours = Math.floor(mins / 60);
-  if (hours === 1) return "1 hour ago";
-  if (hours < 24) return `${hours} hours ago`;
+  if (hours < 24) {
+    if (t) return t("hoursAgo", { count: hours });
+    return hours === 1 ? "1 hour ago" : `${hours} hours ago`;
+  }
 
   const days = Math.floor(hours / 24);
-  if (days === 1) return "1 day ago";
-  return `${days} days ago`;
+  if (t) return t("daysAgo", { count: days });
+  return days === 1 ? "1 day ago" : `${days} days ago`;
 }
 
 /**
@@ -98,14 +113,17 @@ export function presenceLabel(
   status: PresenceStatus,
   lastSeenAt: string | null | undefined,
   now: number,
+  t?: PresenceTranslator,
 ): string {
   switch (status) {
     case "online":
-      return "Online — active now";
+      return t ? t("online") : "Online — active now";
     case "away":
-      return "Away — idle";
+      return t ? t("away") : "Away — idle";
     case "offline":
-      return `Offline — last seen ${formatLastSeen(lastSeenAt, now)}`;
+      return t
+        ? t("offline", { lastSeen: formatLastSeen(lastSeenAt, now, t) })
+        : `Offline — last seen ${formatLastSeen(lastSeenAt, now)}`;
   }
 }
 

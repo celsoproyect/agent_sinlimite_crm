@@ -1,21 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
 import { Check, Globe, Moon, Palette, SunMoon, Sun } from "lucide-react";
 
 import { useTheme } from "@/hooks/use-theme";
 import { LOCALES, type Locale } from "@/i18n/config";
-import { setLocale } from "@/lib/i18n/set-locale";
+import { useLocaleSwitch } from "@/components/layout/locale-switcher";
 import { MODES, THEMES, type Mode, type ThemeId } from "@/lib/themes";
 import { cn } from "@/lib/utils";
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { SettingsPanelHead } from "./settings-panel-head";
 
 const LOCALE_LABEL_KEY: Record<Locale, string> = {
   en: "localeEnglish",
   es: "localeSpanish",
-  ko: "localeKorean",
 };
 
 /**
@@ -33,20 +30,12 @@ const LOCALE_LABEL_KEY: Record<Locale, string> = {
 export function AppearancePanel() {
   const { theme, setTheme, mode, setMode } = useTheme();
   const t = useTranslations("Settings.appearance");
-  const locale = useLocale() as Locale;
-  const router = useRouter();
-  const [isPending, startTransition] = useTransition();
-  const [pendingLocale, setPendingLocale] = useState<Locale | null>(null);
-
-  const handlePickLocale = (next: Locale) => {
-    if (next === locale) return;
-    setPendingLocale(next);
-    startTransition(async () => {
-      await setLocale(next);
-      router.refresh();
-      setPendingLocale(null);
-    });
-  };
+  const {
+    locale,
+    switchTo: handlePickLocale,
+    isPending,
+    pendingLocale,
+  } = useLocaleSwitch();
 
   return (
     <section className="max-w-3xl animate-in fade-in-50 duration-200">
@@ -63,7 +52,7 @@ export function AppearancePanel() {
 
         <div
           role="radiogroup"
-          aria-label="Color mode"
+          aria-label={t("modeGroup")}
           className="grid max-w-md grid-cols-2 gap-3"
         >
           {MODES.map((m) => (
@@ -88,8 +77,8 @@ export function AppearancePanel() {
             <ThemeCard
               key={tObj.id}
               id={tObj.id}
-              name={tObj.name}
-              tagline={tObj.tagline}
+              name={t(`themes.${tObj.id}.name`)}
+              tagline={t(`themes.${tObj.id}.tagline`)}
               swatch={tObj.swatch}
               isActive={tObj.id === theme}
               onPick={() => setTheme(tObj.id)}
@@ -109,8 +98,8 @@ export function AppearancePanel() {
 
         <div
           role="radiogroup"
-          aria-label="Language"
-          className="grid max-w-md grid-cols-2 gap-3 sm:grid-cols-3"
+          aria-label={t("languageGroup")}
+          className="grid max-w-md grid-cols-2 gap-3"
         >
           {LOCALES.map((l) => (
             <LocaleCard
@@ -180,13 +169,14 @@ function ModeCard({
   const t = useTranslations("Settings.appearance");
   const isLight = mode === "light";
   const Icon = isLight ? Sun : Moon;
+  const modeName = isLight ? t("modeLight") : t("modeDark");
   return (
     <button
       type="button"
       role="radio"
       onClick={onPick}
       aria-checked={isActive}
-      aria-label={t("useMode", { mode })}
+      aria-label={t("useMode", { mode: modeName })}
       className={cn(
         "flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 text-left transition-colors sm:gap-3 sm:p-4",
         isActive
@@ -201,7 +191,7 @@ function ModeCard({
         <Icon className="h-4 w-4" />
       </span>
       <span className="min-w-0 flex-1 text-sm font-semibold capitalize break-words text-foreground">
-        {mode}
+        {modeName}
       </span>
       {isActive && (
         <span className="inline-flex items-center gap-1 rounded-full bg-primary/15 px-2 py-0.5 text-[0.6875rem] font-medium text-primary">
@@ -273,7 +263,7 @@ function ThemeCard({
         <span className="w-3 bg-muted" />
         <span className="w-3 bg-card" />
       </div>
-      <span className="sr-only">Theme id: {id}</span>
+      <span className="sr-only">{t("themeId", { id })}</span>
     </button>
   );
 }

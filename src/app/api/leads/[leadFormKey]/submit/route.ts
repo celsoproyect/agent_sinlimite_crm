@@ -6,6 +6,7 @@ import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import { mintSyntheticPhone } from '@/lib/contacts/synthetic-phone'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
+import { isMissingTableError, rawSubmissionFields } from '@/lib/leads/submissions'
 
 // ============================================================
 // POST /api/leads/[leadFormKey]/submit
@@ -23,7 +24,9 @@ import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
 //      position stage) so the lead shows up on the pipeline board
 //      with no extra setup — silently skipped if the account has no
 //      pipeline configured yet;
-//   4. best-effort notifies the account owner via Telegram.
+//   4. best-effort keeps the raw submission in lead_form_submissions
+//      (migration 070) for Leads → Formularios;
+//   5. best-effort notifies the account owner via Telegram.
 //
 // `leadFormKey` is the same kind of credential as the widget's
 // `widgetKey` (049) — a plaintext, low-privilege public value whose
@@ -142,6 +145,20 @@ export async function POST(
 
     const dealId = await createLeadDeal(db, account.id, account.owner_user_id, contact.id, fullName)
 
+    await saveSubmission(db, {
+      account_id: account.id,
+      contact_id: contact.id,
+      deal_id: dealId,
+      name: fullName,
+      email: emailRaw,
+      phone: typeof body.phone === 'string' ? body.phone.trim().slice(0, 50) || null : null,
+      message: message || null,
+      fields: rawSubmissionFields(body),
+      source_url: sourceUrl(request, body),
+      user_agent: request.headers.get('user-agent')?.slice(0, 500) || null,
+      ip: ip === 'unknown' ? null : ip,
+    })
+
     if (
       isModuleEnabled(account.enabled_modules as EnabledModules | null, 'telegram') &&
       account.telegram_notify_enabled &&
@@ -168,6 +185,33 @@ export async function POST(
 }
 
 type AdminDb = ReturnType<typeof supabaseAdmin>
+
+/** The page the form was on: an explicit `source_url`/`page_url` field,
+ *  else the Referer, else the Origin. */
+function sourceUrl(request: Request, body: Record<string, unknown>): string | null {
+  for (const key of ['source_url', 'page_url']) {
+    const v = body[key]
+    if (typeof v === 'string' && v.trim()) return v.trim().slice(0, 1000)
+  }
+  const fromHeader = request.headers.get('referer') || request.headers.get('origin')
+  return fromHeader ? fromHeader.slice(0, 1000) : null
+}
+
+/**
+ * Keeps the raw submission (migration 070). Best-effort: the contact and
+ * deal are already saved, so a missing table (before the owner runs 070)
+ * or any other failure is only logged.
+ */
+async function saveSubmission(db: AdminDb, row: Record<string, unknown>): Promise<void> {
+  try {
+    const { error } = await db.from('lead_form_submissions').insert(row)
+    if (error && !isMissingTableError(error)) {
+      console.error('[lead submit] saving the submission failed:', error)
+    }
+  } catch (err) {
+    console.error('[lead submit] saving the submission failed:', err)
+  }
+}
 
 async function findOrCreateLeadContact(
   db: AdminDb,

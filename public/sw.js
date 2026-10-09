@@ -6,8 +6,11 @@
  *   - caches hashed build assets (/_next/static, immutable) for speed,
  *   - shows /offline.html when a page can't load without connection.
  * Supabase, Meta and every other origin are never touched.
+ *
+ * It also shows Web Push notifications (handoff alerts, module web_push)
+ * and opens the conversation when one is tapped.
  */
-var VERSION = "v1";
+var VERSION = "v2";
 var STATIC_CACHE = "static-" + VERSION;
 var OFFLINE_CACHE = "offline-" + VERSION;
 var OFFLINE_URL = "/offline.html";
@@ -68,4 +71,50 @@ self.addEventListener("fetch", function (event) {
       }),
     );
   }
+});
+
+// ---- Web Push -------------------------------------------------------
+// Payload (src/lib/push/send.ts): { title, body, url?, tag? }.
+self.addEventListener("push", function (event) {
+  var data = {};
+  if (event.data) {
+    try {
+      data = event.data.json();
+    } catch (e) {
+      data = { body: event.data.text() };
+    }
+  }
+  var title = data.title || "Agentes Sin Límite";
+  var options = {
+    body: data.body || "",
+    icon: "/pwa-icon/192",
+    badge: "/pwa-icon/192",
+    data: { url: data.url || "/notifications" },
+  };
+  if (data.tag) {
+    options.tag = data.tag;
+    options.renotify = true;
+  }
+  event.waitUntil(self.registration.showNotification(title, options));
+});
+
+self.addEventListener("notificationclick", function (event) {
+  event.notification.close();
+  var path = (event.notification.data && event.notification.data.url) || "/";
+  var target = new URL(path, self.location.origin).href;
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: "window", includeUncontrolled: true })
+      .then(function (clients) {
+        for (var i = 0; i < clients.length; i++) {
+          var client = clients[i];
+          if (new URL(client.url).origin !== self.location.origin) continue;
+          return client.focus().then(function (focused) {
+            if (focused && "navigate" in focused) return focused.navigate(target);
+            return focused;
+          });
+        }
+        return self.clients.openWindow(target);
+      }),
+  );
 });

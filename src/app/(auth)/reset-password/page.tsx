@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
+import { authErrorMessage } from "../auth-error-message";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,7 @@ const MIN_PASSWORD = 8;
 
 export default function ResetPasswordPage() {
   const t = useTranslations("AuthPages");
+  const tErr = useTranslations("AuthErrors");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -43,7 +45,7 @@ export default function ResetPasswordPage() {
     const { error } = await supabase.auth.updateUser({ password });
 
     if (error) {
-      setError(error.message);
+      setError(authErrorMessage(error, tErr));
       setLoading(false);
       return;
     }

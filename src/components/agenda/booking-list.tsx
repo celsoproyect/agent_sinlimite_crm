@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { Loader2, Phone, Search } from "lucide-react";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import type { Booking, Professional } from "@/types";
 import { businessDate, businessTime, businessToday } from "@/lib/business-timezone";
 import {
@@ -71,6 +71,7 @@ export function BookingList({
   professionalId = "",
 }: BookingListProps) {
   const t = useTranslations("Agenda.list");
+  const locale = useLocale();
   const [bookings, setBookings] = useState<Booking[] | null>(null);
   const [query, setQuery] = useState("");
 
@@ -118,7 +119,7 @@ export function BookingList({
 
   const today = businessToday();
   const dayLabel = (iso: string) =>
-    new Date(`${iso}T12:00:00Z`).toLocaleDateString(undefined, {
+    new Date(`${iso}T12:00:00Z`).toLocaleDateString(locale, {
       weekday: "short",
       day: "numeric",
       month: "short",

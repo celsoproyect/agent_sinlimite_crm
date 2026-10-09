@@ -668,13 +668,13 @@ const WORD_CHAR = '[\\p{L}\\p{N}_]'
  *
  *   - A keyword carrying punctuation: `/\bhi!\b/` demands a word character
  *     after the "!", so it never matches "say hi!".
- *   - Any non-Latin script: every character of "안녕" is a non-word
- *     character to `\b`, so `/\b안녕\b/` matches nothing at all.
+ *   - Any non-Latin script: every character of "привет" is a non-word
+ *     character to `\b`, so `/\bпривет\b/` matches nothing at all.
  *
  * Unicode-aware lookarounds handle both. Note this really is word-based:
- * it won't find "안녕" inside "안녕하세요", because a language that doesn't
- * delimit words with spaces has no word edge there. That's what `contains`
- * is for, and it stays the default.
+ * it won't find "привет" inside "приветствую", and a language that doesn't
+ * delimit words with spaces has no word edge inside a run of characters.
+ * That's what `contains` is for, and it stays the default.
  *
  * Exported for direct unit testing of the escaping / boundary edges.
  */

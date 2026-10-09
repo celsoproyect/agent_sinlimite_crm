@@ -103,7 +103,9 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
                   <span
                     className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium ${catColor}`}
                   >
-                    {template.category}
+                    {t.has(`categories.${template.category}`)
+                      ? t(`categories.${template.category}`)
+                      : template.category}
                   </span>
                 </div>
                 <p className="line-clamp-3 text-xs text-muted-foreground">{template.body_text}</p>

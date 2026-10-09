@@ -35,7 +35,8 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { format, formatDistanceToNow } from "date-fns";
 import { businessDate, businessTime } from "@/lib/business-timezone";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { es as esLocale } from "date-fns/locale";
 import { ContactPhotoEditor } from "@/components/contacts/contact-photo-editor";
 
 interface ContactSidebarProps {
@@ -49,6 +50,7 @@ interface ContactSidebarProps {
 export function ContactSidebar({ contact, onContactChange, className }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
+  const dfLocale = useLocale() === "es" ? esLocale : undefined;
 
   const { accountId } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -275,6 +277,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
                   contact.ai_sentiment_updated_at
                     ? formatDistanceToNow(new Date(contact.ai_sentiment_updated_at), {
                         addSuffix: true,
+                        locale: dfLocale,
                       })
                     : undefined
                 }
@@ -438,7 +441,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
                     {nextBooking.service || tSidebar("nextBooking")}
                   </p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {format(new Date(`${businessDate(nextBooking.starts_at)}T12:00:00`), "MMM d, yyyy")}{" "}
+                    {format(new Date(`${businessDate(nextBooking.starts_at)}T12:00:00`), "PP", { locale: dfLocale })}{" "}
                     {businessTime(nextBooking.starts_at)}
                   </p>
                 </div>
@@ -526,7 +529,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
                       {note.note_text}
                     </p>
                     <p className="mt-1 text-[0.625rem] text-muted-foreground">
-                      {format(new Date(note.created_at), "MMM d, yyyy HH:mm")}
+                      {format(new Date(note.created_at), "PP HH:mm", { locale: dfLocale })}
                     </p>
                   </div>
                 ))}

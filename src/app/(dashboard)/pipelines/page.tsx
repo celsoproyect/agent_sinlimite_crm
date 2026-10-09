@@ -50,16 +50,18 @@ import { useModuleGate } from "@/hooks/use-module-gate";
 // agent+. The two CTAs gate on different `useCan` capabilities,
 // not on different copy.
 
-// Spec-defined seed — name and color per the product spec. Dropping a
-// deal on the won/lost columns closes it (see src/lib/deals/close.ts).
+// Spec-defined seed — color per the product spec; the name is a message
+// key under Pipelines.page.defaultStages, saved in the viewer's language.
+// Dropping a deal on the won/lost columns closes it (see
+// src/lib/deals/close.ts).
 const SPEC_DEFAULT_STAGES = [
-  { name: "New Lead", color: "#3b82f6", position: 0, kind: "open" }, // blue
-  { name: "Qualified", color: "#eab308", position: 1, kind: "open" }, // yellow
-  { name: "Proposal Sent", color: "#f97316", position: 2, kind: "open" }, // orange
-  { name: "Negotiation", color: "#8b5cf6", position: 3, kind: "open" }, // purple
-  { name: "Won", color: "#22c55e", position: 4, kind: "won" }, // green
-  { name: "Lost", color: "#ef4444", position: 5, kind: "lost" }, // red
-];
+  { key: "newLead", color: "#3b82f6", position: 0, kind: "open" }, // blue
+  { key: "qualified", color: "#eab308", position: 1, kind: "open" }, // yellow
+  { key: "proposalSent", color: "#f97316", position: 2, kind: "open" }, // orange
+  { key: "negotiation", color: "#8b5cf6", position: 3, kind: "open" }, // purple
+  { key: "won", color: "#22c55e", position: 4, kind: "won" }, // green
+  { key: "lost", color: "#ef4444", position: 5, kind: "lost" }, // red
+] as const;
 
 type BoardView = "board" | "closed";
 
@@ -134,7 +136,11 @@ export default function PipelinesPage() {
 
   const insertDefaultStages = useCallback(
     async (pipelineId: string) => {
-      const rows = SPEC_DEFAULT_STAGES.map((s) => ({ pipeline_id: pipelineId, ...s }));
+      const rows = SPEC_DEFAULT_STAGES.map(({ key, ...s }) => ({
+        pipeline_id: pipelineId,
+        name: t(`defaultStages.${key}`),
+        ...s,
+      }));
       const { error } = await supabase.from("pipeline_stages").insert(rows);
       // Before migration 063 there is no `kind` column; the won/lost
       // columns are then recognised by name.
@@ -144,7 +150,7 @@ export default function PipelinesPage() {
           .insert(rows.map((r) => ({ pipeline_id: r.pipeline_id, name: r.name, color: r.color, position: r.position })));
       }
     },
-    [supabase],
+    [supabase, t],
   );
 
   const seedDefaultPipeline = useCallback(async (): Promise<Pipeline | null> => {
@@ -158,7 +164,7 @@ export default function PipelinesPage() {
 
     const { data: pipeline, error } = await supabase
       .from("pipelines")
-      .insert({ user_id: user.id, account_id: accountId, name: "Sales Pipeline" })
+      .insert({ user_id: user.id, account_id: accountId, name: t("defaultPipelineName") })
       .select()
       .single();
 
@@ -170,7 +176,7 @@ export default function PipelinesPage() {
     await insertDefaultStages(pipeline.id);
 
     return pipeline as Pipeline;
-  }, [supabase, accountId, insertDefaultStages]);
+  }, [supabase, accountId, insertDefaultStages, t]);
 
   // Initial load + seed-if-empty
   useEffect(() => {
