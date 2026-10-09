@@ -372,7 +372,7 @@ export function BookingFormDialog({
                   type="button"
                   onClick={() => handleSave(true)}
                   disabled={saving}
-                  className="rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
+                  className="min-h-9 rounded bg-amber-600 px-2.5 py-1 sm:min-h-0 text-xs font-medium text-white hover:bg-amber-700 disabled:opacity-50"
                 >
                   {t("saveAnyway")}
                 </button>
@@ -390,7 +390,7 @@ export function BookingFormDialog({
                   type="button"
                   onClick={() => setConfirmDelete(false)}
                   disabled={deleting}
-                  className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+                  className="min-h-9 rounded px-2 py-1 sm:min-h-0 text-muted-foreground hover:bg-muted"
                 >
                   {t("cancel")}
                 </button>
@@ -398,7 +398,7 @@ export function BookingFormDialog({
                   type="button"
                   onClick={handleDelete}
                   disabled={deleting}
-                  className="rounded bg-red-600 px-2 py-1 font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  className="min-h-9 rounded bg-red-600 px-2 py-1 sm:min-h-0 font-medium text-white hover:bg-red-700 disabled:opacity-50"
                 >
                   {deleting ? t("deleting") : t("delete")}
                 </button>

@@ -65,7 +65,7 @@ export function LostReasonDialog({ open, onOpenChange, dealTitle, onConfirm }: L
         <div className="grid gap-4 py-1">
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("reason")}</Label>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-1 gap-2 min-[400px]:grid-cols-2">
               {LOST_REASONS.map((r) => (
                 <button
                   key={r}

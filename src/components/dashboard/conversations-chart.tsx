@@ -49,9 +49,9 @@ export function ConversationsChart({ series, loading, range, onRangeChange }: Co
   }, [data])
 
   return (
-    <section className="flex h-full flex-col rounded-xl border border-border bg-card">
-      <header className="flex items-center justify-between border-b border-border px-5 py-4">
-        <div>
+    <section className="flex h-full min-w-0 flex-col rounded-xl border border-border bg-card">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{t('description')}</p>
         </div>
@@ -62,7 +62,7 @@ export function ConversationsChart({ series, loading, range, onRangeChange }: Co
               type="button"
               onClick={() => onRangeChange(r as RangeDays)}
               className={cn(
-                'rounded-md px-2.5 py-1 text-xs font-medium transition-colors',
+                'min-h-9 rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-0',
                 range === r
                   ? 'bg-secondary text-secondary-foreground'
                   : 'text-muted-foreground hover:text-foreground',
@@ -74,7 +74,7 @@ export function ConversationsChart({ series, loading, range, onRangeChange }: Co
         </div>
       </header>
 
-      <div className="p-5">
+      <div className="p-4 sm:p-5">
         {loading || !data ? (
           <Skeleton className="h-[240px] w-full" />
         ) : data.every((p) => p.incoming === 0 && p.outgoing === 0) ? (
@@ -88,7 +88,7 @@ export function ConversationsChart({ series, loading, range, onRangeChange }: Co
         )}
       </div>
 
-      <footer className="flex items-center gap-4 border-t border-border px-5 py-3 text-xs text-muted-foreground">
+      <footer className="flex flex-wrap items-center gap-4 border-t border-border px-4 py-3 sm:px-5 text-xs text-muted-foreground">
         <LegendDot color="#3b82f6" label={t('incoming')} />
         <LegendDot color="#7c3aed" label={t('outgoing')} />
       </footer>

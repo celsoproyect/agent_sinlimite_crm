@@ -163,7 +163,7 @@ export function AiFaqCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="size-8 p-0 pointer-coarse:size-10"
                           onClick={() => openEdit(faq)}
                           title={t('editFaq')}
                         >
@@ -172,7 +172,7 @@ export function AiFaqCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          className="size-8 p-0 text-destructive pointer-coarse:size-10 hover:text-destructive"
                           onClick={() => void remove(faq.id)}
                           title={t('deleteFaq')}
                         >

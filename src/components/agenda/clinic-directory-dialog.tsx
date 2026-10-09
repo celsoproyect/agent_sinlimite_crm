@@ -225,7 +225,7 @@ export function ClinicDirectoryDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-popover sm:max-w-2xl">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-popover sm:max-w-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-popover-foreground">
             <Stethoscope className="h-4 w-4 text-primary" />
@@ -397,14 +397,14 @@ export function ClinicDirectoryDialog({
           </div>
         ) : (
           <div className="space-y-4">
-            <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+            <div className="flex flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
               {TABS.map((v) => (
                 <button
                   key={v}
                   type="button"
                   onClick={() => setTab(v)}
                   className={cn(
-                    "flex-1 rounded px-2 py-1 text-xs font-medium",
+                    "min-h-9 flex-1 rounded px-2 py-1 text-xs font-medium sm:min-h-0",
                     tab === v ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground",
                   )}
                 >
@@ -451,14 +451,14 @@ export function ClinicDirectoryDialog({
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(null)}
-                              className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+                              className="min-h-9 rounded px-2 py-1 sm:min-h-0 text-muted-foreground hover:bg-muted"
                             >
                               {t("cancel")}
                             </button>
                             <button
                               type="button"
                               onClick={() => deleteDoctor(p.id)}
-                              className="rounded bg-red-600 px-2 py-1 font-medium text-white hover:bg-red-700"
+                              className="min-h-9 rounded bg-red-600 px-2 py-1 sm:min-h-0 font-medium text-white hover:bg-red-700"
                             >
                               {t("delete")}
                             </button>
@@ -468,7 +468,7 @@ export function ClinicDirectoryDialog({
                             <button
                               type="button"
                               onClick={() => setDraft(draftFrom(p))}
-                              className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                              className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground"
                               aria-label={t("edit")}
                             >
                               <Pencil className="h-4 w-4" />
@@ -476,7 +476,7 @@ export function ClinicDirectoryDialog({
                             <button
                               type="button"
                               onClick={() => setConfirmDeleteId(p.id)}
-                              className="rounded p-1.5 text-red-400 hover:bg-muted hover:text-red-300"
+                              className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-red-400 hover:bg-muted hover:text-red-300"
                               aria-label={t("delete")}
                             >
                               <Trash2 className="h-4 w-4" />
@@ -561,14 +561,14 @@ export function ClinicDirectoryDialog({
                                   <button
                                     type="button"
                                     onClick={() => setConfirmDeleteId(null)}
-                                    className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+                                    className="min-h-9 rounded px-2 py-1 sm:min-h-0 text-muted-foreground hover:bg-muted"
                                   >
                                     {t("cancel")}
                                   </button>
                                   <button
                                     type="button"
                                     onClick={() => deleteSpecialty(s.id)}
-                                    className="rounded bg-red-600 px-2 py-1 font-medium text-white hover:bg-red-700"
+                                    className="min-h-9 rounded bg-red-600 px-2 py-1 sm:min-h-0 font-medium text-white hover:bg-red-700"
                                   >
                                     {t("delete")}
                                   </button>
@@ -578,7 +578,7 @@ export function ClinicDirectoryDialog({
                                   <button
                                     type="button"
                                     onClick={() => setEditingSpecialty({ id: s.id, name: s.name })}
-                                    className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                                    className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground"
                                     aria-label={t("edit")}
                                   >
                                     <Pencil className="h-4 w-4" />
@@ -586,7 +586,7 @@ export function ClinicDirectoryDialog({
                                   <button
                                     type="button"
                                     onClick={() => setConfirmDeleteId(s.id)}
-                                    className="rounded p-1.5 text-red-400 hover:bg-muted hover:text-red-300"
+                                    className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-red-400 hover:bg-muted hover:text-red-300"
                                     aria-label={t("delete")}
                                   >
                                     <Trash2 className="h-4 w-4" />

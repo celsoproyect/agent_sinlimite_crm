@@ -81,10 +81,10 @@ export function SettingsRail({
                   onClick={() => onSelect(s)}
                   aria-current={isActive ? 'page' : undefined}
                   className={cn(
-                    'flex shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors',
+                    'flex min-h-10 shrink-0 items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm font-medium whitespace-nowrap transition-colors',
                     // Desktop: wrap long translated labels inside the
                     // column instead of spilling over the panel beside it.
-                    'lg:w-full lg:whitespace-normal',
+                    'lg:min-h-0 lg:w-full lg:whitespace-normal',
                     isActive
                       ? 'bg-primary-soft text-primary'
                       : 'text-muted-foreground hover:bg-muted hover:text-foreground',

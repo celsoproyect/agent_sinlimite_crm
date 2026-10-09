@@ -137,16 +137,16 @@ function ActivityChart({ series }: { series: Overview["series"] }) {
   const stride = Math.max(1, Math.ceil(series.length / 8));
 
   return (
-    <section className="flex flex-col rounded-xl border border-border bg-card">
-      <header className="border-b border-border px-5 py-4">
+    <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <h2 className="text-sm font-semibold text-foreground">{t("activity.title")}</h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{t("activity.description")}</p>
       </header>
-      <div className="flex-1 p-5">
+      <div className="min-w-0 flex-1 p-4 sm:p-5">
         {empty ? (
           <p className="py-16 text-center text-sm text-muted-foreground">{t("activity.empty")}</p>
         ) : (
-          <div className="flex h-[200px] items-end gap-1">
+          <div className="flex h-[200px] items-end gap-px sm:gap-1">
             {series.map((p, i) => (
               <div key={p.date} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1">
                 <div
@@ -208,15 +208,15 @@ function SalesCard({
   const channels = Object.entries(byChannel).sort((a, b) => b[1].count - a[1].count);
 
   return (
-    <section className="flex flex-col rounded-xl border border-border bg-card">
-      <header className="border-b border-border px-5 py-4">
+    <section className="flex min-w-0 flex-col rounded-xl border border-border bg-card">
+      <header className="border-b border-border px-4 py-4 sm:px-5">
         <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <Users className="h-4 w-4 text-primary" />
           {t("sales.title")}
         </h2>
         <p className="mt-0.5 text-xs text-muted-foreground">{t("sales.description")}</p>
       </header>
-      <div className="space-y-4 p-5 text-sm">
+      <div className="space-y-4 p-4 text-sm sm:p-5">
         {dealsUnavailable ? (
           <p className="text-xs text-muted-foreground">{t("sales.unavailable")}</p>
         ) : (

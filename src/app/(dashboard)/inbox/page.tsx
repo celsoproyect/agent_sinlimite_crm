@@ -16,6 +16,7 @@ import { ContactSidebar } from "@/components/inbox/contact-sidebar";
 import { toast } from "sonner";
 import { Loader2, WifiOff } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import { useModuleGate } from "@/hooks/use-module-gate";
 
 // Remembers the agent's show/hide choice for the desktop contact panel
@@ -71,6 +72,9 @@ function InboxPageInner() {
    * below reconciles to the stored value right after mount instead.
    */
   const [contactPanelOpen, setContactPanelOpen] = useState(true);
+  // Mobile (<lg) only: the contact details open as a sheet over the
+  // thread, since there is no room for a third pane.
+  const [mobileContactOpen, setMobileContactOpen] = useState(false);
   useEffect(() => {
     try {
       const stored = localStorage.getItem(CONTACT_PANEL_STORAGE_KEY);
@@ -583,7 +587,10 @@ function InboxPageInner() {
   }
 
   return (
-    <div className="-m-4 flex h-[calc(100vh-3.5rem)] flex-col overflow-hidden sm:-m-6">
+    // Bleeds over the shell's <main> padding and fills exactly the space
+    // below the header (minus the safe-area insets the shell reserves),
+    // so the composer stays pinned to the bottom with no page scroll.
+    <div className="-m-3 flex h-[calc(100dvh-3.5rem-env(safe-area-inset-top)-env(safe-area-inset-bottom))] flex-col overflow-hidden sm:-m-6">
       {/* WhatsApp connection banner — in the flex column, not absolute,
           so it pushes the panels down instead of overlapping them. */}
       {whatsappConnected === false && (
@@ -644,6 +651,7 @@ function InboxPageInner() {
             onRefresh={handleManualRefresh}
             contactPanelOpen={contactPanelOpen}
             onToggleContactPanel={handleToggleContactPanel}
+            onOpenContactInfo={() => setMobileContactOpen(true)}
           />
         </div>
 
@@ -656,6 +664,21 @@ function InboxPageInner() {
             <ContactSidebar contact={activeContact} onContactChange={handleContactChange} />
           </div>
         )}
+
+        {/* Mobile/tablet: the same contact panel as a right-side sheet,
+            opened from the thread header's contact button. */}
+        <Sheet open={mobileContactOpen && hasActiveConv} onOpenChange={setMobileContactOpen}>
+          <SheetContent side="right" className="w-full gap-0 overflow-hidden p-0 sm:max-w-sm lg:hidden">
+            <SheetTitle className="sr-only">
+              {activeContact?.name || activeContact?.phone || ""}
+            </SheetTitle>
+            <ContactSidebar
+              contact={activeContact}
+              onContactChange={handleContactChange}
+              className="min-h-0 w-full flex-1 border-l-0"
+            />
+          </SheetContent>
+        </Sheet>
       </div>
     </div>
   );

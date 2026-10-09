@@ -190,8 +190,8 @@ export default function BroadcastsPage() {
         </div>
       )}
 
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
           <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             {t('subtitle')}

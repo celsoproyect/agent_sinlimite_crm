@@ -219,7 +219,7 @@ export function PipelineSettings({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md bg-popover border-border max-h-[85vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md bg-popover border-border max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("managePipeline")}</DialogTitle>
         </DialogHeader>
@@ -334,7 +334,7 @@ export function PipelineSettings({
                     value={newStageName}
                     onChange={(e) => setNewStageName(e.target.value)}
                     placeholder={t("newStageNamePlaceholder")}
-                    className="border-border bg-muted text-sm text-foreground"
+                    className="min-w-0 border-border bg-muted text-sm text-foreground"
                     onKeyDown={(e) => {
                       if (e.key === "Enter") handleAddStage();
                     }}
@@ -452,7 +452,7 @@ function SortableStageRow({
         type="button"
         {...attributes}
         {...listeners}
-        className="cursor-grab touch-none text-muted-foreground hover:text-foreground active:cursor-grabbing"
+        className="flex h-9 w-6 shrink-0 cursor-grab touch-none items-center justify-center text-muted-foreground hover:text-foreground active:cursor-grabbing"
         aria-label={t("dragToReorder")}
       >
         <GripVertical className="h-4 w-4" />
@@ -461,14 +461,14 @@ function SortableStageRow({
       <Input
         value={stage.name}
         onChange={(e) => onNameChange(e.target.value)}
-        className="h-7 min-w-0 flex-1 border-transparent bg-transparent text-sm text-foreground focus:border-border"
+        className="h-9 min-w-0 flex-1 border-transparent sm:h-7 bg-transparent text-sm text-foreground focus:border-border"
       />
       {onKindChange && (
         <select
           value={stageKind(stage)}
           onChange={(e) => onKindChange(e.target.value as StageKind)}
           aria-label={t("stageKind")}
-          className="h-7 shrink-0 rounded-md border border-border bg-background px-1.5 text-xs text-foreground"
+          className="h-9 max-w-[7rem] shrink-0 rounded-md border border-border bg-background px-1.5 sm:h-7 text-xs text-foreground"
         >
           <option value="open">{t("kindOpen")}</option>
           <option value="won">{t("kindWon")}</option>
@@ -479,7 +479,7 @@ function SortableStageRow({
         variant="ghost"
         size="icon-xs"
         onClick={onRemove}
-        className="text-muted-foreground hover:text-red-400"
+        className="shrink-0 text-muted-foreground hover:text-red-400 max-sm:size-9"
       >
         <Trash2 className="h-3 w-3" />
       </Button>

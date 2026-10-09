@@ -223,7 +223,7 @@ export function AiKnowledgeCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="size-8 p-0 pointer-coarse:size-10"
                           onClick={() => openEditKb(kb)}
                           title={t('editKb')}
                         >
@@ -232,7 +232,7 @@ export function AiKnowledgeCard({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          className="size-8 p-0 text-destructive pointer-coarse:size-10 hover:text-destructive"
                           onClick={() => void removeKb(kb)}
                           title={t('deleteKb')}
                         >
@@ -511,7 +511,7 @@ function KnowledgeBaseDetail({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0"
+                          className="size-8 p-0 pointer-coarse:size-10"
                           onClick={() => void openEdit(doc.id)}
                           title="Edit"
                         >
@@ -520,7 +520,7 @@ function KnowledgeBaseDetail({
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 w-8 p-0 text-destructive hover:text-destructive"
+                          className="size-8 p-0 text-destructive pointer-coarse:size-10 hover:text-destructive"
                           onClick={() => void remove(doc.id)}
                           title="Delete"
                         >

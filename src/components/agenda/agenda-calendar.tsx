@@ -79,9 +79,9 @@ export function AgendaCalendar({
   };
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-border bg-card">
-      <div className="grid min-w-[840px] grid-cols-[60px_repeat(7,1fr)]">
-        <div className="border-b border-border" />
+    <div className="max-w-full overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-card">
+      <div className="grid min-w-[720px] grid-cols-[48px_repeat(7,minmax(0,1fr))] sm:min-w-[840px] sm:grid-cols-[60px_repeat(7,minmax(0,1fr))]">
+        <div className="sticky left-0 z-10 border-b border-border bg-card" />
         {days.map((day) => {
           const closed = closedLabel(day);
           return (
@@ -116,7 +116,7 @@ export function AgendaCalendar({
 
         {hours.map((hour) => (
           <div key={hour} className="contents">
-            <div className="border-b border-border px-1.5 py-3 text-right text-[0.6875rem] text-muted-foreground">
+            <div className="sticky left-0 z-10 border-b border-border bg-card px-1.5 py-3 text-right text-[0.6875rem] text-muted-foreground">
               {String(hour).padStart(2, "0")}:00
             </div>
             {days.map((day) => {

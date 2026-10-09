@@ -354,12 +354,12 @@ export default function ContactsPage() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-foreground">{t('title')}</h1>
+          <h1 className="text-xl font-bold text-foreground sm:text-2xl">{t('title')}</h1>
           <p className="text-sm text-muted-foreground mt-1">
             {totalCount > 0 ? t('subtitle', { count: totalCount }) : t('subtitleZero')}
           </p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {canEditSettings && (
             <Button
               variant="outline"
@@ -395,7 +395,7 @@ export default function ContactsPage() {
       {/* Search + tag filter */}
       <div className="space-y-2">
         <div className="flex flex-col sm:flex-row gap-2">
-          <div className="relative w-full max-w-sm">
+          <div className="relative w-full sm:max-w-sm">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
               value={search}
@@ -510,11 +510,11 @@ export default function ContactsPage() {
 
       {/* Bulk action bar */}
       {selected.size > 0 && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-muted/40 px-4 py-2">
+        <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border bg-muted/40 px-3 py-2 sm:gap-4 sm:px-4">
           <p className="text-sm text-foreground">
             {t('selectedCount', { count: selected.size })}
           </p>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="ghost"
               size="sm"
@@ -661,7 +661,7 @@ export default function ContactsPage() {
                           <Button
                             variant="ghost"
                             size="icon-sm"
-                            className="text-muted-foreground hover:text-foreground"
+                            className="text-muted-foreground hover:text-foreground max-sm:size-10"
                             onClick={(e) => e.stopPropagation()}
                           />
                         }
@@ -705,7 +705,7 @@ export default function ContactsPage() {
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-xs text-muted-foreground">
             {t('showingPagination', {
               start: page * PAGE_SIZE + 1,
@@ -719,7 +719,7 @@ export default function ContactsPage() {
               size="icon-sm"
               disabled={!hasPrev}
               onClick={() => setPage((p) => p - 1)}
-              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 max-sm:size-10"
             >
               <ChevronLeft className="size-4" />
             </Button>
@@ -731,7 +731,7 @@ export default function ContactsPage() {
               size="icon-sm"
               disabled={!hasNext}
               onClick={() => setPage((p) => p + 1)}
-              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30"
+              className="border-border text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-30 max-sm:size-10"
             >
               <ChevronRight className="size-4" />
             </Button>

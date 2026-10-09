@@ -1,76 +1,16 @@
 import { ImageResponse } from "next/og";
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { createClient } from "@/lib/supabase/server";
-import { DEFAULT_BRANDING } from "@/lib/branding";
+import { loadBrandIconDataUri } from "@/lib/brand-icon";
 
-// Renders the browser-tab favicon from this deployment's uploaded favicon
-// (`platform_settings.favicon_url`, migration 062), else its branding
-// logo (`platform_settings.logo_url`, migration 040), instead of a fixed
-// brand mark, so a super admin's uploaded logo shows up in the tab
-// without a redeploy — mirrors the title logic in `src/app/layout.tsx`.
-//
-// Needs Node's `fs`/`Buffer` to read the local default logo and to
-// inline a fetched remote logo as a data URI (satori can't resolve a
-// bare `/logo.png` path with no origin), so this can't run on edge.
+// Renders the browser-tab favicon from this deployment's uploaded
+// favicon, else its branding logo (see `src/lib/brand-icon.ts`), so a
+// super admin's uploaded logo shows up in the tab without a redeploy.
+// Node runtime: the logo loader reads files and builds data URIs.
 export const runtime = "nodejs";
 export const size = { width: 32, height: 32 };
 export const contentType = "image/png";
 
-// public/logo.png is a wide icon+wordmark lockup — fine for the
-// sidebar, but its text is illegible at 32px. public/logo-mark.png is
-// the same brand mark cropped to just the icon, used only as the
-// *default* favicon fallback below. A super admin's custom uploaded
-// logo (an absolute URL, handled in the branch below) is used as-is.
-const DEFAULT_FAVICON_PATH = "/logo-mark.png";
-
-async function readLocalLogo(publicPath: string): Promise<string> {
-  const filePath = path.join(process.cwd(), "public", publicPath.replace(/^\//, ""));
-  const buffer = await readFile(filePath);
-  return `data:image/png;base64,${buffer.toString("base64")}`;
-}
-
-async function loadLogoDataUri(): Promise<string> {
-  let logoUrl: string = DEFAULT_BRANDING.logoUrl;
-  try {
-    const supabase = await createClient();
-    const withFavicon = await supabase
-      .from("platform_settings")
-      .select("logo_url, favicon_url")
-      .eq("id", true)
-      .maybeSingle();
-    let data: { logo_url?: string | null; favicon_url?: string | null } | null = withFavicon.data;
-    if (withFavicon.error?.code === "42703") {
-      // Migration 062 not applied yet: no favicon column.
-      const legacy = await supabase
-        .from("platform_settings")
-        .select("logo_url")
-        .eq("id", true)
-        .maybeSingle();
-      data = legacy.data;
-    }
-    if (data?.favicon_url) logoUrl = data.favicon_url;
-    else if (data?.logo_url) logoUrl = data.logo_url;
-  } catch {
-    // Keep the default — this must never block the icon from rendering.
-  }
-
-  try {
-    if (/^https?:\/\//.test(logoUrl)) {
-      const res = await fetch(logoUrl);
-      if (!res.ok) throw new Error(`logo fetch failed: ${res.status}`);
-      const buffer = Buffer.from(await res.arrayBuffer());
-      const mime = res.headers.get("content-type") || "image/png";
-      return `data:${mime};base64,${buffer.toString("base64")}`;
-    }
-    return await readLocalLogo(DEFAULT_FAVICON_PATH);
-  } catch {
-    return readLocalLogo(DEFAULT_FAVICON_PATH);
-  }
-}
-
 export default async function Icon() {
-  const logo = await loadLogoDataUri();
+  const logo = await loadBrandIconDataUri();
   return new ImageResponse(
     (
       <div

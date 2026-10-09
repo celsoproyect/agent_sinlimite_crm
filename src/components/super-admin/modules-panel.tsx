@@ -190,7 +190,7 @@ export function ModulesPanel() {
                       key={key}
                       className="flex items-center justify-between gap-3 px-4 py-3"
                     >
-                      <div className="flex items-center gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
                         <Icon className="size-4 text-muted-foreground" />
                         <span className="text-sm font-medium text-foreground">
                           {tSidebar(meta.labelKey)}

@@ -273,10 +273,10 @@ export function ReminderRulesSettings({ open, onOpenChange, scope = "appointment
             <Loader2 className="h-5 w-5 animate-spin text-primary" />
           </div>
         ) : (
-          <div className="max-h-[60vh] space-y-4 overflow-y-auto py-2">
+          <div className="max-h-[60dvh] space-y-4 overflow-y-auto py-2">
             <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2">
               <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-              <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t("samplesHint")}</p>
+              <p className="min-w-[12rem] flex-1 text-xs text-muted-foreground">{t("samplesHint")}</p>
               <Button size="sm" variant="outline" disabled={samplesBusy} onClick={() => samples("POST")} className="border-border">
                 {t("loadSamples")}
               </Button>
@@ -348,7 +348,7 @@ export function ReminderRulesSettings({ open, onOpenChange, scope = "appointment
                       type="button"
                       onClick={() => removeRow(index)}
                       disabled={row.saving}
-                      className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive"
+                      className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-destructive"
                       aria-label={t("delete")}
                     >
                       <Trash2 className="h-4 w-4" />

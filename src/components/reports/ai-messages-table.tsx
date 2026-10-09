@@ -79,7 +79,7 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
 
   return (
     <section className="rounded-xl border border-border bg-card">
-      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-5 py-4">
+      <header className="flex flex-wrap items-start justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
         <div className="min-w-0">
           <h2 className="flex items-center gap-2 text-sm font-semibold text-foreground">
             <Bot className="h-4 w-4 text-primary" />
@@ -92,15 +92,15 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
           </h2>
           <p className="mt-0.5 text-xs text-muted-foreground">{t("description")}</p>
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg bg-muted/60 p-1">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          <div className="flex flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1">
             {KINDS.map((k) => (
               <button
                 key={k}
                 type="button"
                 onClick={() => setKind(k)}
                 className={cn(
-                  "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                  "min-h-9 rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-0",
                   kind === k
                     ? "bg-secondary text-secondary-foreground"
                     : "text-muted-foreground hover:text-foreground",
@@ -110,13 +110,13 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
               </button>
             ))}
           </div>
-          <div className="relative">
+          <div className="relative w-full sm:w-auto">
             <Search className="pointer-events-none absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground" />
             <Input
               value={search}
               onChange={(e) => setSearch(e.target.value)}
               placeholder={t("searchPlaceholder")}
-              className="h-8 w-56 pl-7 text-xs"
+              className="h-10 w-full pl-7 text-xs sm:h-8 sm:w-56"
             />
           </div>
         </div>
@@ -133,7 +133,7 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
       ) : (
         <ul className={cn("divide-y divide-border", loading && "opacity-60")}>
           {data.rows.map((row) => (
-            <li key={row.id} className="grid gap-2 px-5 py-3 md:grid-cols-[160px_1fr_auto] md:gap-4">
+            <li key={row.id} className="grid gap-2 px-4 py-3 sm:px-5 md:grid-cols-[160px_1fr_auto] md:gap-4">
               <div className="min-w-0 text-xs">
                 <p className="truncate font-medium text-foreground">
                   {row.contactName || row.contactPhone || t("unknownContact")}
@@ -158,7 +158,7 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
               <div className="flex items-start md:justify-end">
                 <Link
                   href={`/inbox?c=${row.conversationId}`}
-                  className="flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+                  className="flex min-h-9 items-center gap-1 text-xs font-medium text-primary hover:underline md:min-h-0"
                 >
                   <ExternalLink className="h-3.5 w-3.5" />
                   {t("open")}
@@ -170,14 +170,14 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
       )}
 
       {data && data.total > data.pageSize && (
-        <footer className="flex items-center justify-between gap-3 border-t border-border px-5 py-3 text-xs text-muted-foreground">
+        <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-border px-4 py-3 sm:px-5 text-xs text-muted-foreground">
           <span>{t("pageOf", { page: data.page, pages })}</span>
           <div className="flex items-center gap-1">
             <button
               type="button"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
-              className="rounded p-1 hover:bg-muted disabled:opacity-40"
+              className="flex min-h-10 min-w-10 items-center justify-center rounded p-1 hover:bg-muted disabled:opacity-40 sm:min-h-0 sm:min-w-0"
               aria-label={t("prev")}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -186,7 +186,7 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
               type="button"
               onClick={() => setPage((p) => Math.min(pages, p + 1))}
               disabled={page >= pages || loading}
-              className="rounded p-1 hover:bg-muted disabled:opacity-40"
+              className="flex min-h-10 min-w-10 items-center justify-center rounded p-1 hover:bg-muted disabled:opacity-40 sm:min-h-0 sm:min-w-0"
               aria-label={t("next")}
             >
               <ChevronRight className="h-4 w-4" />

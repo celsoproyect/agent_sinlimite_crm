@@ -420,12 +420,30 @@ const up = (html) =>
 const header = up(index.match(/<header class="nav">[\s\S]*?<\/header>/)[0])
 const footer = up(index.match(/<footer>[\s\S]*?<\/footer>/)[0])
 
+// The mobile menu code mirrors the one in index.html's script: keep both in step.
 const script = `<script>
 (function () {
+  var nav = document.querySelector('.nav');
+  var navToggle = nav && nav.querySelector('.nav-toggle');
+  if (navToggle) {
+    var setMenu = function (open, focusToggle) {
+      nav.classList.toggle('open', open);
+      navToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+      navToggle.setAttribute('aria-label', open ? 'Cerrar menú' : 'Abrir menú');
+      if (!open && focusToggle) navToggle.focus();
+    };
+    navToggle.addEventListener('click', function () { setMenu(!nav.classList.contains('open')); });
+    nav.querySelectorAll('.nav-links a').forEach(function (a) { a.addEventListener('click', function () { setMenu(false); }); });
+    document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && nav.classList.contains('open')) setMenu(false, true); });
+    document.addEventListener('click', function (e) { if (nav.classList.contains('open') && !nav.contains(e.target)) setMenu(false); });
+    window.addEventListener('resize', function () { if (window.innerWidth > 900 && nav.classList.contains('open')) setMenu(false); });
+  }
+
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
   var carousel = document.getElementById('carousel');
   document.querySelectorAll('.car-btn').forEach(function (b) {
     b.addEventListener('click', function () {
-      carousel.scrollBy({ left: +b.getAttribute('data-dir') * Math.max(280, carousel.clientWidth * 0.8), behavior: 'smooth' });
+      carousel.scrollBy({ left: +b.getAttribute('data-dir') * Math.max(280, carousel.clientWidth * 0.8), behavior: still ? 'auto' : 'smooth' });
     });
   });
   var year = document.getElementById('year');
@@ -547,7 +565,7 @@ ${header}
         <h2>Pruébalo en tu negocio.</h2>
         <p>14 días gratis. Te ayudamos a configurar el agente con tu información.</p>
       </div>
-      <div class="hero-ctas" style="justify-content: flex-end">
+      <div class="hero-ctas cta-actions">
         <a class="btn btn-primary" href="${SIGNUP}" target="_blank" rel="noopener">Crear mi cuenta gratis</a>
         <a class="btn btn-ghost" href="../index.html#demo" style="color: var(--accent-ink); border-color: color-mix(in srgb, var(--accent-ink) 40%, transparent)">Agendar demo</a>
       </div>

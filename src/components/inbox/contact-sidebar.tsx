@@ -42,9 +42,11 @@ interface ContactSidebarProps {
   contact: Contact | null;
   /** Called after the agent uploads or removes the contact's photo. */
   onContactChange?: (contact: Contact) => void;
+  /** Extra classes for the root (e.g. full width inside the mobile sheet). */
+  className?: string;
 }
 
-export function ContactSidebar({ contact, onContactChange }: ContactSidebarProps) {
+export function ContactSidebar({ contact, onContactChange, className }: ContactSidebarProps) {
   const tSidebar = useTranslations("Inbox.sidebar");
   const tThread = useTranslations("Inbox.messageThread");
 
@@ -234,7 +236,7 @@ export function ContactSidebar({ contact, onContactChange }: ContactSidebarProps
 
   if (!contact) {
     return (
-      <div className="flex h-full w-70 items-center justify-center border-l border-border bg-card">
+      <div className={cn("flex h-full w-70 items-center justify-center border-l border-border bg-card", className)}>
         <p className="text-sm text-muted-foreground">{tThread("selectConversation")}</p>
       </div>
     );
@@ -243,7 +245,7 @@ export function ContactSidebar({ contact, onContactChange }: ContactSidebarProps
   const displayName = contact.name || contact.phone;
 
   return (
-    <div className="flex h-full w-70 flex-col border-l border-border bg-card">
+    <div className={cn("flex h-full w-70 flex-col border-l border-border bg-card", className)}>
       <ScrollArea className="flex-1">
         <div className="p-4">
           {/* Contact Info */}

@@ -80,10 +80,10 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
   };
 
   return (
-    <div className="flex h-[60vh] min-h-[420px] flex-col rounded-xl border border-border bg-card">
+    <div className="flex h-[calc(100dvh-14rem)] min-h-[360px] flex-col sm:h-[60vh] sm:min-h-[420px] rounded-xl border border-border bg-card">
       {/* Header */}
-      <div className="flex items-center justify-between border-b border-border px-4 py-3">
-        <div className="flex items-center gap-2">
+      <div className="flex items-center justify-between gap-2 border-b border-border px-3 py-3 sm:px-4">
+        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
           <Bot className="h-4 w-4 text-primary" />
           <span className="text-sm font-medium text-foreground">Playground</span>
           <span className="text-xs text-muted-foreground">
@@ -102,7 +102,7 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
       </div>
 
       {/* Transcript */}
-      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-4">
+      <div ref={scrollRef} className="flex-1 space-y-4 overflow-y-auto p-3 sm:p-4">
         {turns.length === 0 && (
           <div className="flex h-full flex-col items-center justify-center text-center text-sm text-muted-foreground">
             <Bot className="mb-2 h-8 w-8 text-muted-foreground/60" />
@@ -137,7 +137,7 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
             )}
             <div
               className={cn(
-                'max-w-[80%] rounded-2xl px-3.5 py-2 text-sm',
+                'max-w-[85%] min-w-0 break-words rounded-2xl px-3.5 py-2 text-sm sm:max-w-[80%]',
                 t.role === 'user'
                   ? 'rounded-br-sm bg-primary text-primary-foreground'
                   : 'rounded-bl-sm bg-muted text-foreground',
@@ -178,13 +178,13 @@ export function AiPlayground({ onGoToSetup }: { onGoToSetup?: () => void }) {
           onKeyDown={handleKeyDown}
           placeholder="Type a customer message…"
           rows={1}
-          className="flex-1 resize-none rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
+          className="min-w-0 flex-1 resize-none rounded-xl border border-border bg-muted px-4 py-2.5 text-sm text-foreground placeholder-muted-foreground outline-none focus:border-primary/50"
         />
         <Button
           size="sm"
           onClick={send}
           disabled={!input.trim() || sending}
-          className="h-9 w-9 shrink-0 p-0"
+          className="size-9 shrink-0 p-0 pointer-coarse:size-10"
         >
           {sending ? (
             <Loader2 className="h-4 w-4 animate-spin" />

@@ -6,6 +6,7 @@ import Script from "next/script";
 import "./globals.css";
 import { ThemeProvider } from "@/hooks/use-theme";
 import { ThemedToaster } from "@/components/themed-toaster";
+import { ServiceWorkerRegister } from "@/components/pwa/service-worker-register";
 import { createClient } from "@/lib/supabase/server";
 import { DEFAULT_COMPANY_NAME } from "@/lib/branding";
 import {
@@ -52,6 +53,13 @@ export async function generateMetadata(): Promise<Metadata> {
     },
     icons: {
       icon: [{ url: "/icon" }],
+      apple: [{ url: "/apple-icon" }],
+    },
+    // Installed on an iPhone/iPad home screen, open full-screen like an app.
+    appleWebApp: {
+      capable: true,
+      title: companyName,
+      statusBarStyle: "default",
     },
     formatDetection: {
       email: false,
@@ -64,6 +72,9 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   themeColor: "#F5F7FB",
   colorScheme: "light dark",
+  // Lets the app draw under the iPhone notch and home bar; the shell pads
+  // itself with env(safe-area-inset-*) so content stays clear of them.
+  viewportFit: "cover",
 };
 
 // Inline boot script — runs before React hydrates so the user's
@@ -133,6 +144,7 @@ export default async function RootLayout({
           <ThemeProvider>
             {children}
             <ThemedToaster />
+            <ServiceWorkerRegister />
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

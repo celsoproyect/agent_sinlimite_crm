@@ -67,7 +67,7 @@ export function OccupancyView({ date, reservations, tables, areas, settings, bus
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {cards.map((c) => (
           <div key={c.label} className="rounded-xl border border-border bg-card p-3 shadow-sm">
             <p className="text-xs text-muted-foreground">{c.label}</p>
@@ -76,7 +76,7 @@ export function OccupancyView({ date, reservations, tables, areas, settings, bus
         ))}
       </div>
 
-      <div className="rounded-xl border border-border bg-card p-4 shadow-sm">
+      <div className="rounded-xl border border-border bg-card p-3 shadow-sm sm:p-4">
         <h3 className="mb-3 text-sm font-medium text-foreground">{t("occupancyByHour")}</h3>
         {stats.closed ? (
           <p className="text-sm text-muted-foreground">{t("closedDay")}</p>

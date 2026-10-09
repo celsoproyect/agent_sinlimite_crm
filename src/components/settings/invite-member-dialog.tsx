@@ -203,7 +203,7 @@ export function InviteMemberDialog({
                 <Input
                   readOnly
                   value={result.url}
-                  className="bg-muted border-border text-foreground font-mono text-xs"
+                  className="min-w-0 bg-muted border-border text-foreground font-mono text-xs"
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <Button

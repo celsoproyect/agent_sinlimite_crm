@@ -43,11 +43,11 @@ export function CatalogItemCard({ item, canEdit, onEdit, onDelete }: CatalogItem
           </div>
         )}
         {canEdit && (
-          <div className="absolute right-2 top-2 flex gap-1 opacity-0 transition-opacity group-hover:opacity-100">
+          <div className="absolute right-2 top-2 flex gap-1 transition-opacity focus-within:opacity-100 group-hover:opacity-100 [@media(hover:hover)]:opacity-0">
             <Button
               variant="secondary"
               size="sm"
-              className="h-7 w-7 p-0 shadow"
+              className="size-7 p-0 shadow pointer-coarse:size-10"
               onClick={() => onEdit(item)}
               title={t("editAttachment")}
             >
@@ -56,7 +56,7 @@ export function CatalogItemCard({ item, canEdit, onEdit, onDelete }: CatalogItem
             <Button
               variant="secondary"
               size="sm"
-              className="h-7 w-7 p-0 text-destructive shadow hover:text-destructive"
+              className="size-7 p-0 text-destructive shadow pointer-coarse:size-10 hover:text-destructive"
               onClick={() => onDelete(item)}
               title={t("deleteAttachment")}
             >

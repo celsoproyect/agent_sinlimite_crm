@@ -34,7 +34,7 @@ export function EventRequestDialog({ open, onOpenChange, ...rest }: Props) {
   const t = useTranslations("Events");
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-popover sm:max-w-lg">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-popover sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("form.title")}</DialogTitle>
         </DialogHeader>

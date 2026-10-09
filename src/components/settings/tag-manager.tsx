@@ -173,7 +173,7 @@ export function TagManager() {
                 {tags.map((tag) => (
                   <span
                     key={tag.id}
-                    className="group inline-flex items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium transition-colors"
+                    className="group inline-flex max-w-full items-center gap-1.5 rounded-full px-3 py-1.5 text-sm font-medium break-all transition-colors"
                     style={{
                       backgroundColor: `${tag.color}20`,
                       color: tag.color,
@@ -189,7 +189,7 @@ export function TagManager() {
                       type="button"
                       onClick={() => confirmDelete(tag)}
                       aria-label={t('deleteAria', { name: tag.name })}
-                      className="ml-0.5 rounded-full p-0.5 opacity-60 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
+                      className="ml-0.5 rounded-full p-0.5 opacity-60 pointer-coarse:-my-1 pointer-coarse:p-1.5 transition-opacity hover:bg-black/10 hover:opacity-100 dark:hover:bg-white/10"
                     >
                       <X className="size-3" />
                     </button>
@@ -213,9 +213,9 @@ export function TagManager() {
                 }}
                 disabled={saving}
                 maxLength={40}
-                className="min-w-[180px] flex-1"
+                className="min-w-0 flex-1 basis-44"
               />
-              <div className="flex gap-1.5">
+              <div className="flex flex-wrap gap-1.5">
                 {PRESET_COLORS.map((color) => (
                   <button
                     key={color.value}
@@ -224,7 +224,7 @@ export function TagManager() {
                     aria-label={t('useColor', { color: t(`colors.${color.name}` as Parameters<typeof t>[0]) })}
                     aria-pressed={selectedColor === color.value}
                     className={cn(
-                      'size-6 rounded-md transition-transform hover:scale-110',
+                      'size-6 rounded-md transition-transform hover:scale-110 pointer-coarse:size-8',
                       selectedColor === color.value &&
                         'outline outline-2 outline-offset-2 outline-primary',
                     )}

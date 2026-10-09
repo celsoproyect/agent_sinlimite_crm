@@ -380,7 +380,7 @@ export function ContactDetailView({
         ) : (
           <div className="flex flex-col h-full">
             {/* Header */}
-            <SheetHeader className="p-4 border-b border-border/50">
+            <SheetHeader className="p-4 pr-12 border-b border-border/50">
               <div className="flex items-center gap-3">
                 <ContactPhotoEditor
                   contact={contact}
@@ -399,7 +399,7 @@ export function ContactDetailView({
                   <div className="flex flex-wrap items-center gap-3 mt-1.5 text-xs text-muted-foreground">
                     <button
                       onClick={copyPhone}
-                      className="flex items-center gap-1 hover:text-primary transition-colors cursor-pointer"
+                      className="flex min-h-8 items-center gap-1 hover:text-primary transition-colors cursor-pointer"
                     >
                       <Phone className="size-3" />
                       {contact.phone}
@@ -410,13 +410,13 @@ export function ContactDetailView({
                       )}
                     </button>
                     {contact.email && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex min-w-0 items-center gap-1 break-all">
                         <Mail className="size-3" />
                         {contact.email}
                       </span>
                     )}
                     {contact.company && (
-                      <span className="flex items-center gap-1">
+                      <span className="flex min-w-0 items-center gap-1 break-all">
                         <Building2 className="size-3" />
                         {contact.company}
                       </span>
@@ -443,7 +443,7 @@ export function ContactDetailView({
 
             {/* Tabs */}
             <Tabs defaultValue="details" className="flex-1 flex flex-col min-h-0">
-              <TabsList className="bg-muted/50 border-b border-border mx-4 mt-3">
+              <TabsList className="bg-muted/50 border-b border-border mx-4 mt-3 max-w-[calc(100%-2rem)] justify-start">
                 <TabsTrigger
                   value="details"
                   className="data-active:bg-muted data-active:text-primary text-muted-foreground"
@@ -484,7 +484,7 @@ export function ContactDetailView({
                     <Input
                       value={editName}
                       onChange={(e) => setEditName(e.target.value)}
-                      className="bg-muted border-border text-foreground h-8 text-sm"
+                      className="bg-muted border-border text-foreground h-10 text-sm sm:h-8"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -494,7 +494,7 @@ export function ContactDetailView({
                     <Input
                       value={editPhone}
                       onChange={(e) => setEditPhone(e.target.value)}
-                      className="bg-muted border-border text-foreground h-8 text-sm"
+                      className="bg-muted border-border text-foreground h-10 text-sm sm:h-8"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -502,7 +502,7 @@ export function ContactDetailView({
                     <Input
                       value={editEmail}
                       onChange={(e) => setEditEmail(e.target.value)}
-                      className="bg-muted border-border text-foreground h-8 text-sm"
+                      className="bg-muted border-border text-foreground h-10 text-sm sm:h-8"
                     />
                   </div>
                   <div className="space-y-1.5">
@@ -510,7 +510,7 @@ export function ContactDetailView({
                     <Input
                       value={editCompany}
                       onChange={(e) => setEditCompany(e.target.value)}
-                      className="bg-muted border-border text-foreground h-8 text-sm"
+                      className="bg-muted border-border text-foreground h-10 text-sm sm:h-8"
                     />
                   </div>
                   <Button
@@ -548,7 +548,7 @@ export function ContactDetailView({
                             key={tag.id}
                             onClick={() => toggleTag(tag.id)}
                             disabled={savingTags}
-                            className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-medium transition-all cursor-pointer ${
+                            className={`inline-flex items-center rounded-full px-3 py-2 text-xs font-medium transition-all cursor-pointer sm:py-1 ${
                               selected
                                 ? 'ring-2 ring-primary ring-offset-1 ring-offset-border'
                                 : 'opacity-50 hover:opacity-80'

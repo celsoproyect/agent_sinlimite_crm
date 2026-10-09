@@ -310,6 +310,15 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        // The service worker must be revalidated on every load so a
+        // deploy's new worker is picked up right away (PWA, public/sw.js).
+        source: "/sw.js",
+        headers: [
+          { key: "Cache-Control", value: "no-cache, no-store, must-revalidate" },
+          { key: "Service-Worker-Allowed", value: "/" },
+        ],
+      },
+      {
         // Security headers on every response, including /_next/static
         // assets (nosniff matters there) and /api/* (HSTS + referrer-
         // policy don't hurt).

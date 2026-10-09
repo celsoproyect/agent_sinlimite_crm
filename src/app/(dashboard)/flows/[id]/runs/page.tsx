@@ -175,7 +175,7 @@ export default function FlowRunsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-4xl p-6">
+    <div className="mx-auto max-w-4xl sm:p-6">
       <button
         type="button"
         onClick={() => router.push(`/flows/${flow.id}`)}
@@ -238,7 +238,7 @@ function RunCard({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left"
+        className="flex w-full items-center gap-3 px-3 py-3 text-left sm:px-4"
       >
         {expanded ? (
           <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
@@ -282,7 +282,7 @@ function RunCard({
         </div>
       </button>
       {expanded && (
-        <div className="border-t border-border px-4 py-3">
+        <div className="border-t border-border px-3 py-3 sm:px-4">
           {Object.keys(run.vars).length > 0 && (
             <details className="mb-3">
               <summary className="cursor-pointer text-xs text-muted-foreground">
@@ -323,11 +323,11 @@ const EVENT_COLOR: Record<string, string> = {
 function EventLine({ ev }: { ev: EventRow }) {
   const cls = EVENT_COLOR[ev.event_type] ?? "text-muted-foreground";
   return (
-    <div className="flex items-start gap-2 rounded-md px-2 py-1 text-xs">
-      <span className="w-32 shrink-0 text-[0.625rem] text-muted-foreground">
+    <div className="flex flex-wrap items-start gap-x-2 gap-y-0.5 rounded-md px-2 py-1 text-xs sm:flex-nowrap">
+      <span className="shrink-0 text-[0.625rem] text-muted-foreground sm:w-32">
         {format(new Date(ev.created_at), "HH:mm:ss")}
       </span>
-      <span className={cn("w-32 shrink-0 font-mono text-[0.625rem]", cls)}>
+      <span className={cn("shrink-0 font-mono text-[0.625rem] sm:w-32", cls)}>
         {ev.event_type}
       </span>
       {ev.node_key && (
@@ -336,7 +336,7 @@ function EventLine({ ev }: { ev: EventRow }) {
         </code>
       )}
       {Object.keys(ev.payload).length > 0 && (
-        <span className="min-w-0 truncate text-[0.625rem] text-muted-foreground">
+        <span className="min-w-0 basis-full truncate text-[0.625rem] text-muted-foreground sm:basis-auto">
           {summarizePayload(ev.payload)}
         </span>
       )}

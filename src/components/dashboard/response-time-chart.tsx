@@ -47,9 +47,9 @@ export function ResponseTimeChart({
     })) ?? []
 
   return (
-    <section className="rounded-xl border border-border bg-card">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-5 py-4">
-        <div>
+    <section className="min-w-0 rounded-xl border border-border bg-card">
+      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
+        <div className="min-w-0">
           <h2 className="text-sm font-semibold text-foreground">
             {t('title')}
           </h2>
@@ -57,7 +57,7 @@ export function ResponseTimeChart({
             {t('description')}
           </p>
         </div>
-        <div className="flex items-center gap-3 text-right text-xs">
+        <div className="flex flex-wrap items-center gap-3 text-right text-xs">
           {thresholdMinutes > 0 && (
             <span className="rounded-full border border-rose-500/40 bg-rose-500/10 px-2 py-0.5 font-medium text-rose-300 tabular-nums">
               {t('target', { minutes: thresholdMinutes })}

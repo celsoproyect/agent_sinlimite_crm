@@ -169,7 +169,7 @@ export function FloorManager({ areas, tables, canManage, onChanged }: FloorManag
       </Dialog>
 
       <Dialog open={!!tableDialog} onOpenChange={(o) => !o && setTableDialog(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-popover sm:max-w-md">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-popover sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="text-popover-foreground">
               {tableDialog === "new" ? t("addTable") : t("editTable")}

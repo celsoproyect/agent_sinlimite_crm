@@ -518,11 +518,11 @@ export function MembersTab() {
                     return (
                     <li
                       key={inv.id}
-                      className="flex items-center gap-4 px-4 py-3"
+                      className="flex flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3"
                     >
                       <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium text-foreground">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="min-w-0 break-words text-sm font-medium text-foreground">
                             {inv.label || t('untitledInvite')}
                           </span>
                           <span

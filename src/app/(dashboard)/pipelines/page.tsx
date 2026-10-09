@@ -385,9 +385,9 @@ export default function PipelinesPage() {
           <div className="h-8 w-48 animate-pulse rounded bg-muted" />
           <div className="h-9 w-28 animate-pulse rounded-lg bg-muted" />
         </div>
-        <div className="flex gap-3">
+        <div className="flex gap-3 overflow-hidden">
           {[1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className="h-96 w-72 animate-pulse rounded-xl bg-muted/50" />
+            <div key={i} className="h-96 w-72 shrink-0 animate-pulse rounded-xl bg-muted/50" />
           ))}
         </div>
       </div>
@@ -398,21 +398,21 @@ export default function PipelinesPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           {/* Pipeline selector dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger
-              className="inline-flex items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors data-[popup-open]:bg-muted"
+              className="inline-flex min-h-10 max-w-full min-w-0 items-center gap-2 rounded-lg border border-border bg-card px-3 py-2 text-sm text-foreground hover:bg-muted transition-colors data-[popup-open]:bg-muted"
             >
-              <GitBranch className="h-4 w-4 text-primary" />
-              <span className="font-semibold">
+              <GitBranch className="h-4 w-4 shrink-0 text-primary" />
+              <span className="truncate font-semibold">
                 {selectedPipeline?.name ?? t("selectPipeline")}
               </span>
-              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+              <ChevronDown className="h-4 w-4 shrink-0 text-muted-foreground" />
             </DropdownMenuTrigger>
             <DropdownMenuContent
               align="start"
-              className="w-64 border-border bg-popover text-popover-foreground"
+              className="w-64 max-w-[calc(100vw-2rem)] border-border bg-popover text-popover-foreground"
             >
               {pipelines.length === 0 && (
                 <DropdownMenuItem disabled className="text-muted-foreground">
@@ -454,7 +454,7 @@ export default function PipelinesPage() {
                   type="button"
                   onClick={() => setView(v)}
                   className={cn(
-                    "inline-flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
+                    "inline-flex min-h-9 items-center gap-1.5 rounded-md px-3 py-1.5 text-sm font-medium transition-colors",
                     view === v
                       ? "bg-primary text-primary-foreground"
                       : "text-muted-foreground hover:text-foreground",
@@ -478,7 +478,7 @@ export default function PipelinesPage() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <GatedButton
             variant="outline"
             canAct={canEditSettings}
@@ -504,7 +504,7 @@ export default function PipelinesPage() {
 
       {/* Board */}
       {pipelines.length === 0 ? (
-        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border py-20">
+        <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-border px-4 py-20 text-center">
           <GitBranch className="h-12 w-12 text-muted-foreground" />
           <h3 className="mt-4 text-lg font-medium text-foreground">
             {t("noPipelinesYet")}

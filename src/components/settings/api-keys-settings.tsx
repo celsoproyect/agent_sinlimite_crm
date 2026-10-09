@@ -373,7 +373,7 @@ function CreateKeyDialog({
                 <Input
                   readOnly
                   value={createdKey}
-                  className="font-mono text-xs"
+                  className="min-w-0 font-mono text-xs"
                   onFocus={(e) => e.currentTarget.select()}
                 />
                 <Button type="button" variant="outline" onClick={copyKey}>

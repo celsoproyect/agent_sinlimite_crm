@@ -325,7 +325,7 @@ export function UsersPanel() {
                     </span>
 
                     <div className="flex items-center gap-2">
-                      <Button variant="outline" size="sm" onClick={() => openEdit(u)}>
+                      <Button variant="outline" size="sm" className="max-sm:size-10" onClick={() => openEdit(u)}>
                         <Pencil className="size-4" />
                       </Button>
                       {!isSelf && (
@@ -333,7 +333,7 @@ export function UsersPanel() {
                           variant="outline"
                           size="sm"
                           onClick={() => setDeletingUser(u)}
-                          className="border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-200"
+                          className="border-red-500/40 bg-red-500/10 text-red-300 hover:bg-red-500/20 hover:border-red-500/60 hover:text-red-200 max-sm:size-10"
                         >
                           <Trash2 className="size-4" />
                         </Button>

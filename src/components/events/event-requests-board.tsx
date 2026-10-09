@@ -152,7 +152,7 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
                             </p>
                           </div>
                           {canEdit && b.status !== "cancelled" && (
-                            <button type="button" onClick={() => openQuote(b, null)} className="shrink-0 rounded p-1 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("board.editQuote")}>
+                            <button type="button" onClick={() => openQuote(b, null)} className="shrink-0 inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("board.editQuote")}>
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )}

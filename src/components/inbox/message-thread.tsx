@@ -107,6 +107,8 @@ interface MessageThreadProps {
    */
   contactPanelOpen?: boolean;
   onToggleContactPanel?: () => void;
+  /** Mobile (<lg): opens the contact details sheet. */
+  onOpenContactInfo?: () => void;
 }
 
 function formatDateSeparator(dateStr: string, t: ReturnType<typeof useTranslations>): string {
@@ -165,6 +167,7 @@ export function MessageThread({
   onRefresh,
   contactPanelOpen,
   onToggleContactPanel,
+  onOpenContactInfo,
 }: MessageThreadProps) {
   const t = useTranslations("Inbox.messageThread");
   const tTimer = useTranslations("Inbox.sessionTimer");
@@ -927,7 +930,7 @@ export function MessageThread({
     <div className={cn("flex min-w-0 flex-1 flex-col", DOODLE_BG_CLASSES)}>
       {/* Header — solid card surface sits on top of the doodle so the
           name/avatar/dropdowns stay legible. */}
-      <div className="flex items-center justify-between gap-2 border-b border-border bg-card px-3 py-3 sm:px-4">
+      <div className="flex items-center justify-between gap-2 border-b border-border bg-card px-2 py-1.5 sm:px-4 lg:py-3">
         <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           {/* Back-to-list button — mobile only. Hidden on lg+ where the
               conversation list is always visible next to the thread. */}
@@ -936,17 +939,19 @@ export function MessageThread({
               type="button"
               onClick={onBack}
               aria-label={t("backToConversations")}
-              className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
+              className="-ml-1 flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-muted hover:text-foreground lg:hidden"
             >
               <ArrowLeft className="h-5 w-5" />
             </button>
           )}
-          <ContactAvatar
-            name={displayName}
-            avatarUrl={contact.avatar_url}
-            seed={contact.id}
-            size="sm"
-          />
+          <span className="hidden shrink-0 min-[400px]:block">
+            <ContactAvatar
+              name={displayName}
+              avatarUrl={contact.avatar_url}
+              seed={contact.id}
+              size="sm"
+            />
+          </span>
           <div className="min-w-0">
             <h2 className="truncate text-sm font-semibold text-foreground">{displayName}</h2>
             <p className="truncate text-xs text-muted-foreground">{contact.phone}</p>
@@ -965,7 +970,20 @@ export function MessageThread({
           </Badge>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-2">
+          {/* Mobile contact details — opens the contact sheet (the
+              permanent side panel only exists on lg+). */}
+          {onOpenContactInfo && (
+            <button
+              type="button"
+              onClick={onOpenContactInfo}
+              aria-label={t("showContactPanel")}
+              title={t("showContact")}
+              className="inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground lg:hidden"
+            >
+              <PanelRightOpen className="h-4 w-4" />
+            </button>
+          )}
           {/* Contact-panel toggle — desktop only. The contact sidebar
               eats a chunk of horizontal width that crowds the thread on
               smaller laptops; this lets agents reclaim it when they just
@@ -1006,7 +1024,7 @@ export function MessageThread({
               aria-label={t("refreshConversation")}
               title={t("refresh")}
               className={cn(
-                "inline-flex h-7 w-7 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60",
+                "inline-flex h-10 w-10 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground disabled:opacity-60 lg:h-7 lg:w-7",
               )}
             >
               <RefreshCw
@@ -1018,7 +1036,7 @@ export function MessageThread({
           {/* Status dropdown */}
           <DropdownMenu>
             <DropdownMenuTrigger className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  "inline-flex h-10 items-center justify-center gap-1 rounded-md px-2 text-xs hover:bg-muted lg:h-7",
                   currentStatus?.color ?? "text-muted-foreground"
                 )}>
                 {currentStatus ? t(`status${currentStatus.label}`) : t("status")}
@@ -1044,7 +1062,7 @@ export function MessageThread({
           <DropdownMenu>
             <DropdownMenuTrigger
               className={cn(
-                "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                "inline-flex h-10 items-center justify-center gap-1 rounded-md px-2 text-xs hover:bg-muted lg:h-7",
                 assignedAgentId ? "text-primary" : "text-muted-foreground"
               )}
             >
@@ -1125,7 +1143,7 @@ export function MessageThread({
       />
 
       {/* Messages Area */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-4">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain px-3 py-4 sm:px-4">
         {loading ? (
           <div className="flex items-center justify-center py-12">
             <div className="h-5 w-5 animate-spin rounded-full border-2 border-primary border-t-transparent" />

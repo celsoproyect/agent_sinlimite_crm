@@ -157,7 +157,7 @@ function SignupPageInner() {
 
   if (gate.status === "loading") {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <Card className="w-full max-w-sm border-border bg-card">
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Loader2 className="size-6 animate-spin text-primary" />
@@ -172,7 +172,7 @@ function SignupPageInner() {
     const copy =
       gate.status === "no_invite" ? GATE_COPY.no_invite : GATE_COPY[gate.reason];
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <Card className="w-full max-w-sm border-border bg-card">
           <CardHeader className="items-center justify-items-center text-center">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10">
@@ -200,7 +200,7 @@ function SignupPageInner() {
 
   if (success) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
         <Card className="w-full max-w-sm border-border bg-card">
           <CardHeader className="items-center justify-items-center text-center">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -235,7 +235,7 @@ function SignupPageInner() {
   }
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center justify-items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">

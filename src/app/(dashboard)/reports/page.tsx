@@ -83,8 +83,8 @@ export default function ReportsPage() {
     <div className="space-y-6">
       <div className="space-y-1">
         <div className="flex items-center gap-3">
-          <BarChart3 className="h-5 w-5 text-primary" />
-          <h1 className="text-lg font-semibold text-foreground">{t("title")}</h1>
+          <BarChart3 className="h-5 w-5 shrink-0 text-primary" />
+          <h1 className="min-w-0 text-lg font-semibold text-foreground">{t("title")}</h1>
         </div>
         <p className="text-sm text-muted-foreground">{t("subtitle")}</p>
       </div>
@@ -97,7 +97,7 @@ export default function ReportsPage() {
               type="button"
               onClick={() => pickPreset(p)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "min-h-9 rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-0",
                 preset === p
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -115,7 +115,7 @@ export default function ReportsPage() {
               value={range.from}
               onChange={(e) => e.target.value && setCustom({ from: e.target.value })}
               className={cn(
-                "rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground",
+                "h-10 min-w-0 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground sm:h-auto",
                 preset === "custom" && "border-primary",
               )}
             />
@@ -127,20 +127,20 @@ export default function ReportsPage() {
               value={range.to}
               onChange={(e) => e.target.value && setCustom({ to: e.target.value })}
               className={cn(
-                "rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground",
+                "h-10 min-w-0 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground sm:h-auto",
                 preset === "custom" && "border-primary",
               )}
             />
           </label>
         </div>
-        <div className="ml-auto flex items-center gap-1 rounded-lg bg-muted/60 p-1">
+        <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1 sm:ml-auto">
           {CHANNELS.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setChannel(c)}
               className={cn(
-                "rounded-md px-2.5 py-1 text-xs font-medium transition-colors",
+                "min-h-9 rounded-md px-2.5 py-1 text-xs font-medium transition-colors sm:min-h-0",
                 channel === c
                   ? "bg-secondary text-secondary-foreground"
                   : "text-muted-foreground hover:text-foreground",

@@ -44,15 +44,15 @@ export function UpcomingBookings() {
   const next = active.filter((b) => new Date(b.ends_at).getTime() >= loadedAt).slice(0, SHOWN)
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5">
+    <div className="min-w-0 rounded-xl border border-border bg-card p-4 sm:p-5">
       <div className="mb-4 flex items-center justify-between gap-3">
-        <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+        <h3 className="flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">
           <CalendarClock className="size-4 text-primary" />
           {t('title')}
         </h3>
         <Link
           href="/agenda"
-          className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline"
+          className="inline-flex shrink-0 items-center gap-1 py-2 text-xs font-medium text-primary hover:underline"
         >
           {t('viewAll')}
           <ArrowRight className="size-3" />

@@ -483,7 +483,7 @@ export function AiConfig() {
             </div>
 
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">
                   {t('enableAssistant')}
                 </p>
@@ -499,7 +499,7 @@ export function AiConfig() {
             </div>
 
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">
                   {t('autoReply')}
                 </p>
@@ -514,8 +514,8 @@ export function AiConfig() {
               />
             </div>
 
-            <div className="flex items-center justify-between gap-4">
-              <div>
+            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+              <div className="min-w-0 flex-1 basis-56">
                 <Label htmlFor="ai-max">{t('maxAutoReplies')}</Label>
                 <p className="text-xs text-muted-foreground">
                   {t('maxAutoRepliesDesc')}
@@ -548,7 +548,7 @@ export function AiConfig() {
             </div>
 
             <div className="flex items-center justify-between gap-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <Label htmlFor="ai-reply-delay">{t('replyDelay')}</Label>
                 <p className="text-xs text-muted-foreground">
                   {t('replyDelayDesc')}
@@ -571,7 +571,7 @@ export function AiConfig() {
             </div>
 
             <div className="flex items-center justify-between gap-4">
-              <div>
+              <div className="min-w-0 flex-1">
                 <Label htmlFor="ai-temperature">{t('temperature')}</Label>
                 <p className="text-xs text-muted-foreground">
                   {t('temperatureDesc')}
@@ -621,7 +621,7 @@ export function AiConfig() {
             </div>
 
             <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div>
+              <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-foreground">
                   {t('handoffOnMissingInfo')}
                 </p>
@@ -678,7 +678,7 @@ export function AiConfig() {
 
         <AiFaqCard accountId={accountId} canEdit={canEdit} />
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           {configured ? (
             <Button
               variant="ghost"

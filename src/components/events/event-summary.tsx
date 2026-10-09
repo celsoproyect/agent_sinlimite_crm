@@ -57,7 +57,7 @@ export function EventSummary({ bookings, settings }: Props) {
           <p className="mt-1 break-words text-2xl font-semibold text-foreground">{formatMoney(stats.deposits, settings.currency, locale)}</p>
         </div>
       </div>
-      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+      <div className="grid gap-2 sm:grid-cols-2 md:grid-cols-3 xl:grid-cols-6">
         {EVENT_COLUMNS.map((s) => (
           <div key={s} className="flex items-center justify-between gap-2 rounded-lg border border-border bg-card px-3 py-2">
             <span className={`rounded px-2 py-0.5 text-xs font-medium ${EVENT_STATUS_TONE[s]}`}>{t(`status.${s}`)}</span>

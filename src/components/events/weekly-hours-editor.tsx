@@ -30,19 +30,19 @@ export function WeeklyHoursEditor({ value, onChange }: { value: WeeklyHours; onC
             <Switch checked={!!d} onCheckedChange={(checked) => set(day, checked ? { ...DEFAULT_OPEN } : null)} />
             <span className="min-w-20 text-left text-xs font-medium text-foreground">{tDays(day)}</span>
             {d ? (
-              <div className="flex flex-1 items-center gap-1.5">
+              <div className="flex min-w-[12rem] flex-1 items-center gap-1.5">
                 <Input
                   type="time"
                   value={d.open}
                   onChange={(e) => set(day, { ...d, open: e.target.value })}
-                  className="h-8 border-border bg-background text-xs text-foreground"
+                  className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                 />
                 <span className="text-xs text-muted-foreground">–</span>
                 <Input
                   type="time"
                   value={d.close}
                   onChange={(e) => set(day, { ...d, close: e.target.value })}
-                  className="h-8 border-border bg-background text-xs text-foreground"
+                  className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                 />
               </div>
             ) : (

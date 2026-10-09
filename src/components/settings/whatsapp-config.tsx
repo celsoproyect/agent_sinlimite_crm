@@ -437,9 +437,9 @@ export function WhatsAppConfig() {
         title={t("title")}
         description={t("description")}
       />
-      <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
       {/* Main config form */}
-      <div className="space-y-6">
+      <div className="min-w-0 space-y-6">
         {/* Corrupted-token reset banner */}
         {showResetBanner && (
           <Alert className="bg-amber-950/40 border-amber-600/40">
@@ -509,7 +509,7 @@ export function WhatsAppConfig() {
             }
           >
             <div className="flex items-center justify-between gap-2 flex-wrap">
-              <div className="flex items-center gap-2">
+              <div className="flex min-w-0 items-center gap-2">
                 {isRegistered ? (
                   <CheckCircle2 className="size-4 text-emerald-400" />
                 ) : (
@@ -530,7 +530,7 @@ export function WhatsAppConfig() {
                 size="sm"
                 onClick={handleVerifyRegistration}
                 disabled={verifyingRegistration}
-                className="border-border bg-transparent text-foreground hover:bg-muted h-7"
+                className="border-border bg-transparent text-foreground hover:bg-muted h-7 pointer-coarse:h-9"
               >
                 {verifyingRegistration ? (
                   <Loader2 className="size-3.5 animate-spin" />
@@ -582,14 +582,14 @@ export function WhatsAppConfig() {
                       ) : (
                         <span className="size-3 rounded-full border border-border shrink-0" />
                       )}
-                      <code className="text-muted-foreground">{k}</code>
+                      <code className="min-w-0 break-all text-muted-foreground">{k}</code>
                     </li>
                   ))}
                 </ul>
                 {(registrationProbe.errors ?? []).length > 0 && (
                   <ul className="pt-1 space-y-0.5 text-red-300">
                     {registrationProbe.errors?.map((e, i) => (
-                      <li key={i}>• {e}</li>
+                      <li key={i} className="break-words">• {e}</li>
                     ))}
                   </ul>
                 )}
@@ -649,7 +649,7 @@ export function WhatsAppConfig() {
                 <button
                   type="button"
                   onClick={() => setShowToken(!showToken)}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  className="absolute right-0.5 top-1/2 flex size-9 -translate-y-1/2 items-center justify-center rounded-md text-muted-foreground hover:text-foreground transition-colors"
                 >
                   {showToken ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
                 </button>
@@ -712,7 +712,7 @@ export function WhatsAppConfig() {
                 <Input
                   readOnly
                   value={webhookUrl}
-                  className="bg-muted border-border text-muted-foreground font-mono text-sm"
+                  className="min-w-0 bg-muted border-border text-muted-foreground font-mono text-sm"
                 />
                 <Button
                   variant="outline"
@@ -740,7 +740,7 @@ export function WhatsAppConfig() {
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-                <div>
+                <div className="min-w-0">
                   <p className="text-sm font-medium text-foreground">
                     {t('mirrorInbound')}
                   </p>
@@ -822,7 +822,7 @@ export function WhatsAppConfig() {
       </div>
 
       {/* Setup Instructions Sidebar */}
-      <div>
+      <div className="min-w-0">
         <Card>
           <CardHeader>
             <CardTitle className="text-foreground text-base">{t('setupInstructions')}</CardTitle>
@@ -840,7 +840,7 @@ export function WhatsAppConfig() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <ol className="list-decimal list-inside space-y-1 text-sm break-words">
                     <li dangerouslySetInnerHTML={{ __html: t('step1_1') }} />
                     <li>{t('step1_2')}</li>
                     <li>{t('step1_3')}</li>
@@ -857,7 +857,7 @@ export function WhatsAppConfig() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <ol className="list-decimal list-inside space-y-1 text-sm break-words">
                     <li>{t('step2_1')}</li>
                     <li>{t('step2_2')}</li>
                     <li>{t('step2_3')}</li>
@@ -873,7 +873,7 @@ export function WhatsAppConfig() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <ol className="list-decimal list-inside space-y-1 text-sm break-words">
                     <li>{t('step3_1')}</li>
                     <li dangerouslySetInnerHTML={{ __html: t.raw('step3_2') }} />
                     <li dangerouslySetInnerHTML={{ __html: t.raw('step3_3') }} />
@@ -890,7 +890,7 @@ export function WhatsAppConfig() {
                   </span>
                 </AccordionTrigger>
                 <AccordionContent className="text-muted-foreground">
-                  <ol className="list-decimal list-inside space-y-1 text-sm">
+                  <ol className="list-decimal list-inside space-y-1 text-sm break-words">
                     <li>{t('step4_1')}</li>
                     <li>{t('step4_2')}</li>
                     <li dangerouslySetInnerHTML={{ __html: t.raw('step4_3') }} />

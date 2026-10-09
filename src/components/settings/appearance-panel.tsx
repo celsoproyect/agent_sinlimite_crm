@@ -149,13 +149,13 @@ function LocaleCard({
       aria-checked={isActive}
       aria-label={t("useLanguage", { name })}
       className={cn(
-        "flex items-center gap-3 rounded-lg border bg-card p-4 text-left transition-colors disabled:opacity-60",
+        "flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 text-left transition-colors disabled:opacity-60 sm:gap-3 sm:p-4",
         isActive
           ? "border-primary/60 ring-2 ring-primary/40"
           : "border-border hover:border-border hover:bg-muted/40",
       )}
     >
-      <span className="flex-1 text-sm font-semibold text-foreground">
+      <span className="min-w-0 flex-1 text-sm font-semibold break-words text-foreground">
         {name}
       </span>
       {isActive && (
@@ -188,7 +188,7 @@ function ModeCard({
       aria-checked={isActive}
       aria-label={t("useMode", { mode })}
       className={cn(
-        "flex items-center gap-3 rounded-lg border bg-card p-4 text-left transition-colors",
+        "flex flex-wrap items-center gap-2 rounded-lg border bg-card p-3 text-left transition-colors sm:gap-3 sm:p-4",
         isActive
           ? "border-primary/60 ring-2 ring-primary/40"
           : "border-border hover:border-border hover:bg-muted/40",
@@ -200,7 +200,7 @@ function ModeCard({
       >
         <Icon className="h-4 w-4" />
       </span>
-      <span className="flex-1 text-sm font-semibold capitalize text-foreground">
+      <span className="min-w-0 flex-1 text-sm font-semibold capitalize break-words text-foreground">
         {mode}
       </span>
       {isActive && (

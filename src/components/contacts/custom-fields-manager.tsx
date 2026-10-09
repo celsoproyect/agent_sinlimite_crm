@@ -186,7 +186,7 @@ export function CustomFieldsPanel() {
             }
           }}
           placeholder={t('fieldName')}
-          className="bg-muted text-foreground"
+          className="min-w-0 bg-muted text-foreground"
         />
         <Button
           onClick={handleCreate}
@@ -275,7 +275,7 @@ function FieldRow({
         disabled={busy}
         onClick={() => onDelete(field)}
         title={t('deleteTitle')}
-        className="shrink-0 text-muted-foreground hover:text-red-400"
+        className="shrink-0 text-muted-foreground hover:text-red-400 max-sm:size-10"
       >
         {busy ? (
           <Loader2 className="size-4 animate-spin" />

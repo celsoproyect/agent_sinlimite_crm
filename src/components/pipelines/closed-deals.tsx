@@ -143,7 +143,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
 
   const chip = (active: boolean) =>
     cn(
-      "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+      "rounded-full border px-3 py-2 text-xs font-medium transition-colors sm:py-1",
       active
         ? "border-primary bg-primary text-primary-foreground"
         : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -204,7 +204,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
                   type="date"
                   value={custom.from}
                   onChange={(e) => setCustom({ ...custom, from: e.target.value })}
-                  className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                  className="h-10 min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8"
                 />
               </label>
               <label className="flex flex-col gap-1 text-xs text-muted-foreground">
@@ -214,7 +214,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
                   value={custom.to}
                   min={custom.from}
                   onChange={(e) => setCustom({ ...custom, to: e.target.value })}
-                  className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+                  className="h-10 min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8"
                 />
               </label>
             </>
@@ -224,7 +224,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as StatusFilter)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+              className="h-10 min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8"
             >
               <option value="all">{t("statusAll")}</option>
               <option value="won">{t("won")}</option>
@@ -236,7 +236,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
             <select
               value={reason}
               onChange={(e) => setReason(e.target.value)}
-              className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+              className="h-10 min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8"
             >
               <option value="all">{t("reasonAll")}</option>
               {LOST_REASONS.map((r) => (
@@ -253,7 +253,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder={t("search")}
-              className="h-8 w-full rounded-md border border-border bg-background pr-2 pl-8 text-sm text-foreground"
+              className="h-10 w-full rounded-md border border-border bg-background pr-2 pl-8 text-sm text-foreground sm:h-8"
             />
           </div>
         </div>
@@ -310,7 +310,7 @@ export function ClosedDeals({ deals, onOpenDeal, onReopen }: ClosedDealsProps) {
                       disabled={reopening === d.id}
                       title={t("reopen")}
                       aria-label={t("reopen")}
-                      className="inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground hover:bg-muted hover:text-foreground disabled:opacity-60"
+                      className="inline-flex min-h-10 min-w-10 shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-xs text-muted-foreground sm:min-h-0 sm:min-w-0 hover:bg-muted hover:text-foreground disabled:opacity-60"
                     >
                       {reopening === d.id ? (
                         <Loader2 className="size-3.5 animate-spin" />

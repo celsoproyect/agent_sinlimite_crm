@@ -49,7 +49,7 @@ export function SampleDataBar({ module, hasSamples, onChanged }: SampleDataBarPr
   return (
     <div className="flex flex-wrap items-center gap-2 rounded-lg border border-dashed border-border p-2">
       <Sparkles className="h-4 w-4 shrink-0 text-primary" />
-      <p className="min-w-0 flex-1 text-xs text-muted-foreground">{t(`hint.${module}`)}</p>
+      <p className="min-w-[12rem] flex-1 text-xs text-muted-foreground">{t(`hint.${module}`)}</p>
       <Button size="sm" variant="outline" disabled={busy} onClick={() => run("POST")} className="border-border">
         {hasSamples ? t("reload") : t("load")}
       </Button>

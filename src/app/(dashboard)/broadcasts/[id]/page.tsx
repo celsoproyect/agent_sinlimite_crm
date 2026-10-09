@@ -91,7 +91,7 @@ function FunnelChart({ steps }: { steps: FunnelStep[] }) {
               : 0;
           return (
             <div key={step.label} className="flex items-center gap-3">
-              <span className="w-20 shrink-0 text-xs text-muted-foreground">
+              <span className="w-20 shrink-0 break-words text-xs text-muted-foreground sm:w-24">
                 {step.label}
               </span>
               <div className="relative h-7 flex-1 rounded-full bg-muted">
@@ -337,26 +337,26 @@ export default function BroadcastDetailPage() {
     <div className="space-y-6">
       {/* Header */}
       <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex items-center gap-4">
+        <div className="flex min-w-0 items-center gap-3 sm:gap-4">
           <Button
             variant="outline"
             size="icon"
             onClick={() => router.push('/broadcasts')}
-            className="border-border"
+            className="shrink-0 border-border"
           >
             <ArrowLeft className="h-4 w-4" />
           </Button>
-          <div>
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-bold text-foreground">{broadcast.name}</h1>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <h1 className="min-w-0 break-words text-xl font-bold text-foreground sm:text-2xl">{broadcast.name}</h1>
               <span
                 className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-medium ${status.classes}`}
               >
                 {tStatus(status.label)}
               </span>
             </div>
-            <div className="mt-1 flex items-center gap-3 text-sm text-muted-foreground">
-              <span>{t('template', { name: broadcast.template_name })}</span>
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-sm text-muted-foreground">
+              <span className="min-w-0 break-all">{t('template', { name: broadcast.template_name })}</span>
               <span>-</span>
               <span>
                 {t('createdAt', { date: new Date(broadcast.created_at).toLocaleDateString() })}
@@ -370,7 +370,7 @@ export default function BroadcastDetailPage() {
             because orphaning in-flight Meta messages would leave the
             funnel inconsistent. */}
         {confirmDelete ? (
-          <div className="flex items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm">
+          <div className="flex flex-wrap items-center gap-2 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-sm">
             <span className="text-red-300">{t('deletePrompt')}</span>
             <Button
               variant="outline"
@@ -514,7 +514,7 @@ export default function BroadcastDetailPage() {
               ? t('recipientsHeader', { filtered: filteredRecipients.length, total: recipients.length })
               : t('recipientsHeaderAll', { total: recipients.length })}
           </h2>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={

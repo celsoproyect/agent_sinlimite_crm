@@ -253,7 +253,7 @@ export function ConversationList({
             value={search}
             onChange={handleSearchChange}
             placeholder={t("searchPlaceholder")}
-            className="border-border bg-muted pl-9 text-sm text-foreground placeholder-muted-foreground focus:border-primary/50"
+            className="border-border bg-muted pl-9 text-foreground placeholder-muted-foreground focus:border-primary/50"
           />
         </div>
 
@@ -263,7 +263,7 @@ export function ConversationList({
               key={opt.value}
               onClick={() => setOwnership(opt.value)}
               className={cn(
-                "flex-1 rounded px-2 py-1 font-medium transition-colors",
+                "min-h-9 flex-1 rounded px-2 py-1 font-medium transition-colors lg:min-h-0",
                 ownership === opt.value
                   ? "bg-card text-foreground shadow-sm"
                   : "text-muted-foreground hover:text-foreground"
@@ -276,7 +276,7 @@ export function ConversationList({
 
         <div className="flex flex-wrap items-center gap-1">
           <DropdownMenu>
-            <DropdownMenuTrigger className="inline-flex items-center justify-center h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
+            <DropdownMenuTrigger className="inline-flex items-center justify-center h-10 lg:h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground rounded-md hover:bg-muted">
                 {activeFilter?.label ?? t("filterAll")}
                 <ChevronDown className="h-3 w-3" />
             </DropdownMenuTrigger>
@@ -305,7 +305,7 @@ export function ConversationList({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "inline-flex items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  "inline-flex items-center justify-center h-10 lg:h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
                   selectedTagIds.length > 0
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"
@@ -347,7 +347,7 @@ export function ConversationList({
             <DropdownMenu>
               <DropdownMenuTrigger
                 className={cn(
-                  "inline-flex max-w-40 items-center justify-center h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
+                  "inline-flex max-w-40 items-center justify-center h-10 lg:h-7 gap-1 px-2 text-xs rounded-md hover:bg-muted",
                   selectedCompany
                     ? "text-primary"
                     : "text-muted-foreground hover:text-foreground"

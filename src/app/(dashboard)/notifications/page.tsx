@@ -173,9 +173,9 @@ export default function NotificationsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">Notifications</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl font-bold sm:text-2xl text-foreground">Notifications</h1>
           <p className="mt-1 text-sm text-muted-foreground">
             Conversations other teammates assign to you show up here.
           </p>
@@ -196,7 +196,7 @@ export default function NotificationsPage() {
       </div>
 
       {notifications.length === 0 ? (
-        <div className="flex h-48 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40">
+        <div className="flex min-h-48 flex-col items-center justify-center rounded-xl border border-dashed border-border bg-muted/40 px-4 py-6 text-center">
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
             <Bell className="h-6 w-6 text-primary" />
           </div>
@@ -219,7 +219,7 @@ export default function NotificationsPage() {
                   type="button"
                   onClick={() => handleClick(n)}
                   className={cn(
-                    "flex w-full items-start gap-3 rounded-xl border p-4 text-left transition-colors",
+                    "flex w-full items-start gap-3 rounded-xl border p-3 text-left transition-colors sm:p-4",
                     isUnread
                       ? "border-primary/30 bg-primary/5 hover:border-primary/50"
                       : "border-border bg-card hover:border-border/70",

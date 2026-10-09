@@ -122,7 +122,7 @@ export function InteractiveBuilder({
             />
           </Field>
 
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 gap-2 @xs:grid-cols-2">
             <Field
               label="Header (optional)"
               counter={`${(value.header ?? "").length}/${INTERACTIVE_LIMITS.headerTextMaxLength}`}
@@ -229,7 +229,7 @@ function ButtonsEditor({
                 value={b.id}
                 onChange={(e) => update(i, { id: slugify(e.target.value, `btn_${i + 1}`) })}
                 placeholder="id"
-                className="w-28 bg-muted font-mono text-xs"
+                className="w-20 shrink-0 bg-muted font-mono text-xs sm:w-28"
               />
             )}
             <Input
@@ -237,7 +237,7 @@ function ButtonsEditor({
               maxLength={INTERACTIVE_LIMITS.buttonTitleMaxLength}
               onChange={(e) => update(i, { title: e.target.value })}
               placeholder="Button label"
-              className="flex-1 bg-muted"
+              className="min-w-0 flex-1 bg-muted"
             />
             <span className="w-10 shrink-0 text-right text-[0.625rem] text-muted-foreground">
               {b.title.length}/{INTERACTIVE_LIMITS.buttonTitleMaxLength}
@@ -373,7 +373,7 @@ function ListEditor({
                         updateRow(sIdx, rIdx, { id: slugify(e.target.value, `row_${rIdx + 1}`) })
                       }
                       placeholder="id"
-                      className="w-24 bg-muted font-mono text-xs"
+                      className="w-20 shrink-0 bg-muted font-mono text-xs sm:w-24"
                     />
                   )}
                   <Input
@@ -381,7 +381,7 @@ function ListEditor({
                     maxLength={INTERACTIVE_LIMITS.listRowTitleMaxLength}
                     onChange={(e) => updateRow(sIdx, rIdx, { title: e.target.value })}
                     placeholder="Row title"
-                    className="flex-1 bg-muted"
+                    className="min-w-0 flex-1 bg-muted"
                   />
                   <span className="w-10 shrink-0 text-right text-[0.625rem] text-muted-foreground">
                     {row.title.length}/{INTERACTIVE_LIMITS.listRowTitleMaxLength}

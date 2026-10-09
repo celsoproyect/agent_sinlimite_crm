@@ -31,7 +31,7 @@ export function ReservationFormDialog(props: ReservationFormDialogProps) {
   const t = useTranslations("Restaurant");
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
-      <DialogContent className="border-border bg-popover max-h-[90vh] overflow-y-auto sm:max-w-lg">
+      <DialogContent className="border-border bg-popover max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("newReservation")}</DialogTitle>
         </DialogHeader>

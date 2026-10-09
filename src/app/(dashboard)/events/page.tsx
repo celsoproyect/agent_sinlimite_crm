@@ -134,8 +134,8 @@ export default function EventsPage() {
                 onClick={() => setTab(v)}
                 className={
                   tab === v
-                    ? "rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground"
-                    : "rounded px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                    ? "min-h-9 rounded bg-primary px-3 py-1 text-xs font-medium text-primary-foreground sm:min-h-0"
+                    : "min-h-9 rounded px-3 py-1 text-xs font-medium text-muted-foreground hover:text-foreground sm:min-h-0"
                 }
               >
                 {t(`tabs.${v}`)}

@@ -155,7 +155,7 @@ export function FlowBuilder() {
   }, [flashKey]);
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-6 py-7">
+    <div className="mx-auto flex max-w-3xl flex-col gap-6 px-3 py-4 sm:px-6 sm:py-7">
       <TriggerPanel
         state={state}
         setState={setState}
@@ -166,7 +166,7 @@ export function FlowBuilder() {
       <EntryPicker state={state} setState={setState} t={t} />
 
       <section className="flex flex-col gap-3">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="text-foreground text-sm font-semibold">
             {t('nodesTitle', { count: state.nodes.length })}
           </h2>
@@ -355,7 +355,7 @@ function EntryPicker({
 }) {
   if (state.nodes.length === 0) return null;
   return (
-    <section className="border-border bg-card flex items-center gap-3 rounded-lg border p-3">
+    <section className="border-border bg-card flex flex-wrap items-center gap-3 rounded-lg border p-3">
       <CornerDownRight className="text-primary h-4 w-4 shrink-0" />
       <span className="text-muted-foreground text-xs">{t('entryNodeTitle')}</span>
       <NodeKeySelect
@@ -363,7 +363,7 @@ function EntryPicker({
         nodes={state.nodes}
         onChange={(key) => setState((s) => ({ ...s, entry_node_id: key }))}
         placeholder={t('entryNodePlaceholder')}
-        className="max-w-xs flex-1"
+        className="min-w-0 max-w-xs flex-1 basis-40"
       />
     </section>
   );
@@ -428,18 +428,18 @@ function NodeCard({
       <button
         type="button"
         onClick={onToggle}
-        className="flex w-full items-center gap-3 px-4 py-3 pl-5 text-left"
+        className="flex w-full items-center gap-3 px-3 py-3 pl-4 text-left sm:px-4 sm:pl-5"
       >
         <NodeIconChip type={node.node_type} size={32} iconSize={16} />
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
             <span
               className="truncate text-[0.6875rem] font-semibold tracking-wider uppercase"
               style={{ color: c.text }}
             >
               {t(`nodes.${node.node_type}.label`)}
             </span>
-            <code className="bg-muted text-muted-foreground rounded px-1.5 py-0.5 text-[0.625rem]">
+            <code className="bg-muted text-muted-foreground max-w-full truncate rounded px-1.5 py-0.5 text-[0.625rem]">
               {node.node_key}
             </code>
             {isEntry && (
@@ -467,7 +467,7 @@ function NodeCard({
         )}
       </button>
       {expanded && (
-        <div className="border-border border-t px-4 py-4">
+        <div className="border-border border-t px-3 py-4 sm:px-4">
           <NodeConfigWithAdvanced
             node={node}
             allNodes={allNodes}
@@ -475,7 +475,7 @@ function NodeCard({
             onUpdateConfig={onUpdateConfig}
             t={t}
           />
-          <div className="border-border mt-4 flex items-center justify-between border-t pt-3">
+          <div className="border-border mt-4 flex flex-wrap items-center justify-between gap-2 border-t pt-3">
             <div className="flex items-center gap-2">
               {!isEntry && (
                 <Button variant="ghost" size="sm" onClick={onSetEntry}>
@@ -595,7 +595,7 @@ function AddNodeButton({ onAdd, t }: { onAdd: (type: NodeType) => void; t: Retur
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        className="border-border bg-card text-foreground hover:bg-muted inline-flex items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors"
+        className="border-border bg-card text-foreground hover:bg-muted inline-flex min-h-10 items-center gap-1.5 rounded-md border px-3 py-1.5 text-xs font-medium transition-colors sm:min-h-0"
         aria-label={t('addNode')}
       >
         <Plus className="h-3.5 w-3.5" />

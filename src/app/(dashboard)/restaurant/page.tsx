@@ -147,8 +147,8 @@ export default function RestaurantPage() {
               onClick={() => setTab(key)}
               className={
                 tab === key
-                  ? "rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground"
-                  : "rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+                  ? "min-h-9 rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground sm:min-h-0"
+                  : "min-h-9 rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground sm:min-h-0"
               }
             >
               {t(`tabs.${key}`)}
@@ -157,11 +157,11 @@ export default function RestaurantPage() {
         </div>
 
         {dayPicker && (
-          <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
+          <div className="flex max-w-full items-center gap-1 rounded-lg border border-border bg-card p-1">
             <button
               type="button"
               onClick={() => setDay((d) => addDaysISO(d, -1))}
-              className="rounded p-1 text-muted-foreground hover:bg-muted"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-7 sm:w-7"
               aria-label={t("prevDay")}
             >
               <ChevronLeft className="h-4 w-4" />
@@ -170,12 +170,12 @@ export default function RestaurantPage() {
               type="date"
               value={day}
               onChange={(e) => e.target.value && setDay(e.target.value)}
-              className="h-7 w-36 border-0 bg-transparent px-1 text-sm"
+              className="h-9 w-36 min-w-0 border-0 bg-transparent px-1 text-sm sm:h-7"
             />
             <button
               type="button"
               onClick={() => setDay((d) => addDaysISO(d, 1))}
-              className="rounded p-1 text-muted-foreground hover:bg-muted"
+              className="flex h-9 w-9 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-7 sm:w-7"
               aria-label={t("nextDay")}
             >
               <ChevronRight className="h-4 w-4" />
@@ -183,7 +183,7 @@ export default function RestaurantPage() {
             <button
               type="button"
               onClick={() => setDay(businessToday())}
-              className="rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground"
+              className="min-h-9 shrink-0 rounded px-2 py-0.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground sm:min-h-0"
             >
               {t("today")}
             </button>

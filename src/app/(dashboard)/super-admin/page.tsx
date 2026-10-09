@@ -92,7 +92,7 @@ function SuperAdminPageInner() {
       <p className="mt-1 text-sm text-muted-foreground">{t('pageDesc')}</p>
 
       <Tabs value={tab} onValueChange={(v) => go(v as TabId)} className="mt-6">
-        <TabsList>
+        <TabsList className="justify-start">
           <TabsTrigger value="branding">
             <Palette className="mr-1.5 h-4 w-4" /> {t('tabBranding')}
           </TabsTrigger>

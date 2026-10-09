@@ -78,7 +78,7 @@ function LoginPageInner() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-background px-4 pt-[max(1.5rem,env(safe-area-inset-top))] pb-[max(1.5rem,env(safe-area-inset-bottom))]">
       <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center justify-items-center text-center">
           {inviteToken ? (
@@ -128,7 +128,7 @@ function LoginPageInner() {
             </div>
 
             <div className="flex flex-col gap-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-x-2 gap-y-1">
                 <Label htmlFor="password" className="text-muted-foreground">
                   {t('passwordLabel')}
                 </Label>

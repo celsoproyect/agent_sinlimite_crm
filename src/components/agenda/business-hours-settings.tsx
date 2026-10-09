@@ -207,7 +207,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-md bg-popover border-border">
+      <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-md bg-popover border-border">
         <DialogHeader>
           <DialogTitle className="text-popover-foreground">{t("title")}</DialogTitle>
         </DialogHeader>
@@ -256,7 +256,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                 return (
                   <div
                     key={day}
-                    className="flex items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2"
+                    className="flex flex-wrap items-center gap-2 rounded-lg border border-border/60 bg-muted/40 px-3 py-2"
                   >
                     <Switch
                       checked={d.open}
@@ -267,11 +267,11 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                         }))
                       }
                     />
-                    <span className="w-20 shrink-0 text-left text-xs font-medium text-foreground">
+                    <span className="min-w-20 flex-1 text-left text-xs font-medium text-foreground sm:w-20 sm:flex-none">
                       {t(day)}
                     </span>
                     {d.open ? (
-                      <div className="flex flex-1 items-center gap-1.5">
+                      <div className="flex min-w-[12rem] flex-1 items-center gap-1.5">
                         <Input
                           type="time"
                           value={d.openTime}
@@ -281,7 +281,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                               [day]: { ...prev[day], openTime: e.target.value },
                             }))
                           }
-                          className="h-8 border-border bg-background text-xs text-foreground"
+                          className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                         />
                         <span className="text-xs text-muted-foreground">–</span>
                         <Input
@@ -293,7 +293,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                               [day]: { ...prev[day], closeTime: e.target.value },
                             }))
                           }
-                          className="h-8 border-border bg-background text-xs text-foreground"
+                          className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                         />
                       </div>
                     ) : (
@@ -316,7 +316,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                     type="date"
                     value={newHoliday}
                     onChange={(e) => setNewHoliday(e.target.value)}
-                    className="h-8 border-border bg-background text-xs text-foreground"
+                    className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                   />
                 </div>
                 <div className="grid gap-1">
@@ -326,7 +326,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                     value={newHolidayTo}
                     min={newHoliday || undefined}
                     onChange={(e) => setNewHolidayTo(e.target.value)}
-                    className="h-8 border-border bg-background text-xs text-foreground"
+                    className="h-9 min-w-0 border-border bg-background text-xs text-foreground sm:h-8"
                   />
                 </div>
               </div>
@@ -377,7 +377,7 @@ export function BusinessHoursSettings({ open, onOpenChange, onSaved }: BusinessH
                       <button
                         type="button"
                         onClick={() => removeHoliday(date)}
-                        className="shrink-0 text-muted-foreground hover:text-foreground"
+                        className="inline-flex size-9 shrink-0 items-center justify-center rounded text-muted-foreground hover:bg-muted hover:text-foreground sm:size-7"
                         aria-label={t("removeHoliday")}
                       >
                         <X className="h-3.5 w-3.5" />

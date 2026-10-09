@@ -102,8 +102,8 @@ export function AiUsageCard() {
   return (
     <Card>
       <CardHeader>
-        <div className="flex items-start justify-between gap-4">
-          <div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between sm:gap-4">
+          <div className="min-w-0">
             <CardTitle className="flex items-center gap-2 text-base">
               <BarChart3 className="h-4 w-4 text-primary" /> Token usage
             </CardTitle>
@@ -116,7 +116,7 @@ export function AiUsageCard() {
             value={String(days)}
             onValueChange={(v) => setDays(Number(v))}
           >
-            <SelectTrigger className="w-32 flex-shrink-0">
+            <SelectTrigger className="w-full flex-shrink-0 sm:w-32">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -182,7 +182,7 @@ export function AiUsageCard() {
                   {data.by_model.map((m) => (
                     <li
                       key={`${m.provider}:${m.model}`}
-                      className="flex items-center justify-between px-3 py-2 text-sm"
+                      className="flex items-center justify-between gap-3 px-3 py-2 text-sm"
                     >
                       <span className="min-w-0 truncate">
                         <span className="text-foreground">{m.model}</span>{' '}

@@ -172,7 +172,7 @@ export function CatalogItemDialog({
             />
             <p className="text-xs text-muted-foreground">{t("descriptionHint")}</p>
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 gap-3 min-[400px]:grid-cols-2">
             <div className="grid gap-2">
               <Label htmlFor="catalog-item-price">{t("priceLabel")}</Label>
               <Input

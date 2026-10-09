@@ -126,7 +126,7 @@ export function BookingList({
     });
 
   return (
-    <div className="space-y-3 rounded-xl border border-border bg-card p-4">
+    <div className="space-y-3 rounded-xl border border-border bg-card p-3 sm:p-4">
       <div className="flex flex-wrap gap-1.5">
         {QUICK_RANGES.map((r) => (
           <button
@@ -134,7 +134,7 @@ export function BookingList({
             type="button"
             onClick={() => onFilterChange({ ...filter, range: r })}
             className={cn(
-              "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+              "min-h-9 rounded-full border px-3 py-1 text-xs font-medium transition-colors sm:min-h-0",
               filter.range === r
                 ? "border-primary bg-primary text-primary-foreground"
                 : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -147,7 +147,7 @@ export function BookingList({
           type="button"
           onClick={() => onFilterChange({ ...filter, range: "custom", from: range.from, to: range.to })}
           className={cn(
-            "rounded-full border px-3 py-1 text-xs font-medium transition-colors",
+            "min-h-9 rounded-full border px-3 py-1 text-xs font-medium transition-colors sm:min-h-0",
             filter.range === "custom"
               ? "border-primary bg-primary text-primary-foreground"
               : "border-border bg-background text-muted-foreground hover:text-foreground",
@@ -158,7 +158,7 @@ export function BookingList({
       </div>
 
       <div className="flex flex-wrap items-end gap-2">
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground sm:flex-none">
           {t("from")}
           <input
             type="date"
@@ -166,10 +166,10 @@ export function BookingList({
             onChange={(e) =>
               onFilterChange({ ...filter, range: "custom", from: e.target.value, to: range.to })
             }
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+            className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8 sm:w-auto"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground sm:flex-none">
           {t("to")}
           <input
             type="date"
@@ -178,17 +178,17 @@ export function BookingList({
             onChange={(e) =>
               onFilterChange({ ...filter, range: "custom", from: range.from, to: e.target.value })
             }
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+            className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8 sm:w-auto"
           />
         </label>
-        <label className="flex flex-col gap-1 text-xs text-muted-foreground">
+        <label className="flex min-w-0 flex-1 flex-col gap-1 text-xs text-muted-foreground sm:flex-none">
           {t("status")}
           <select
             value={filter.status}
             onChange={(e) =>
               onFilterChange({ ...filter, status: e.target.value as BookingStatusFilter })
             }
-            className="h-8 rounded-md border border-border bg-background px-2 text-sm text-foreground"
+            className="h-10 w-full min-w-0 rounded-md border border-border bg-background px-2 text-sm text-foreground sm:h-8 sm:w-auto"
           >
             {STATUSES.map((s) => (
               <option key={s} value={s}>
@@ -197,14 +197,14 @@ export function BookingList({
             ))}
           </select>
         </label>
-        <div className="relative min-w-48 flex-1">
+        <div className="relative w-full sm:w-auto sm:min-w-48 sm:flex-1">
           <Search className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground" />
           <input
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder={t("search")}
-            className="h-8 w-full rounded-md border border-border bg-background pr-2 pl-8 text-sm text-foreground"
+            className="h-10 w-full rounded-md border border-border bg-background pr-2 pl-8 text-sm text-foreground sm:h-8"
           />
         </div>
       </div>
@@ -228,11 +228,11 @@ export function BookingList({
                     type="button"
                     onClick={() => onBookingClick(b)}
                     className={cn(
-                      "flex w-full flex-wrap items-center gap-x-4 gap-y-1 px-3 py-2.5 text-left hover:bg-muted/50",
+                      "flex w-full flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2.5 text-left hover:bg-muted/50 sm:gap-x-4",
                       b.status === "cancelled" && "opacity-60",
                     )}
                   >
-                    <span className="w-28 shrink-0">
+                    <span className="w-24 shrink-0 sm:w-28">
                       <span className="block text-sm font-semibold tabular-nums text-foreground">
                         {businessTime(b.starts_at)}–{businessTime(b.ends_at)}
                       </span>

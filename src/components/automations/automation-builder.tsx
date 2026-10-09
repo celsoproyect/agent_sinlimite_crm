@@ -725,11 +725,11 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
       {/* Top bar. At sub-sm widths the "Active" label is hidden and the
           switch moves to the right of the save button, so the name input
           gets maximum width. */}
-      <header className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-card/80 px-3 py-3 sm:gap-3 sm:px-4">
+      <header className="flex flex-shrink-0 items-center gap-2 border-b border-border bg-card/80 px-3 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] sm:gap-3 sm:px-4">
         <button
           type="button"
           onClick={() => router.push("/automations")}
-          className="flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label={t("backToAutomations")}
         >
           <ArrowLeft className="h-4 w-4" />
@@ -761,7 +761,7 @@ export function AutomationBuilder({ initial }: { initial: BuilderInitial }) {
       {/* Canvas */}
       <div className="relative flex-1 overflow-y-auto">
         <div className="absolute inset-0 bg-[radial-gradient(circle,var(--border)_1px,transparent_1px)] [background-size:20px_20px] pointer-events-none" />
-        <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-4 py-10">
+        <div className="relative mx-auto flex max-w-2xl flex-col items-center gap-0 px-3 pt-6 pb-[calc(2.5rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-10">
           <ResourcesProvider>
             <TriggerCard
               type={state.trigger_type}
@@ -1263,7 +1263,7 @@ function AddButton({ onPick }: { onPick: (t: AutomationStepType) => void }) {
       <div className="h-4 w-[2px] bg-border" aria-hidden />
       <DropdownMenu>
         <DropdownMenuTrigger
-          className="flex h-8 w-8 items-center justify-center rounded-full border-2 border-dashed border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary data-[popup-open]:border-primary data-[popup-open]:bg-primary/20 data-[popup-open]:text-primary"
+          className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-dashed sm:h-8 sm:w-8 border-border bg-background text-muted-foreground transition-colors hover:border-primary hover:bg-primary/10 hover:text-primary data-[popup-open]:border-primary data-[popup-open]:bg-primary/20 data-[popup-open]:text-primary"
           aria-label={t("addStep")}
         >
           <Plus className="h-4 w-4" />

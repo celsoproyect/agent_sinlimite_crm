@@ -487,7 +487,7 @@ export function TemplateManager() {
         title={t('title')}
         description={t('description')}
         action={
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
               onClick={handleSyncFromMeta}
@@ -521,10 +521,10 @@ export function TemplateManager() {
             const status = templateStatusConfig[statusKey];
             return (
               <Card key={template.id}>
-                <CardContent className="flex items-start justify-between pt-4">
+                <CardContent className="flex flex-col gap-2 pt-4 sm:flex-row sm:items-start sm:justify-between">
                   <div className="space-y-2 min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-medium text-foreground">{template.name}</h3>
+                      <h3 className="min-w-0 break-all font-medium text-foreground">{template.name}</h3>
                       <Badge
                         className={`text-xs border ${categoryColors[template.category] || ''}`}
                       >
@@ -564,13 +564,13 @@ export function TemplateManager() {
                     {(template.rejection_reason || template.submission_error) && (
                       <div className="flex items-start gap-1.5 text-xs text-red-400 bg-red-950/20 border border-red-900/40 rounded px-2 py-1.5">
                         <AlertCircle className="size-3.5 mt-0.5 shrink-0" />
-                        <span>
+                        <span className="min-w-0 break-words">
                           {template.rejection_reason || template.submission_error}
                         </span>
                       </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-1 shrink-0 ml-2">
+                  <div className="flex items-center gap-1 shrink-0 self-end sm:ml-2 sm:self-auto">
                     {statusKey === 'APPROVED' && (
                       <Button
                         variant="ghost"
@@ -578,7 +578,7 @@ export function TemplateManager() {
                         onClick={() => openEdit(template)}
                         title={t('editTitle')}
                         aria-label={t('editLabel')}
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2 pointer-coarse:h-9"
                       >
                         <Pencil className="size-3.5" />
                         {t('edit')}
@@ -591,7 +591,7 @@ export function TemplateManager() {
                         onClick={() => openEdit(template)}
                         title={t('resubmitTitle')}
                         aria-label={t('resubmitLabel')}
-                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2"
+                        className="text-muted-foreground hover:text-primary hover:bg-primary/10 h-8 px-2 pointer-coarse:h-9"
                       >
                         <RotateCcw className="size-3.5" />
                         {t('resubmit')}
@@ -612,7 +612,7 @@ export function TemplateManager() {
                           ? t('deleteMetaLocallyTitle')
                           : t('deleteLocallyTitle')
                       }
-                      className="text-muted-foreground hover:text-red-400 hover:bg-red-950/30 h-8 w-8"
+                      className="text-muted-foreground hover:text-red-400 hover:bg-red-950/30 size-8 pointer-coarse:size-10"
                     >
                       {deletingId === template.id ? (
                         <Loader2 className="size-4 animate-spin" />
@@ -638,7 +638,7 @@ export function TemplateManager() {
           }
         }}
       >
-        <DialogContent className="bg-popover border-border sm:max-w-2xl max-h-[90vh] overflow-y-auto">
+        <DialogContent className="bg-popover border-border sm:max-w-2xl max-h-[calc(100dvh-2rem)] overflow-y-auto">
           <DialogHeader>
             <DialogTitle className="text-popover-foreground">
               {editingId ? t('dialogEditTitle') : t('dialogNewTitle')}
@@ -674,7 +674,7 @@ export function TemplateManager() {
               </p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label className="text-muted-foreground">{t('category')}</Label>
                 <Select
@@ -802,7 +802,7 @@ export function TemplateManager() {
               {headerNeedsMedia && (
                 <div className="space-y-2 mt-2">
                   {form.header_format === 'image' && (
-                    <div className="flex items-center gap-2">
+                    <div className="flex flex-wrap items-center gap-2">
                       <input
                         ref={headerFileRef}
                         type="file"
@@ -846,7 +846,7 @@ export function TemplateManager() {
                     <img
                       src={form.header_media_url}
                       alt="Header sample"
-                      className="max-h-28 rounded-md border border-border object-contain"
+                      className="max-h-28 max-w-full rounded-md border border-border object-contain"
                     />
                   )}
                   <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
@@ -919,7 +919,7 @@ export function TemplateManager() {
             </div>
 
             <div className="space-y-2">
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-2">
                 <Label className="text-muted-foreground">{t('buttons')}</Label>
                 <Button
                   type="button"
@@ -927,7 +927,7 @@ export function TemplateManager() {
                   size="sm"
                   onClick={addButton}
                   disabled={form.buttons.length >= TEMPLATE_LIMITS.maxButtonsTotal}
-                  className="border-border bg-transparent text-muted-foreground hover:bg-muted h-7 text-xs"
+                  className="border-border bg-transparent text-muted-foreground hover:bg-muted h-7 text-xs pointer-coarse:h-9"
                 >
                   <Plus className="size-3" />
                   {t('addButton')}
@@ -944,7 +944,7 @@ export function TemplateManager() {
                       key={i}
                       className="space-y-2 rounded border border-border bg-muted/50 p-2"
                     >
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
                         <Select
                           value={btn.type}
                           onValueChange={(val) => {
@@ -955,7 +955,7 @@ export function TemplateManager() {
                             changeButtonType(i, val as TemplateButton['type']);
                           }}
                         >
-                          <SelectTrigger className="w-40 bg-muted border-border text-foreground h-8 text-xs">
+                          <SelectTrigger className="w-full bg-muted border-border text-foreground h-8 text-base pointer-coarse:h-10 sm:w-40 sm:text-xs">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent className="bg-popover border-border">
@@ -992,14 +992,14 @@ export function TemplateManager() {
                           onChange={(e) =>
                             updateButton(i, { text: e.target.value })
                           }
-                          className="flex-1 bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs"
+                          className="min-w-0 flex-1 bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-base pointer-coarse:h-10 sm:text-xs"
                         />
                         <Button
                           type="button"
                           variant="ghost"
                           size="icon"
                           onClick={() => removeButton(i)}
-                          className="text-muted-foreground hover:text-red-400 hover:bg-red-950/30 size-7"
+                          className="text-muted-foreground hover:text-red-400 hover:bg-red-950/30 size-7 shrink-0 pointer-coarse:size-10"
                         >
                           <X className="size-3.5" />
                         </Button>
@@ -1012,7 +1012,7 @@ export function TemplateManager() {
                             onChange={(e) =>
                               updateButton(i, { url: e.target.value })
                             }
-                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs"
+                            className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-base pointer-coarse:h-10 sm:text-xs"
                           />
                           {extractVariableIndices(btn.url).length > 0 && (
                             <Input
@@ -1021,7 +1021,7 @@ export function TemplateManager() {
                               onChange={(e) =>
                                 updateButton(i, { example: e.target.value })
                               }
-                              className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs"
+                              className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-base pointer-coarse:h-10 sm:text-xs"
                             />
                           )}
                         </div>
@@ -1033,7 +1033,7 @@ export function TemplateManager() {
                           onChange={(e) =>
                             updateButton(i, { phone_number: e.target.value })
                           }
-                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs"
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-base pointer-coarse:h-10 sm:text-xs"
                         />
                       )}
                       {btn.type === 'COPY_CODE' && (
@@ -1043,7 +1043,7 @@ export function TemplateManager() {
                           onChange={(e) =>
                             updateButton(i, { example: e.target.value })
                           }
-                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-xs"
+                          className="bg-muted border-border text-foreground placeholder:text-muted-foreground h-8 text-base pointer-coarse:h-10 sm:text-xs"
                         />
                       )}
                     </div>

@@ -105,7 +105,7 @@ function MediaActionButton({
 
 function MediaPlaceholder({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-40 w-60 items-center justify-center rounded-lg bg-muted">
+    <div className="flex h-40 w-60 max-w-full items-center justify-center rounded-lg bg-muted">
       {children}
     </div>
   );
@@ -234,7 +234,7 @@ export function MediaAudioBubble({
 
   return (
     <div className="flex items-center gap-2">
-      <audio src={message.media_url} controls className="max-w-60" />
+      <audio src={message.media_url} controls className="max-w-full sm:max-w-60" />
       <MediaActionButton
         icon={Download}
         label={t("download")}

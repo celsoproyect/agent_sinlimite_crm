@@ -58,11 +58,11 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
 
   return (
     <section className="rounded-xl border border-border bg-card">
-      <header className="flex items-center justify-between border-b border-border px-5 py-4">
+      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-4 sm:px-5">
         <h2 className="text-sm font-semibold text-foreground">{t('title')}</h2>
         <Link
           href="/inbox"
-          className="text-xs font-medium text-primary hover:text-primary/80"
+          className="shrink-0 py-2 text-xs font-medium text-primary hover:text-primary/80"
         >
           {t('viewAll')}
         </Link>
@@ -93,7 +93,7 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
               // (bg-card/40 vanishes against a white card surface in light).
               const stripe = i % 2 === 0 ? 'bg-transparent' : 'bg-muted/40'
               const row = (
-                <div className="flex items-center gap-3 px-5 py-2.5">
+                <div className="flex min-h-11 items-center gap-3 px-4 py-2.5 sm:px-5">
                   <span
                     className={cn(
                       'flex h-7 w-7 flex-shrink-0 items-center justify-center rounded-full',
@@ -123,7 +123,7 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
               )
             })}
           </ul>
-          <footer className="flex items-center justify-between border-t border-border px-5 py-3 text-xs">
+          <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-xs sm:px-5">
             <span className="text-muted-foreground tabular-nums">
               {t('showingOf', { visible: visible.length, totalLoaded, plus: totalLoaded === 50 ? '+' : '' })}
             </span>
@@ -138,7 +138,7 @@ export function ActivityFeed({ items, loading }: ActivityFeedProps) {
                     onClick={() => setPageSize(size)}
                     disabled={disabled}
                     className={cn(
-                      'rounded-md px-2 py-1 font-medium tabular-nums transition-colors',
+                      'min-h-9 min-w-9 rounded-md px-2 py-1 font-medium tabular-nums transition-colors sm:min-h-0 sm:min-w-0',
                       pageSize === size
                         ? 'bg-secondary text-secondary-foreground'
                         : 'text-muted-foreground hover:bg-muted hover:text-foreground',

@@ -216,7 +216,7 @@ export default function AgendaPage() {
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-3">
+        <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
           <Calendar className="h-5 w-5 text-primary" />
           <h1 className="text-lg font-semibold text-foreground">{t("title")}</h1>
           <div className="flex items-center gap-1 rounded-lg border border-border bg-card p-1">
@@ -229,8 +229,8 @@ export default function AgendaPage() {
                   onClick={() => setView(v)}
                   className={
                     view === v
-                      ? "flex items-center gap-1 rounded bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground"
-                      : "flex items-center gap-1 rounded px-2 py-0.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                      ? "flex min-h-9 items-center gap-1 rounded bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground sm:min-h-0 sm:py-0.5"
+                      : "flex min-h-9 items-center gap-1 rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground sm:min-h-0 sm:py-0.5"
                   }
                 >
                   <Icon className="h-3.5 w-3.5" />
@@ -244,7 +244,7 @@ export default function AgendaPage() {
               <button
                 type="button"
                 onClick={() => setWeekStart((d) => addDaysISO(d, -7))}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-7 sm:w-7"
                 aria-label={t("prevWeek")}
               >
                 <ChevronLeft className="h-4 w-4" />
@@ -252,14 +252,14 @@ export default function AgendaPage() {
               <button
                 type="button"
                 onClick={() => setWeekStart(mondayOf(businessToday()))}
-                className="px-2 text-xs font-medium text-foreground hover:text-primary"
+                className="min-h-9 px-2 text-xs font-medium text-foreground hover:text-primary sm:min-h-0"
               >
                 {t("today")}
               </button>
               <button
                 type="button"
                 onClick={() => setWeekStart((d) => addDaysISO(d, 7))}
-                className="rounded p-1 text-muted-foreground hover:bg-muted"
+                className="flex h-9 w-9 items-center justify-center rounded text-muted-foreground hover:bg-muted sm:h-7 sm:w-7"
                 aria-label={t("nextWeek")}
               >
                 <ChevronRight className="h-4 w-4" />
@@ -274,7 +274,7 @@ export default function AgendaPage() {
               value={doctorFilter}
               onChange={(e) => setDoctorFilter(e.target.value)}
               aria-label={t("doctorFilter")}
-              className="h-8 max-w-56 rounded-lg border border-border bg-card px-2 text-sm text-foreground"
+              className="h-10 w-full min-w-0 rounded-lg border border-border bg-card px-2 text-sm text-foreground sm:h-8 sm:w-auto sm:max-w-56"
             >
               <option value="">{t("allDoctors")}</option>
               <option value={NO_DOCTOR}>{t("noDoctorFilter")}</option>
@@ -287,7 +287,7 @@ export default function AgendaPage() {
           )}
         </div>
 
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
           {clinicModule && (
             <GatedButton
               variant="outline"
@@ -355,7 +355,7 @@ export default function AgendaPage() {
               setDoctorFilter(NO_DOCTOR);
               setView("list");
             }}
-            className="rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700"
+            className="min-h-9 rounded bg-amber-600 px-2.5 py-1 text-xs font-medium text-white hover:bg-amber-700 sm:min-h-0"
           >
             {t("unassignedView")}
           </button>
@@ -365,7 +365,7 @@ export default function AgendaPage() {
       <BookingStats refreshKey={refreshKey} onPick={pickStat} />
 
       {view === "week" ? (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[1fr_280px]">
+        <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_280px]">
           <AgendaCalendar
             weekStart={weekStart}
             bookings={visibleBookings}

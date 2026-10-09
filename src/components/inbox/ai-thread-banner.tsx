@@ -141,7 +141,7 @@ export function AiThreadBanner({
   if (paused) {
     return (
       <Banner tone="warning">
-        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-600 dark:text-amber-400" />
+        <AlertTriangle className="h-4 w-4 flex-shrink-0 text-amber-500" />
         <div className="min-w-0 flex-1">
           <p className="text-sm font-medium text-foreground">{t("pausedTitle")}</p>
           {handoffSummary && (
@@ -186,11 +186,11 @@ function Banner({
   return (
     <div
       className={cn(
-        "flex items-center gap-3 border-b px-3 py-2 text-xs sm:px-4",
+        "flex flex-wrap items-center gap-x-3 gap-y-1.5 border-b px-3 py-2 text-xs sm:px-4",
         tone === "primary" && "border-primary/20 bg-primary/5",
         tone === "muted" && "border-border bg-muted/40",
         tone === "warning" &&
-          "border-amber-300 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/40",
+          "border-amber-500/40 bg-amber-500/10",
       )}
     >
       {children}
@@ -217,7 +217,7 @@ function BannerButton({
       onClick={onClick}
       disabled={busy}
       className={cn(
-        "inline-flex flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 font-medium transition-colors disabled:opacity-60",
+        "inline-flex min-h-10 flex-shrink-0 items-center gap-1 rounded-md border px-2.5 py-1 font-medium transition-colors disabled:opacity-60 lg:min-h-0",
         tone === "warning"
           ? "border-amber-500 bg-amber-500 text-white hover:bg-amber-600"
           : "border-border bg-card text-foreground hover:bg-muted",

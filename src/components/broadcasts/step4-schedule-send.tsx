@@ -115,10 +115,10 @@ export function Step4ScheduleSend({
       {/* Summary Card */}
       <div className="rounded-xl border border-border bg-card/50 p-4 space-y-3">
         <p className="text-sm font-medium text-foreground">{t('scheduleSend.summary')}</p>
-        <div className="grid grid-cols-2 gap-3 text-sm">
+        <div className="grid grid-cols-1 gap-3 text-sm min-[400px]:grid-cols-2">
           <div>
             <p className="text-xs text-muted-foreground">{t('scheduleSend.template')}</p>
-            <p className="text-foreground">{template.name}</p>
+            <p className="break-all text-foreground">{template.name}</p>
           </div>
           <div>
             <p className="text-xs text-muted-foreground">{t('scheduleSend.audience')}</p>
@@ -174,7 +174,7 @@ export function Step4ScheduleSend({
           {t('back')}
         </Button>
 
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           {onSaveDraft && (
             <Button
               variant="outline"

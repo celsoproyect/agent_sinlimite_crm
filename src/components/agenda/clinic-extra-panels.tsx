@@ -220,14 +220,14 @@ export function ClinicServicesPanel({
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(null)}
-                    className="rounded px-2 py-1 text-muted-foreground hover:bg-muted"
+                    className="min-h-9 rounded px-2 py-1 sm:min-h-0 text-muted-foreground hover:bg-muted"
                   >
                     {t("cancel")}
                   </button>
                   <button
                     type="button"
                     onClick={() => remove(s.id)}
-                    className="rounded bg-red-600 px-2 py-1 font-medium text-white hover:bg-red-700"
+                    className="min-h-9 rounded bg-red-600 px-2 py-1 sm:min-h-0 font-medium text-white hover:bg-red-700"
                   >
                     {t("delete")}
                   </button>
@@ -237,7 +237,7 @@ export function ClinicServicesPanel({
                   <button
                     type="button"
                     onClick={() => setDraft(serviceDraft(s))}
-                    className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                    className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground"
                     aria-label={t("edit")}
                   >
                     <Pencil className="h-4 w-4" />
@@ -245,7 +245,7 @@ export function ClinicServicesPanel({
                   <button
                     type="button"
                     onClick={() => setConfirmDeleteId(s.id)}
-                    className="rounded p-1.5 text-red-400 hover:bg-muted hover:text-red-300"
+                    className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-red-400 hover:bg-muted hover:text-red-300"
                     aria-label={t("delete")}
                   >
                     <Trash2 className="h-4 w-4" />
@@ -419,7 +419,7 @@ export function ClinicTimeOffSection({
               <button
                 type="button"
                 onClick={() => remove(r.id)}
-                className="rounded p-1 text-red-400 hover:bg-muted hover:text-red-300"
+                className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-red-400 hover:bg-muted hover:text-red-300"
                 aria-label={t("delete")}
               >
                 <Trash2 className="h-3.5 w-3.5" />
@@ -435,7 +435,7 @@ export function ClinicTimeOffSection({
             type="date"
             value={from}
             onChange={(e) => setFrom(e.target.value)}
-            className="h-8 border-border bg-muted text-foreground"
+            className="h-10 border-border bg-muted text-foreground sm:h-8"
           />
         </div>
         <div className="grid gap-1">
@@ -445,7 +445,7 @@ export function ClinicTimeOffSection({
             value={to}
             min={from}
             onChange={(e) => setTo(e.target.value)}
-            className="h-8 border-border bg-muted text-foreground"
+            className="h-10 border-border bg-muted text-foreground sm:h-8"
           />
         </div>
         <div className="grid gap-1">
@@ -454,10 +454,10 @@ export function ClinicTimeOffSection({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={t("timeOffReasonPlaceholder")}
-            className="h-8 border-border bg-muted text-foreground"
+            className="h-10 border-border bg-muted text-foreground sm:h-8"
           />
         </div>
-        <Button size="sm" onClick={add} disabled={saving || !from} className="bg-primary text-primary-foreground">
+        <Button size="sm" onClick={add} disabled={saving || !from} className="h-10 bg-primary text-primary-foreground sm:h-7">
           <Plus className="mr-1 h-4 w-4" />
           {t("add")}
         </Button>

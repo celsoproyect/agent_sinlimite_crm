@@ -33,6 +33,24 @@ li { margin-bottom: 6px; }
 a { color: var(--accent); }
 footer { max-width: 760px; margin: 0 auto; padding-block: 24px 40px; border-top: 1px solid var(--line); color: var(--muted); font-size: 14px; display: flex; flex-wrap: wrap; justify-content: space-between; gap: 10px; }
 footer a { color: var(--muted); }
+/* Responsive: safe areas, long words, 44px touch targets */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  padding-left: max(clamp(16px, 5vw, 20px), env(safe-area-inset-left, 0px));
+  padding-right: max(clamp(16px, 5vw, 20px), env(safe-area-inset-right, 0px));
+  overflow-wrap: break-word; overflow-x: clip;
+}
+h1, h2 { overflow-wrap: break-word; }
+h2 { font-size: clamp(19px, 1rem + 1vw, 22px); }
+main { padding-block: clamp(28px, 4vw + 12px, 40px) clamp(48px, 6vw + 24px, 72px); }
+.brand, .back { display: inline-flex; align-items: center; min-height: 44px; }
+.brand img { height: clamp(32px, 6vw + 10px, 36px); }
+footer { padding-bottom: calc(40px + env(safe-area-inset-bottom, 0px)); }
+footer a { display: inline-flex; align-items: center; min-height: 44px; }
+img { max-width: 100%; height: auto; }
+.tbl { max-width: 100%; -webkit-overflow-scrolling: touch; overscroll-behavior-x: contain; }
+@media (max-width: 520px) { table { font-size: 14px; } th, td { padding: 9px 10px; } }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }
 </style>
 </head>
 <body>

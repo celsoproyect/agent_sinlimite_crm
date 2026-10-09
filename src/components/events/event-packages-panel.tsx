@@ -122,10 +122,10 @@ export function EventPackagesPanel({ packages, halls, settings, canEdit, onChang
                 </div>
                 {canEdit && (
                   <div className="flex shrink-0 gap-1">
-                    <button type="button" onClick={() => setDraft(toDraft(p))} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("common.edit")}>
+                    <button type="button" onClick={() => setDraft(toDraft(p))} className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("common.edit")}>
                       <Pencil className="h-4 w-4" />
                     </button>
-                    <button type="button" onClick={() => remove(p)} className="rounded p-1.5 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label={t("common.delete")}>
+                    <button type="button" onClick={() => remove(p)} className="inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-destructive" aria-label={t("common.delete")}>
                       <Trash2 className="h-4 w-4" />
                     </button>
                   </div>
@@ -144,7 +144,7 @@ export function EventPackagesPanel({ packages, halls, settings, canEdit, onChang
       )}
 
       <Dialog open={!!draft} onOpenChange={(open) => !open && setDraft(null)}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto border-border bg-popover sm:max-w-lg">
+        <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-popover sm:max-w-lg">
           <DialogHeader>
             <DialogTitle className="text-popover-foreground">{draft?.id ? t("packages.edit") : t("packages.add")}</DialogTitle>
           </DialogHeader>

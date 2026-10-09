@@ -98,10 +98,10 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
                     : 'border-border bg-card/50 hover:border-border hover:bg-card'
                 }`}
               >
-                <div className="flex items-start justify-between">
-                  <h3 className="text-sm font-medium text-foreground">{template.name}</h3>
+                <div className="flex items-start justify-between gap-2">
+                  <h3 className="min-w-0 break-all text-sm font-medium text-foreground">{template.name}</h3>
                   <span
-                    className={`inline-flex items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium ${catColor}`}
+                    className={`inline-flex shrink-0 items-center rounded-full border px-2 py-0.5 text-[0.625rem] font-medium ${catColor}`}
                   >
                     {template.category}
                   </span>
@@ -119,7 +119,7 @@ export function Step1ChooseTemplate({ selectedTemplate, onSelect, onNext, onBack
         </div>
       )}
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
         <Button variant="outline" onClick={onBack} className="border-border text-muted-foreground">
           {t('back')}
         </Button>

@@ -450,7 +450,7 @@ export function Step2SelectAudience({
         )}
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-4">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4">
         <Button
           variant="outline"
           onClick={onBack}

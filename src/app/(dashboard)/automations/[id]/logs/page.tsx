@@ -89,13 +89,13 @@ export default function AutomationLogsPage({
         <button
           type="button"
           onClick={() => router.push("/automations")}
-          className="flex h-8 w-8 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          className="flex h-10 w-10 shrink-0 items-center sm:h-8 sm:w-8 justify-center rounded-md text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           aria-label={t("backAria")}
         >
           <ArrowLeft className="h-4 w-4" />
         </button>
-        <div>
-          <h1 className="text-2xl font-bold text-foreground">{automation.name}</h1>
+        <div className="min-w-0">
+          <h1 className="truncate text-xl font-bold text-foreground sm:text-2xl">{automation.name}</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">{t("title")}</p>
         </div>
       </div>
@@ -119,7 +119,7 @@ export default function AutomationLogsPage({
                 <button
                   type="button"
                   onClick={() => setOpenLogId(isOpen ? null : log.id)}
-                  className="flex w-full items-center gap-3 px-4 py-3 text-left"
+                  className="flex w-full items-center gap-3 px-3 py-3 sm:px-4 text-left"
                 >
                   {isOpen ? (
                     <ChevronDown className="h-4 w-4 text-muted-foreground" />
@@ -136,7 +136,7 @@ export default function AutomationLogsPage({
                       {log.steps_executed?.length === 1 ? t("step", { count: 1 }).replace("1 ", "") : t("stepPlural", { count: log.steps_executed?.length ?? 0 }).replace(/^[0-9]+ /, "")}
                     </div>
                   </div>
-                  <div className="text-xs text-muted-foreground">
+                  <div className="shrink-0 text-xs text-muted-foreground">
                     {formatRelative(log.created_at)}
                   </div>
                 </button>
@@ -200,7 +200,7 @@ function StepRow({ result }: { result: AutomationLogStepResult }) {
       </span>
       <span className="text-muted-foreground">{result.step_type}</span>
       {result.detail && (
-        <span className="truncate text-muted-foreground">— {result.detail}</span>
+        <span className="min-w-0 break-words text-muted-foreground">— {result.detail}</span>
       )}
     </li>
   )

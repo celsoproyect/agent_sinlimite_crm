@@ -222,7 +222,7 @@ export function SettingsOverview({
   return (
     <section className="animate-in fade-in-50 duration-200">
       {/* Identity */}
-      <Card className="flex-row items-center gap-4 px-5 py-5">
+      <Card className="flex-row flex-wrap items-center gap-3 px-4 py-4 sm:gap-4 sm:px-5 sm:py-5">
         <Avatar size="lg" className="size-14">
           {profile?.avatar_url ? (
             <AvatarImage src={profile.avatar_url} alt={displayName} />

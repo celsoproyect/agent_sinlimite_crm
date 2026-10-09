@@ -343,7 +343,7 @@ export function ContactForm({
                       key={tag.id}
                       type="button"
                       onClick={() => toggleTag(tag.id)}
-                      className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium transition-colors cursor-pointer ${
+                      className={`inline-flex items-center rounded-full px-2.5 py-1.5 text-xs font-medium transition-colors cursor-pointer sm:py-0.5 ${
                         selected
                           ? 'ring-2 ring-primary ring-offset-1 ring-offset-border'
                           : 'opacity-60 hover:opacity-100'
