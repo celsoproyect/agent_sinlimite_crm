@@ -11,6 +11,8 @@ import {
   UsersRound,
   ToggleLeft,
   Gauge,
+  LifeBuoy,
+  CreditCard,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
@@ -22,8 +24,10 @@ import { UsersPanel } from '@/components/super-admin/users-panel';
 import { ModulesPanel } from '@/components/super-admin/modules-panel';
 import { PlatformAiPanel } from '@/components/super-admin/platform-ai-panel';
 import { AccountsAiPanel } from '@/components/super-admin/accounts-ai-panel';
+import { SupportSessionsPanel } from '@/components/super-admin/support-sessions-panel';
+import { PlansPanel } from '@/components/super-admin/plans-panel';
 
-type TabId = 'branding' | 'account' | 'ai' | 'accounts' | 'users' | 'modules';
+type TabId = 'branding' | 'account' | 'ai' | 'accounts' | 'plans' | 'support' | 'users' | 'modules';
 
 function isTabId(value: string | null): value is TabId {
   return (
@@ -31,6 +35,8 @@ function isTabId(value: string | null): value is TabId {
     value === 'account' ||
     value === 'ai' ||
     value === 'accounts' ||
+    value === 'plans' ||
+    value === 'support' ||
     value === 'users' ||
     value === 'modules'
   );
@@ -108,6 +114,12 @@ function SuperAdminPageInner() {
           <TabsTrigger value="accounts">
             <Gauge className="mr-1.5 h-4 w-4" /> {t('tabAccounts')}
           </TabsTrigger>
+          <TabsTrigger value="plans">
+            <CreditCard className="mr-1.5 h-4 w-4" /> {t('tabPlans')}
+          </TabsTrigger>
+          <TabsTrigger value="support">
+            <LifeBuoy className="mr-1.5 h-4 w-4" /> {t('tabSupport')}
+          </TabsTrigger>
           <TabsTrigger value="users">
             <UsersRound className="mr-1.5 h-4 w-4" /> {t('tabUsers')}
           </TabsTrigger>
@@ -127,6 +139,12 @@ function SuperAdminPageInner() {
         </TabsContent>
         <TabsContent value="accounts" className="mt-4">
           <AccountsAiPanel />
+        </TabsContent>
+        <TabsContent value="plans" className="mt-4">
+          <PlansPanel />
+        </TabsContent>
+        <TabsContent value="support" className="mt-4">
+          <SupportSessionsPanel />
         </TabsContent>
         <TabsContent value="users" className="mt-4">
           <UsersPanel />

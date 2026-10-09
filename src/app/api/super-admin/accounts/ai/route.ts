@@ -11,8 +11,27 @@ import { NextResponse } from 'next/server'
 import { requireSuperAdmin, toErrorResponse } from '@/lib/auth/account'
 import { supabaseAdmin } from '@/lib/super-admin/admin-client'
 import { businessMonthStart, loadPlatformAiRow } from '@/lib/ai/platform'
+import { planState } from '@/lib/plans/limits'
+import type { PlanStatus } from '@/lib/plans/types'
 
 const PAGE = 1000
+
+function planFields(
+  row: { plan_id: string | null; plan_status: PlanStatus; plan_expires_at: string | null } | undefined,
+  names: Map<string, string>,
+) {
+  if (!row) return { plan_name: null, plan_state: 'none', plan_expires_at: null }
+  const planName = row.plan_id ? (names.get(row.plan_id) ?? null) : null
+  return {
+    plan_name: planName,
+    plan_state: planState({
+      hasPlan: !!planName,
+      status: row.plan_status,
+      expiresAt: row.plan_expires_at,
+    }).state,
+    plan_expires_at: row.plan_expires_at,
+  }
+}
 
 export async function GET() {
   try {
@@ -70,9 +89,33 @@ export async function GET() {
 
     const platform = await loadPlatformAiRow()
 
+    // Plan columns arrive with migration 074.
+    const planByAccount = new Map<
+      string,
+      { plan_id: string | null; plan_status: PlanStatus; plan_expires_at: string | null }
+    >()
+    const planNames = new Map<string, string>()
+    const plansRes = await admin
+      .from('accounts')
+      .select('id, plan_id, plan_status, plan_expires_at')
+    const plansAvailable = !plansRes.error
+    if (plansAvailable) {
+      for (const row of (plansRes.data ?? []) as {
+        id: string
+        plan_id: string | null
+        plan_status: PlanStatus
+        plan_expires_at: string | null
+      }[]) {
+        planByAccount.set(row.id, row)
+      }
+      const { data: plans } = await admin.from('plans').select('id, name')
+      for (const p of (plans ?? []) as { id: string; name: string }[]) planNames.set(p.id, p.name)
+    }
+
     return NextResponse.json({
       platform_configured: !!platform,
       limits_available: limitsAvailable,
+      plans_available: plansAvailable,
       accounts: accounts.map((a) => {
         const cfg = configByAccount.get(a.id)
         const u = usage.get(a.id) ?? { runs: 0, tokens: 0 }
@@ -86,6 +129,7 @@ export async function GET() {
           monthly_runs: u.runs,
           monthly_tokens: u.tokens,
           monthly_limit: a.ai_monthly_limit ?? null,
+          ...planFields(planByAccount.get(a.id), planNames),
         }
       }),
     })

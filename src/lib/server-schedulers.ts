@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { drainPendingAutomations } from '@/lib/automations/drain-pending'
 import { autoLoseStaleDeals } from '@/lib/deals/auto-lose'
 import { sendDueWeeklySummaries } from '@/lib/reports/weekly-summary'
+import { checkPlanAlerts } from '@/lib/plans/alerts'
 
 type Timers = Record<string, ReturnType<typeof setInterval> | undefined>
 
@@ -36,7 +37,9 @@ function every(key: string, seconds: number, job: () => Promise<unknown>) {
  * - stale open deals are closed as lost every hour, for pipelines that
  *   set `auto_lose_days`;
  * - the weekly owner summary goes to Telegram on Monday morning
- *   (checked every 15 minutes, deduped by `weekly_report_sent_at`).
+ *   (checked every 15 minutes, deduped by `weekly_report_sent_at`);
+ * - plan alerts (80%/100% of a limit, expiring, past due, suspended)
+ *   are checked every hour, deduped by `plan_alerts`.
  */
 export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('automations', 60, async () => {
@@ -50,5 +53,9 @@ export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('weekly-summary', 15 * 60, async () => {
     const sent = await sendDueWeeklySummaries(getAdmin())
     if (sent > 0) console.log('[weekly-summary] sent', sent)
+  })
+  every('plan-alerts', 60 * 60, async () => {
+    const sent = await checkPlanAlerts(getAdmin())
+    if (sent > 0) console.log('[plan-alerts] sent', sent)
   })
 }

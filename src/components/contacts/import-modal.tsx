@@ -38,6 +38,7 @@ import {
   Tag,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { usePlanError } from '@/hooks/use-plan-error';
 
 const DEFAULT_TAG_COLOR = '#3b82f6';
 const PREVIEW_LIMIT = 5;
@@ -127,6 +128,7 @@ export function ImportModal({
   onImported,
 }: ImportModalProps) {
   const t = useTranslations('Contacts.importModal');
+  const planError = usePlanError();
   const supabase = createClient();
   const { accountId, canEditSettings } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -268,8 +270,11 @@ export function ImportModal({
       //    unique index is the backstop: a 23505 (race, or a format
       //    that normalizes equal) counts as skipped, not failed.
       const chunkSize = 50;
+      // The plan's contact limit (migration 074): once a row hits it,
+      // the rest would too, so stop and say why.
+      let planLimitMessage: string | null = null;
 
-      for (let i = 0; i < toInsert.length; i += chunkSize) {
+      for (let i = 0; i < toInsert.length && !planLimitMessage; i += chunkSize) {
         const chunk = toInsert.slice(i, i + chunkSize);
         const rows = chunk.map((row) => ({
           user_id: user.id,
@@ -307,6 +312,9 @@ export function ImportModal({
               }
             } else if (isUniqueViolation(singleErr)) {
               skipped++;
+            } else if ((planLimitMessage = planError.fromDb(singleErr))) {
+              failed += rows.length - j + Math.max(0, toInsert.length - (i + chunkSize));
+              break;
             } else {
               failed++;
             }
@@ -360,7 +368,9 @@ export function ImportModal({
       if (skipped > 0) {
         toast.info(t('toastSkipped', { count: skipped }));
       }
-      if (failed > 0) {
+      if (planLimitMessage) {
+        toast.error(planLimitMessage);
+      } else if (failed > 0) {
         toast.error(t('toastFailed', { count: failed }));
       }
     } catch (err: unknown) {

@@ -8,6 +8,7 @@ import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit
 import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { ingestDocument } from '@/lib/ai/knowledge'
 import { AiError } from '@/lib/ai/types'
+import { checkPlanLimit, planLimitResponse } from '@/lib/plans/server'
 
 /**
  * GET /api/ai/knowledge?knowledge_base_id=...
@@ -57,6 +58,8 @@ export async function POST(request: Request) {
     const { supabase, accountId, userId } = await requireRole('admin')
     const limit = checkRateLimit(`ai-kb:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
+    const planCheck = await checkPlanLimit(accountId, 'kb_documents')
+    if (!planCheck.allowed) return planLimitResponse('kb_documents', planCheck)
 
     const body = await request.json().catch(() => null)
     const title = typeof body?.title === 'string' ? body.title.trim() : ''

@@ -15,6 +15,7 @@ import {
   rateLimitResponse,
   RATE_LIMITS,
 } from '@/lib/rate-limit'
+import { checkPlanLimit, planLimitResponse } from '@/lib/plans/server'
 
 interface BroadcastResult {
   phone: string
@@ -120,6 +121,14 @@ export async function POST(request: Request) {
       )
     }
 
+    // The plan's monthly broadcast quota: send what still fits and
+    // report the rest as failed, so the campaign shows who was skipped.
+    const planCheck = await checkPlanLimit(accountId, 'broadcasts')
+    if (planCheck.reason === 'suspended') {
+      return planLimitResponse('broadcasts', planCheck)
+    }
+    const budget = planCheck.remaining
+
     const { data: config, error: configError } = await supabase
       .from('whatsapp_config')
       .select('*')
@@ -165,6 +174,16 @@ export async function POST(request: Request) {
     let failedCount = 0
 
     for (const recipient of recipients) {
+      if (sentCount >= budget) {
+        results.push({
+          phone: recipient.phone,
+          status: 'failed',
+          error: 'Límite de difusiones del plan alcanzado',
+        })
+        failedCount++
+        continue
+      }
+
       const sanitized = sanitizePhoneForMeta(recipient.phone)
 
       if (!isValidE164(sanitized)) {

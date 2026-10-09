@@ -26,6 +26,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, AlertTriangle } from 'lucide-react';
 import { useTranslations } from 'next-intl';
+import { usePlanError } from '@/hooks/use-plan-error';
 
 interface ContactFormProps {
   open: boolean;
@@ -47,6 +48,7 @@ export function ContactForm({
   onViewExisting,
 }: ContactFormProps) {
   const t = useTranslations('Contacts.form');
+  const planError = usePlanError();
   const supabase = createClient();
   const { accountId } = useAuth();
   const isEdit = !!contact;
@@ -213,8 +215,9 @@ export function ContactForm({
         }
         return;
       }
+      const planMessage = planError.fromDb(err as { message?: string; details?: string });
       const message = err instanceof Error ? err.message : t('toastError');
-      toast.error(message);
+      toast.error(planMessage ?? message);
     } finally {
       setSaving(false);
     }

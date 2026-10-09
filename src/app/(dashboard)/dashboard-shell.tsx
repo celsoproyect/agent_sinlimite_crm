@@ -8,6 +8,8 @@ import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
 import { SupportModeBar } from "@/components/layout/support-mode-bar";
+import { PlanStatusBanner } from "@/components/plans/plan-status-banner";
+import { PlanGate } from "@/components/plans/plan-gate";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 
 // Auth-gated dashboard shell. Extracted from the layout so the layout
@@ -58,7 +60,10 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
           {/* Above every page: writes are being rejected and here's why.
               Renders nothing unless the account/role failed to resolve. */}
           <AccountAccessAlert />
-          {children}
+          {/* Plan about to expire or past due (owners/admins only). */}
+          <PlanStatusBanner />
+          {/* Suspended plan: a blocking screen instead of the page. */}
+          <PlanGate>{children}</PlanGate>
         </main>
       </div>
     </div>

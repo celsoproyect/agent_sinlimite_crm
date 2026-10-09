@@ -50,7 +50,7 @@ import {
 
 // Icon + Sidebar-namespace label for each togglable module, so this
 // panel reads the same names the client actually sees in their menu.
-const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string }> = {
+export const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string }> = {
   inbox: { icon: MessageSquare, labelKey: "inbox" },
   agenda: { icon: Calendar, labelKey: "agenda" },
   notifications: { icon: Bell, labelKey: "notifications" },

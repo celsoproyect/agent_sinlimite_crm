@@ -38,6 +38,7 @@ import {
 } from '@/components/ui/select';
 import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/use-auth';
+import { usePlanError } from '@/hooks/use-plan-error';
 
 type InviteRole = 'admin' | 'agent' | 'viewer';
 
@@ -75,6 +76,7 @@ export function InviteMemberDialog({
   onCreated,
 }: InviteMemberDialogProps) {
   const t = useTranslations('Settings.invite');
+  const planError = usePlanError();
   const tRoles = useTranslations('Settings.roles');
   const { account } = useAuth();
   const [role, setRole] = useState<InviteRole>('agent');
@@ -117,7 +119,7 @@ export function InviteMemberDialog({
 
       if (!res.ok) {
         const payload = await res.json().catch(() => ({}));
-        toast.error(payload.error || t('createFailed'));
+        toast.error(planError.fromBody(payload) ?? (payload.error || t('createFailed')));
         return;
       }
 

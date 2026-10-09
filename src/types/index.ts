@@ -203,7 +203,7 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned' | 'handoff_requested';
+export type NotificationType = 'conversation_assigned' | 'handoff_requested' | 'plan_alert';
 
 export interface Notification {
   id: string;

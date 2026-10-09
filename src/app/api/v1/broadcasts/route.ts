@@ -42,6 +42,7 @@ import {
   deliverBroadcast,
   BroadcastError,
 } from '@/lib/whatsapp/broadcast-core';
+import { checkPlanLimit } from '@/lib/plans/server';
 
 export async function POST(request: Request) {
   try {
@@ -58,6 +59,20 @@ export async function POST(request: Request) {
     const templateName =
       typeof body.template_name === 'string' ? body.template_name : '';
     const recipients = Array.isArray(body.recipients) ? body.recipients : [];
+
+    // The whole batch must fit in the plan's monthly broadcast quota.
+    const planCheck = await checkPlanLimit(ctx.accountId, 'broadcasts', {
+      adding: Math.max(1, recipients.length),
+    });
+    if (!planCheck.allowed) {
+      return planCheck.reason === 'suspended'
+        ? fail('plan_suspended', 'This account is suspended', 409)
+        : fail(
+            'plan_limit',
+            `The plan allows ${planCheck.remaining} more broadcast messages this month`,
+            409
+          );
+    }
 
     const auditUserId = await resolveAuditUserId(ctx.supabase, ctx.accountId);
 

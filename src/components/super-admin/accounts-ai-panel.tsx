@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Bot, LogIn, Loader2, Pencil } from 'lucide-react';
+import { Bot, CreditCard, LogIn, Loader2, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,6 +19,9 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { SettingsPanelHead } from '@/components/settings/settings-panel-head';
+import { SettingsChip } from '@/components/settings/settings-chip';
+import { AccountPlanDialog, PLAN_STATE_VARIANT } from './account-plan-dialog';
+import type { PlanState } from '@/lib/plans/types';
 import {
   AgentBehaviourForm,
   DEFAULT_AGENT_BEHAVIOUR,
@@ -46,6 +49,9 @@ interface AccountAiRow {
   monthly_runs: number;
   monthly_tokens: number;
   monthly_limit: number | null;
+  plan_name: string | null;
+  plan_state: PlanState;
+  plan_expires_at: string | null;
 }
 
 const nf = new Intl.NumberFormat('es-DO');
@@ -57,11 +63,14 @@ const nf = new Intl.NumberFormat('es-DO');
  */
 export function AccountsAiPanel() {
   const t = useTranslations('SuperAdmin.accountsAi');
+  const tPlan = useTranslations('Plan');
   const [loading, setLoading] = useState(true);
   const [rows, setRows] = useState<AccountAiRow[]>([]);
   const [platformConfigured, setPlatformConfigured] = useState(true);
   const [limitsAvailable, setLimitsAvailable] = useState(true);
   const [editing, setEditing] = useState<AccountAiRow | null>(null);
+  const [planFor, setPlanFor] = useState<AccountAiRow | null>(null);
+  const [plansAvailable, setPlansAvailable] = useState(true);
   const [entering, setEntering] = useState<string | null>(null);
   const { accountId: currentAccountId } = useAuth();
 
@@ -83,6 +92,7 @@ export function AccountsAiPanel() {
       setRows(data.accounts ?? []);
       setPlatformConfigured(Boolean(data.platform_configured));
       setLimitsAvailable(data.limits_available !== false);
+      setPlansAvailable(data.plans_available !== false);
     } catch {
       toast.error(t('loadFailed'));
     } finally {
@@ -119,10 +129,11 @@ export function AccountsAiPanel() {
       ) : (
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[760px] text-sm">
+            <table className="w-full min-w-[880px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-3 font-medium">{t('colAccount')}</th>
+                  <th className="px-4 py-3 font-medium">{t('colPlan')}</th>
                   <th className="px-4 py-3 font-medium">{t('colAgent')}</th>
                   <th className="px-4 py-3 font-medium">{t('colKey')}</th>
                   <th className="px-4 py-3 text-right font-medium">{t('colReplies')}</th>
@@ -139,6 +150,18 @@ export function AccountsAiPanel() {
                   return (
                     <tr key={r.id} className="border-b border-border last:border-0">
                       <td className="px-4 py-3 font-medium text-foreground">{r.name}</td>
+                      <td className="px-4 py-3">
+                        {r.plan_name ? (
+                          <div className="flex flex-wrap items-center gap-1.5">
+                            <span className="text-foreground">{r.plan_name}</span>
+                            <SettingsChip variant={PLAN_STATE_VARIANT[r.plan_state]}>
+                              {tPlan(`states.${r.plan_state}`)}
+                            </SettingsChip>
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">{t('noPlan')}</span>
+                        )}
+                      </td>
                       <td className="px-4 py-3 text-muted-foreground">
                         {!r.configured
                           ? t('agentNotSet')
@@ -165,6 +188,11 @@ export function AccountsAiPanel() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap justify-end gap-2">
+                          {plansAvailable && (
+                            <Button variant="outline" size="sm" onClick={() => setPlanFor(r)}>
+                              <CreditCard className="mr-1.5 h-3.5 w-3.5" /> {t('planButton')}
+                            </Button>
+                          )}
                           <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
                             <Pencil className="mr-1.5 h-3.5 w-3.5" /> {t('editAgent')}
                           </Button>
@@ -198,6 +226,12 @@ export function AccountsAiPanel() {
       )}
       <p className="mt-2 text-xs text-muted-foreground">{t('usageNote')}</p>
       <p className="mt-1 text-xs text-muted-foreground">{t('supportNote')}</p>
+
+      <AccountPlanDialog
+        account={planFor}
+        onClose={() => setPlanFor(null)}
+        onChanged={() => void load()}
+      />
 
       <AccountAgentDialog
         account={editing}

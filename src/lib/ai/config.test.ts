@@ -9,11 +9,14 @@ vi.mock('@/lib/whatsapp/encryption', () => ({
 const h = vi.hoisted(() => ({
   loadPlatformAiConfig: vi.fn(),
   loadAiQuota: vi.fn(),
+  isAccountSuspended: vi.fn(),
 }))
 vi.mock('./platform', () => ({
   loadPlatformAiConfig: h.loadPlatformAiConfig,
   loadAiQuota: h.loadAiQuota,
 }))
+
+vi.mock('@/lib/plans/server', () => ({ isAccountSuspended: h.isAccountSuspended }))
 
 import { loadAiConfig } from './config'
 
@@ -53,6 +56,7 @@ beforeEach(() => {
   vi.clearAllMocks()
   h.loadPlatformAiConfig.mockResolvedValue(PLATFORM)
   h.loadAiQuota.mockResolvedValue({ limit: null, used: 0, exceeded: false })
+  h.isAccountSuspended.mockResolvedValue(false)
 })
 
 describe('loadAiConfig requireActive', () => {
@@ -108,5 +112,13 @@ describe('loadAiConfig platform key (migration 072)', () => {
     const config = await loadAiConfig(dbReturning({ ...ROW, is_active: true }), 'acct')
     expect(config?.keySource).toBe('own')
     expect(h.loadAiQuota).not.toHaveBeenCalled()
+  })
+})
+
+describe('loadAiConfig suspended plan (migration 074)', () => {
+  it('pauses the AI even on its own key', async () => {
+    h.isAccountSuspended.mockResolvedValue(true)
+    vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(await loadAiConfig(dbReturning({ ...ROW, is_active: true }), 'acct')).toBeNull()
   })
 })

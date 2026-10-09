@@ -27,6 +27,8 @@ import {
   RATE_LIMITS,
 } from "@/lib/rate-limit";
 import { createClient } from "@/lib/supabase/server";
+import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { checkPlanLimit, countUsers, planLimitResponse } from "@/lib/plans/server";
 
 function getClientIp(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
@@ -81,8 +83,24 @@ export async function POST(
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
+  // The account's plan must still have room for one more user (the
+  // invite may have been created before the limit was lowered).
+  const tokenHash = hashInviteToken(token);
+  const admin = supabaseAdmin();
+  const { data: invite } = await admin
+    .from("account_invitations")
+    .select("account_id")
+    .eq("token_hash", tokenHash)
+    .maybeSingle();
+  const inviteAccount = (invite as { account_id: string } | null)?.account_id;
+  if (inviteAccount) {
+    const used = await countUsers(admin, inviteAccount);
+    const planCheck = await checkPlanLimit(inviteAccount, "users", { used });
+    if (!planCheck.allowed) return planLimitResponse("users", planCheck);
+  }
+
   const { data: accountId, error } = await supabase.rpc("redeem_invitation", {
-    p_token_hash: hashInviteToken(token),
+    p_token_hash: tokenHash,
   });
 
   if (error) return rpcErrorToResponse(error);

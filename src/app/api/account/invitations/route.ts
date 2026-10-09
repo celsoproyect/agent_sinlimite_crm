@@ -27,6 +27,8 @@ import {
   inviteUrl,
 } from "@/lib/auth/invitations";
 import { isAccountRole } from "@/lib/auth/roles";
+import { supabaseAdmin } from "@/lib/flows/admin-client";
+import { checkPlanLimit, countUsers, planLimitResponse } from "@/lib/plans/server";
 import {
   checkRateLimit,
   rateLimitResponse,
@@ -214,6 +216,13 @@ export async function POST(request: Request) {
       }
       label = trimmed === "" ? null : trimmed;
     }
+
+    // The plan's user limit counts members plus invites still pending.
+    const used = await countUsers(supabaseAdmin(), ctx.accountId, {
+      includePendingInvites: true,
+    });
+    const planCheck = await checkPlanLimit(ctx.accountId, "users", { used });
+    if (!planCheck.allowed) return planLimitResponse("users", planCheck);
 
     const { token, hash } = generateInviteToken();
 

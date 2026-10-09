@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
 import { businessLocalToInstant, businessToday } from '@/lib/business-timezone'
+import { loadPlanSnapshot } from '@/lib/plans/server'
 import type { AiProvider } from './types'
 import { EMBEDDING_MODEL } from './embeddings'
 
@@ -112,26 +113,6 @@ export function businessMonthStart(now: Date = new Date()): Date {
   return businessLocalToInstant(`${today.slice(0, 7)}-01`, '00:00')
 }
 
-/** The account's monthly AI cap; null = no limit (or column missing). */
-export async function loadAiMonthlyLimit(
-  db: SupabaseClient,
-  accountId: string,
-): Promise<number | null> {
-  const { data, error } = await db
-    .from('accounts')
-    .select('ai_monthly_limit')
-    .eq('id', accountId)
-    .maybeSingle()
-  if (error) {
-    if (error.code !== '42703') {
-      console.error('[ai platform] limit load failed:', error.message)
-    }
-    return null
-  }
-  const limit = (data as { ai_monthly_limit?: number | null } | null)?.ai_monthly_limit
-  return typeof limit === 'number' ? limit : null
-}
-
 /** AI replies (logged LLM runs) the account spent this business month. */
 export async function countAiRunsThisMonth(
   db: SupabaseClient,
@@ -163,7 +144,10 @@ export interface AiQuota {
  */
 export async function loadAiQuota(accountId: string): Promise<AiQuota> {
   const admin = supabaseAdmin()
-  const limit = await loadAiMonthlyLimit(admin, accountId)
+  // The plan's AI replies + extras (migration 074); with no plan, the
+  // account's own ai_monthly_limit, as before.
+  const { limits } = await loadPlanSnapshot(accountId)
+  const limit = limits.ai_replies
   if (limit === null) return { limit: null, used: 0, exceeded: false }
   const used = await countAiRunsThisMonth(admin, accountId)
   return { limit, used, exceeded: used >= limit }

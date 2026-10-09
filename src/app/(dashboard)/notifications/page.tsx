@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { Bell, CheckCheck, Hand, Loader2, UserPlus } from "lucide-react";
+import { Bell, CheckCheck, CreditCard, Hand, Loader2, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es as esLocale } from "date-fns/locale";
 import { useLocale, useTranslations } from "next-intl";
@@ -19,13 +19,14 @@ import { PushSettingsCard } from "@/components/notifications/push-settings-card"
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   conversation_assigned: UserPlus,
   handoff_requested: Hand,
+  plan_alert: CreditCard,
 };
 
 export default function NotificationsPage() {
   const router = useRouter();
   const t = useTranslations("Notifications");
   const locale = useLocale();
-  const { accountId } = useAuth();
+  const { accountId, isSuperAdmin } = useAuth();
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("notifications");
   const [notifications, setNotifications] = useState<Notification[] | null>(
     null,
@@ -123,9 +124,12 @@ export default function NotificationsPage() {
       if (!n.read_at) markRead(n.id);
       if (n.conversation_id) {
         router.push(`/inbox?c=${n.conversation_id}`);
+      } else if (n.type === "plan_alert") {
+        // Super admins get every account's alerts; clients see their plan.
+        router.push(isSuperAdmin ? "/super-admin?tab=accounts" : "/settings?tab=plan");
       }
     },
-    [markRead, router],
+    [markRead, router, isSuperAdmin],
   );
 
   const unreadIds = notifications?.filter((n) => !n.read_at).map((n) => n.id) ?? [];

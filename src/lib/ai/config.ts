@@ -3,6 +3,7 @@ import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig } from './types'
 import { EMBEDDING_MODEL } from './embeddings'
 import { loadAiQuota, loadPlatformAiConfig } from './platform'
+import { isAccountSuspended } from '@/lib/plans/server'
 
 interface AiConfigRow {
   provider: 'openai' | 'anthropic'
@@ -63,6 +64,12 @@ export async function loadAiConfig(
   let model = row.model
   let apiKey: string
   let keySource: 'own' | 'platform'
+  // A suspended plan (by hand, or unpaid past the grace days) pauses the
+  // AI on any key.
+  if (await isAccountSuspended(accountId)) {
+    console.warn(`[ai config] account ${accountId} is suspended — AI paused.`)
+    return null
+  }
   const platform = row.api_key && row.embeddings_api_key ? null : await loadPlatformAiConfig()
   if (row.api_key) {
     apiKey = decrypt(row.api_key)

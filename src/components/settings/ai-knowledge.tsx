@@ -26,6 +26,7 @@ import {
   CardDescription,
 } from '@/components/ui/card';
 import { useTranslations } from 'next-intl';
+import { usePlanError } from '@/hooks/use-plan-error';
 
 interface KbSummary {
   id: string;
@@ -305,6 +306,7 @@ function KnowledgeBaseDetail({
   onBack: () => void;
 }) {
   const t = useTranslations('Settings.aiKnowledge');
+  const planError = usePlanError();
   const [docs, setDocs] = useState<DocSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<EditTarget>(null);
@@ -391,7 +393,7 @@ function KnowledgeBaseDetail({
         cancelEdit();
         await fetchDocs();
       } else {
-        toast.error(data.error ?? t('saveFailed'));
+        toast.error(planError.fromBody(data) ?? data.error ?? t('saveFailed'));
       }
     } catch {
       toast.error(t('saveFailed'));
@@ -437,7 +439,7 @@ function KnowledgeBaseDetail({
         else toast.success(t('uploadSuccess'));
         await fetchDocs();
       } else {
-        toast.error(data.error ?? t('uploadFailed'));
+        toast.error(planError.fromBody(data) ?? data.error ?? t('uploadFailed'));
       }
     } catch {
       toast.error(t('uploadFailed'));

@@ -36,6 +36,7 @@ import { reindexKnowledge } from '@/lib/ai/knowledge'
 import { findEmbeddingModel, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
 import type { AiProvider } from '@/lib/ai/types'
 import { withoutSupportVisitors } from '@/lib/support/sessions'
+import { clearPlanCache } from '@/lib/plans/server'
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -245,6 +246,7 @@ export async function PATCH(request: Request, { params }: Params) {
         console.error('[PATCH /api/super-admin/accounts/:id/ai] limit error:', error)
         return NextResponse.json({ error: 'Failed to save the limit' }, { status: 500 })
       }
+      clearPlanCache(id)
     }
 
     // A different embeddings key means different vectors: re-embed.
