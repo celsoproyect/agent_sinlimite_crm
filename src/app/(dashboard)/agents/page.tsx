@@ -10,15 +10,14 @@ import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { useModuleGate } from '@/hooks/use-module-gate';
 
-// Provider/API-key setup (formerly a "Setup" tab here) moved to
-// /super-admin — the config a reseller sets up once per client
-// install and doesn't want the client's own owner/admin touching.
-// Regular account roles only ever see Playground (+ Usage for
-// admin+) here.
+// The agent itself is set up in Configuración → Agente de IA by the
+// account's owner/admin; the provider key belongs to the platform
+// (Super admin → IA de la plataforma, migration 072). This page is the
+// Playground (+ Usage for admin+).
 export default function AgentsPage() {
   const router = useRouter();
   const t = useTranslations('Agents.page');
-  const { accountRole, isSuperAdmin } = useAuth();
+  const { accountRole } = useAuth();
   const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agents");
 
@@ -57,8 +56,8 @@ export default function AgentsPage() {
         <TabsContent value="playground" className="mt-4">
           <AiPlayground
             onGoToSetup={
-              isSuperAdmin
-                ? () => router.push('/super-admin?tab=agent')
+              canViewUsage
+                ? () => router.push('/settings?tab=ai-agent')
                 : undefined
             }
           />

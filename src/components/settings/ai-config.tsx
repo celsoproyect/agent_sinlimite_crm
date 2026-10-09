@@ -2,14 +2,11 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
-import { Loader2, Sparkles, CheckCircle2, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Sparkles, Gauge } from 'lucide-react';
+import { useTranslations } from 'next-intl';
 import { useAuth } from '@/hooks/use-auth';
 import { canEditSettings } from '@/lib/auth/roles';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Switch } from '@/components/ui/switch';
 import {
   Card,
   CardContent,
@@ -17,46 +14,36 @@ import {
   CardTitle,
   CardDescription,
 } from '@/components/ui/card';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { SettingsPanelHead } from './settings-panel-head';
 import { AiKnowledgeCard } from './ai-knowledge';
 import { AiFaqCard } from './ai-faq';
-import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
-import { OPENAI_CHAT_MODELS, OPENAI_EMBEDDING_MODELS, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models';
-import type { AiProvider } from '@/lib/ai/types';
-import type { AccountMember } from '@/types';
+import {
+  AgentBehaviourForm,
+  DEFAULT_AGENT_BEHAVIOUR,
+  behaviourFromRow,
+  behaviourToBody,
+  type AgentBehaviour,
+  type Option,
+} from './agent-behaviour-form';
 import { fetchAccountMembers, memberLabel } from '@/lib/account/members';
 import { createClient } from '@/lib/supabase/client';
-import { useTranslations } from 'next-intl';
+import { cn } from '@/lib/utils';
 
-const MASKED_KEY = '••••••••••••••••';
+type KeySource = 'own' | 'platform' | 'none';
 
-// Radix Select can't use an empty-string item value, so the "leave
-// unassigned" choice gets a sentinel that maps to null in the payload.
-const HANDOFF_QUEUE = '__queue__';
-const NO_LEAD_PIPELINE = '__none__';
-
-interface PipelineOption {
-  id: string;
-  name: string;
+interface Status {
+  keySource: KeySource;
+  model: string | null;
+  limit: number | null;
+  used: number;
 }
 
-const PROVIDER_LABEL: Record<AiProvider, string> = {
-  openai: 'OpenAI',
-  anthropic: 'Anthropic (Claude)',
-};
-
-const KEY_PLACEHOLDER: Record<AiProvider, string> = {
-  openai: 'sk-...',
-  anthropic: 'sk-ant-...',
-};
-
+/**
+ * Configuración → Agente de IA. The account's owner/admin runs their own
+ * agent here: prompt, switches, handoff, lead capture, knowledge base and
+ * FAQ. The AI itself (provider and key) is supplied by the platform, so
+ * there are no key fields — only its status and this month's usage.
+ */
 export function AiConfig() {
   const { accountId, accountRole, profileLoading } = useAuth();
   const canEdit = accountRole ? canEditSettings(accountRole) : false;
@@ -64,39 +51,18 @@ export function AiConfig() {
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [testing, setTesting] = useState(false);
-  const [removing, setRemoving] = useState(false);
+  const [status, setStatus] = useState<Status>({
+    keySource: 'none',
+    model: null,
+    limit: null,
+    used: 0,
+  });
+  const [hasEmbeddings, setHasEmbeddings] = useState(false);
+  const [behaviour, setBehaviour] = useState<AgentBehaviour>(DEFAULT_AGENT_BEHAVIOUR);
+  const [members, setMembers] = useState<Option[]>([]);
+  const [pipelines, setPipelines] = useState<Option[]>([]);
 
-  const [configured, setConfigured] = useState(false);
-  const [provider, setProvider] = useState<AiProvider>('openai');
-  const [model, setModel] = useState(AI_PROVIDER_DEFAULT_MODEL.openai);
-  const [apiKey, setApiKey] = useState('');
-  const [keyEdited, setKeyEdited] = useState(false);
-  const [showKey, setShowKey] = useState(false);
-  const [hasStoredKey, setHasStoredKey] = useState(false);
-  const [embeddingsKey, setEmbeddingsKey] = useState('');
-  const [embeddingsKeyEdited, setEmbeddingsKeyEdited] = useState(false);
-  const [hasStoredEmbeddingsKey, setHasStoredEmbeddingsKey] = useState(false);
-  const [embeddingsModel, setEmbeddingsModel] = useState(DEFAULT_EMBEDDINGS_MODEL);
-  const [systemPrompt, setSystemPrompt] = useState('');
-  const [isActive, setIsActive] = useState(false);
-  const [autoReplyEnabled, setAutoReplyEnabled] = useState(false);
-  const [maxPerConversation, setMaxPerConversation] = useState(3);
-  const [unlimitedReplies, setUnlimitedReplies] = useState(false);
-  const [replyDelaySeconds, setReplyDelaySeconds] = useState(0);
-  const [temperature, setTemperature] = useState(0.7);
-  // Empty string = leave unassigned (shared queue).
-  const [handoffAgentId, setHandoffAgentId] = useState('');
-  const [members, setMembers] = useState<AccountMember[]>([]);
-  const [handoffOnMissingInfo, setHandoffOnMissingInfo] = useState(true);
-  // Empty string = no lead capture (tool not exposed to the model).
-  const [leadPipelineId, setLeadPipelineId] = useState('');
-  const [pipelines, setPipelines] = useState<PipelineOption[]>([]);
-
-  // Guard keyed on the account (not a bare boolean) so an in-place
-  // account switch — ownership transfer, multi-account membership —
-  // refetches instead of showing the previous account's config. Mirrors
-  // the loadedAccountIdRef pattern in whatsapp-config.tsx.
+  // Keyed on the account so an in-place account switch refetches.
   const loadedAccountIdRef = useRef<string | null>(null);
 
   const fetchConfig = useCallback(async () => {
@@ -108,129 +74,56 @@ export function AiConfig() {
         toast.error(data.error ?? t('loadFailed'));
         return;
       }
-      if (data.configured) {
-        setConfigured(true);
-        setProvider(data.provider);
-        setModel(data.model);
-        setSystemPrompt(data.system_prompt ?? '');
-        setIsActive(data.is_active);
-        setAutoReplyEnabled(data.auto_reply_enabled);
-        setUnlimitedReplies(data.auto_reply_max_per_conversation == null);
-        setMaxPerConversation(data.auto_reply_max_per_conversation ?? 3);
-        setReplyDelaySeconds(data.reply_delay_seconds ?? 0);
-        setTemperature(data.temperature ?? 0.7);
-        setHandoffAgentId(data.handoff_agent_id ?? '');
-        setHandoffOnMissingInfo(data.handoff_on_missing_info ?? true);
-        setLeadPipelineId(data.lead_pipeline_id ?? '');
-        setHasStoredKey(Boolean(data.has_key));
-        setApiKey(data.has_key ? MASKED_KEY : '');
-        setKeyEdited(false);
-        setHasStoredEmbeddingsKey(Boolean(data.has_embeddings_key));
-        setEmbeddingsKey(data.has_embeddings_key ? MASKED_KEY : '');
-        setEmbeddingsKeyEdited(false);
-        setEmbeddingsModel(data.embeddings_model || DEFAULT_EMBEDDINGS_MODEL);
-      }
+      setStatus({
+        keySource: (data.key_source as KeySource) ?? 'none',
+        model: data.configured ? data.model : null,
+        limit: data.monthly_limit ?? null,
+        used: data.monthly_used ?? 0,
+      });
+      setHasEmbeddings(Boolean(data.has_embeddings));
+      setBehaviour(data.configured ? behaviourFromRow(data) : { ...DEFAULT_AGENT_BEHAVIOUR });
     } catch {
       toast.error(t('loadFailed'));
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     if (!accountId || loadedAccountIdRef.current === accountId) return;
     loadedAccountIdRef.current = accountId;
     void fetchConfig();
-    // Members populate the handoff-target picker. Best-effort — on an
-    // older deployment without the endpoint the picker just shows the
-    // queue option.
-    void fetchAccountMembers().then(setMembers);
-    // Pipelines for the lead-capture picker — straight from the DB like
-    // automation-builder.tsx's resource loader; RLS scopes it to the
-    // caller's account.
+    void fetchAccountMembers().then((list) =>
+      setMembers(list.map((m) => ({ id: m.user_id, label: memberLabel(m) }))),
+    );
     void createClient()
       .from('pipelines')
       .select('id, name')
       .order('name')
-      .then(({ data }) => setPipelines((data as PipelineOption[] | null) ?? []));
+      .then(({ data }) =>
+        setPipelines(
+          ((data as { id: string; name: string }[] | null) ?? []).map((p) => ({
+            id: p.id,
+            label: p.name,
+          })),
+        ),
+      );
   }, [accountId, fetchConfig]);
 
-  // Swap the model default when the provider changes, unless the user
-  // typed a custom model.
-  const handleProviderChange = (next: AiProvider) => {
-    setProvider(next);
-    const isDefaultModel =
-      model === AI_PROVIDER_DEFAULT_MODEL.openai ||
-      model === AI_PROVIDER_DEFAULT_MODEL.anthropic ||
-      model.trim() === '';
-    if (isDefaultModel) setModel(AI_PROVIDER_DEFAULT_MODEL[next]);
-  };
-
-  const keyPayload = () => (keyEdited ? apiKey.trim() : undefined);
-
-  // undefined = leave unchanged; '' typed = null (clear); text = set.
-  const embeddingsKeyPayload = () =>
-    embeddingsKeyEdited ? embeddingsKey.trim() || null : undefined;
-
-  const buildBody = () => ({
-    provider,
-    model: model.trim(),
-    api_key: keyPayload(),
-    embeddings_api_key: embeddingsKeyPayload(),
-    embeddings_model: embeddingsModel,
-    system_prompt: systemPrompt.trim() || null,
-    is_active: isActive,
-    auto_reply_enabled: autoReplyEnabled,
-    auto_reply_max_per_conversation: unlimitedReplies ? null : maxPerConversation,
-    reply_delay_seconds: replyDelaySeconds,
-    temperature,
-    handoff_agent_id: handoffAgentId || null,
-    handoff_on_missing_info: handoffOnMissingInfo,
-    lead_pipeline_id: leadPipelineId || null,
-  });
-
-  const handleTest = async () => {
-    setTesting(true);
-    try {
-      const res = await fetch('/api/ai/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          provider,
-          model: model.trim(),
-          api_key: keyPayload(),
-        }),
-      });
-      const data = await res.json();
-      if (res.ok) toast.success(t('testSuccess'));
-      else toast.error(data.error ?? t('testRejected'));
-    } catch {
-      toast.error(t('testNetworkError'));
-    } finally {
-      setTesting(false);
-    }
-  };
-
   const handleSave = async () => {
-    if (!model.trim()) {
-      toast.error(t('missingModel'));
-      return;
-    }
-    if (!configured && !keyEdited) {
-      toast.error(t('missingApiKey'));
-      return;
-    }
     setSaving(true);
     try {
       const res = await fetch('/api/ai/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(buildBody()),
+        body: JSON.stringify(behaviourToBody(behaviour)),
       });
       const data = await res.json();
       if (res.ok) {
         toast.success(t('saveSuccess'));
         await fetchConfig();
+      } else if (data.code === 'migration_pending') {
+        toast.error(t('migrationPending'));
       } else {
         toast.error(data.error ?? t('saveFailed'));
       }
@@ -238,37 +131,6 @@ export function AiConfig() {
       toast.error(t('saveFailed'));
     } finally {
       setSaving(false);
-    }
-  };
-
-  const handleRemove = async () => {
-    setRemoving(true);
-    try {
-      const res = await fetch('/api/ai/config', { method: 'DELETE' });
-      if (res.ok) {
-        toast.success(t('removeSuccess'));
-        setConfigured(false);
-        setHasStoredKey(false);
-        setApiKey('');
-        setKeyEdited(false);
-        setIsActive(false);
-        setAutoReplyEnabled(false);
-        setUnlimitedReplies(false);
-        setMaxPerConversation(3);
-        setReplyDelaySeconds(0);
-        setTemperature(0.7);
-        setSystemPrompt('');
-        setHandoffAgentId('');
-        setHandoffOnMissingInfo(true);
-        setLeadPipelineId('');
-      } else {
-        const data = await res.json();
-        toast.error(data.error ?? t('removeFailed'));
-      }
-    } catch {
-      toast.error(t('removeFailed'));
-    } finally {
-      setRemoving(false);
     }
   };
 
@@ -281,13 +143,15 @@ export function AiConfig() {
   }
 
   const disabled = !canEdit || saving;
+  const pct =
+    status.limit && status.limit > 0
+      ? Math.min(100, Math.round((status.used / status.limit) * 100))
+      : 0;
+  const exceeded = status.limit !== null && status.used >= status.limit;
 
   return (
     <div>
-      <SettingsPanelHead
-        title={t('title')}
-        description={t('description')}
-      />
+      <SettingsPanelHead title={t('title')} description={t('description')} />
 
       {!canEdit && (
         <p className="mb-4 rounded-md border border-border bg-muted/40 px-3 py-2 text-sm text-muted-foreground">
@@ -299,418 +163,67 @@ export function AiConfig() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
-              <Sparkles className="h-4 w-4 text-primary" /> {t('providerAndKey')}
+              <Sparkles className="h-4 w-4 text-primary" /> {t('statusTitle')}
             </CardTitle>
             <CardDescription>
-              {t('encryptionNotice')}
+              {status.keySource === 'none'
+                ? t('statusNone')
+                : status.keySource === 'own'
+                  ? t('statusOwn')
+                  : t('statusPlatform')}
             </CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>{t('provider')}</Label>
-              <Select
-                value={provider}
-                onValueChange={(v) => handleProviderChange(v as AiProvider)}
-                disabled={disabled}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue>{(v: AiProvider) => PROVIDER_LABEL[v] ?? v}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="openai">{PROVIDER_LABEL.openai}</SelectItem>
-                  <SelectItem value="anthropic">
-                    {PROVIDER_LABEL.anthropic}
-                  </SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-model">{t('model')}</Label>
-              {provider === 'openai' ? (
-                <Select
-                  value={model}
-                  onValueChange={(v) => setModel(v ?? '')}
-                  disabled={disabled}
-                >
-                  <SelectTrigger id="ai-model" className="w-full">
-                    <SelectValue>{(v: string) => OPENAI_CHAT_MODELS.find((m) => m.id === v)?.label ?? v}</SelectValue>
-                  </SelectTrigger>
-                  <SelectContent>
-                    {OPENAI_CHAT_MODELS.map((m) => (
-                      <SelectItem key={m.id} value={m.id}>
-                        {m.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <Input
-                  id="ai-model"
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
-                  placeholder={AI_PROVIDER_DEFAULT_MODEL[provider]}
-                  disabled={disabled}
-                />
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-key">{t('apiKey')}</Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="ai-key"
-                    type={showKey ? 'text' : 'password'}
-                    value={apiKey}
-                    onChange={(e) => {
-                      setApiKey(e.target.value);
-                      setKeyEdited(true);
-                    }}
-                    onFocus={() => {
-                      if (!keyEdited && hasStoredKey) {
-                        setApiKey('');
-                        setKeyEdited(true);
-                      }
-                    }}
-                    placeholder={KEY_PLACEHOLDER[provider]}
-                    disabled={disabled}
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowKey((s) => !s)}
-                    aria-label={showKey ? t('hideKey') : t('showKey')}
-                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    tabIndex={-1}
-                  >
-                    {showKey ? (
-                      <EyeOff className="h-4 w-4" />
-                    ) : (
-                      <Eye className="h-4 w-4" />
-                    )}
-                  </button>
-                </div>
-                <Button
-                  variant="outline"
-                  onClick={handleTest}
-                  disabled={disabled || testing}
-                >
-                  {testing ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle2 className="mr-2 h-4 w-4" />
-                  )}
-                  {t('testKey')}
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-embeddings-key">
-                {t('embeddingsKey')}{' '}
-                <span className="font-normal text-muted-foreground">
-                  {t('optionalSemanticSearch')}
+          {status.keySource === 'platform' && (
+            <CardContent className="space-y-2">
+              <div className="flex items-center justify-between gap-3 text-sm">
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Gauge className="h-4 w-4" /> {t('usageThisMonth')}
                 </span>
-              </Label>
-              <Input
-                id="ai-embeddings-key"
-                type="password"
-                value={embeddingsKey}
-                onChange={(e) => {
-                  setEmbeddingsKey(e.target.value);
-                  setEmbeddingsKeyEdited(true);
-                }}
-                onFocus={() => {
-                  if (!embeddingsKeyEdited && hasStoredEmbeddingsKey) {
-                    setEmbeddingsKey('');
-                    setEmbeddingsKeyEdited(true);
-                  }
-                }}
-                placeholder="sk-... (OpenAI)"
-                disabled={disabled}
-                autoComplete="off"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('embeddingsHint', {
-                  sameKeyText: provider === 'openai' ? t('sameKeyText') : '',
-                })}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-embeddings-model">{t('embeddingsModel')}</Label>
-              <Select
-                value={embeddingsModel}
-                onValueChange={(v) => setEmbeddingsModel(v ?? DEFAULT_EMBEDDINGS_MODEL)}
-                disabled={disabled}
-              >
-                <SelectTrigger id="ai-embeddings-model" className="w-full">
-                  <SelectValue>{(v: string) => OPENAI_EMBEDDING_MODELS.find((m) => m.id === v)?.label ?? v}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  {OPENAI_EMBEDDING_MODELS.map((m) => (
-                    <SelectItem key={m.id} value={m.id}>
-                      {m.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <p className="text-xs text-muted-foreground">
-                {t('embeddingsModelHint')}
-              </p>
-            </div>
-          </CardContent>
+                <span className="font-medium tabular-nums text-foreground">
+                  {status.limit === null
+                    ? t('usageNoLimit', { used: status.used })
+                    : t('usageOfLimit', { used: status.used, limit: status.limit })}
+                </span>
+              </div>
+              {status.limit !== null && (
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                  <div
+                    className={cn('h-full rounded-full', exceeded ? 'bg-destructive' : 'bg-primary')}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              )}
+              {exceeded && <p className="text-xs text-destructive">{t('limitReached')}</p>}
+            </CardContent>
+          )}
         </Card>
 
         <Card>
           <CardHeader>
             <CardTitle className="text-base">{t('behaviour')}</CardTitle>
-            <CardDescription>
-              {t('behaviourDesc')}
-            </CardDescription>
+            <CardDescription>{t('behaviourDesc')}</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="ai-prompt">{t('businessContext')}</Label>
-              <Textarea
-                id="ai-prompt"
-                value={systemPrompt}
-                onChange={(e) => setSystemPrompt(e.target.value)}
-                placeholder={t('promptPlaceholder')}
-                rows={5}
-                disabled={disabled}
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  {t('enableAssistant')}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('enableAssistantDesc')}
-                </p>
-              </div>
-              <Switch
-                checked={isActive}
-                onCheckedChange={setIsActive}
-                disabled={disabled}
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  {t('autoReply')}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('autoReplyDesc')}
-                </p>
-              </div>
-              <Switch
-                checked={autoReplyEnabled}
-                onCheckedChange={setAutoReplyEnabled}
-                disabled={disabled || !isActive}
-              />
-            </div>
-
-            <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <div className="min-w-0 flex-1 basis-56">
-                <Label htmlFor="ai-max">{t('maxAutoReplies')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('maxAutoRepliesDesc')}
-                </p>
-              </div>
-              <div className="flex items-center gap-3">
-                <Input
-                  id="ai-max"
-                  type="number"
-                  min={1}
-                  max={20}
-                  value={maxPerConversation}
-                  onChange={(e) =>
-                    setMaxPerConversation(
-                      Math.min(20, Math.max(1, Number(e.target.value) || 1)),
-                    )
-                  }
-                  disabled={disabled || !autoReplyEnabled || unlimitedReplies}
-                  className="w-20"
-                />
-                <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Switch
-                    checked={unlimitedReplies}
-                    onCheckedChange={setUnlimitedReplies}
-                    disabled={disabled || !autoReplyEnabled}
-                  />
-                  {t('unlimitedReplies')}
-                </label>
-              </div>
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <Label htmlFor="ai-reply-delay">{t('replyDelay')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('replyDelayDesc')}
-                </p>
-              </div>
-              <Input
-                id="ai-reply-delay"
-                type="number"
-                min={0}
-                max={300}
-                value={replyDelaySeconds}
-                onChange={(e) =>
-                  setReplyDelaySeconds(
-                    Math.min(300, Math.max(0, Math.floor(Number(e.target.value) || 0))),
-                  )
-                }
-                disabled={disabled || !autoReplyEnabled}
-                className="w-20"
-              />
-            </div>
-
-            <div className="flex items-center justify-between gap-4">
-              <div className="min-w-0 flex-1">
-                <Label htmlFor="ai-temperature">{t('temperature')}</Label>
-                <p className="text-xs text-muted-foreground">
-                  {t('temperatureDesc')}
-                </p>
-              </div>
-              <Input
-                id="ai-temperature"
-                type="number"
-                min={0}
-                max={2}
-                step={0.1}
-                value={temperature}
-                onChange={(e) =>
-                  setTemperature(Math.min(2, Math.max(0, Number(e.target.value) || 0)))
-                }
-                disabled={disabled}
-                className="w-20"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-handoff">{t('handoffTo')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('handoffToDesc')}
-              </p>
-              <Select
-                value={handoffAgentId || HANDOFF_QUEUE}
-                onValueChange={(v) =>
-                  setHandoffAgentId(!v || v === HANDOFF_QUEUE ? '' : v)
-                }
-                disabled={disabled || !autoReplyEnabled}
-              >
-                <SelectTrigger id="ai-handoff">
-                  <SelectValue>{(v: string) => {
-                    if (v === HANDOFF_QUEUE) return t('handoffQueue');
-                    const m = members.find((x) => x.user_id === v);
-                    return m ? memberLabel(m) : v;
-                  }}</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={HANDOFF_QUEUE}>
-                    {t('handoffQueue')}
-                  </SelectItem>
-                  {members.map((m) => (
-                    <SelectItem key={m.user_id} value={m.user_id}>
-                      {memberLabel(m)}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-
-            <div className="flex items-center justify-between gap-4 rounded-md border border-border p-3">
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-medium text-foreground">
-                  {t('handoffOnMissingInfo')}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {t('handoffOnMissingInfoDesc')}
-                </p>
-              </div>
-              <Switch
-                checked={handoffOnMissingInfo}
-                onCheckedChange={setHandoffOnMissingInfo}
-                disabled={disabled || !autoReplyEnabled}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ai-lead-pipeline">{t('leadPipeline')}</Label>
-              <p className="text-xs text-muted-foreground">
-                {t('leadPipelineDesc')}
-              </p>
-              <Select
-                value={leadPipelineId || NO_LEAD_PIPELINE}
-                onValueChange={(v) =>
-                  setLeadPipelineId(!v || v === NO_LEAD_PIPELINE ? '' : v)
-                }
-                disabled={disabled}
-              >
-                <SelectTrigger id="ai-lead-pipeline">
-                  <SelectValue>{(v: string) =>
-                    v === NO_LEAD_PIPELINE
-                      ? t('leadPipelineNone')
-                      : (pipelines.find((p) => p.id === v)?.name ?? v)
-                  }</SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value={NO_LEAD_PIPELINE}>
-                    {t('leadPipelineNone')}
-                  </SelectItem>
-                  {pipelines.map((p) => (
-                    <SelectItem key={p.id} value={p.id}>
-                      {p.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
+          <CardContent>
+            <AgentBehaviourForm
+              value={behaviour}
+              onChange={setBehaviour}
+              members={members}
+              pipelines={pipelines}
+              disabled={disabled}
+            />
           </CardContent>
         </Card>
 
-        <AiKnowledgeCard
-          accountId={accountId}
-          canEdit={canEdit}
-          hasEmbeddingsKey={
-            embeddingsKeyEdited
-              ? embeddingsKey.trim().length > 0
-              : hasStoredEmbeddingsKey
-          }
-        />
-
-        <AiFaqCard accountId={accountId} canEdit={canEdit} />
-
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          {configured ? (
-            <Button
-              variant="ghost"
-              onClick={handleRemove}
-              disabled={!canEdit || removing}
-              className="text-destructive hover:text-destructive"
-            >
-              {removing ? (
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              ) : (
-                <Trash2 className="mr-2 h-4 w-4" />
-              )}
-              {t('remove')}
-            </Button>
-          ) : (
-            <span />
-          )}
-
+        <div className="flex justify-end">
           <Button onClick={handleSave} disabled={disabled}>
             {saving && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {t('save')}
           </Button>
         </div>
+
+        <AiKnowledgeCard accountId={accountId} canEdit={canEdit} hasEmbeddingsKey={hasEmbeddings} />
+
+        <AiFaqCard accountId={accountId} canEdit={canEdit} />
       </div>
     </div>
   );

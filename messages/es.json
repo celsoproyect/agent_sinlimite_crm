@@ -2635,7 +2635,8 @@
       "fields": "Campos y etiquetas",
       "deals": "Negocios y moneda",
       "members": "Miembros del equipo",
-      "api": "Claves de API"
+      "api": "Claves de API",
+      "ai-agent": "Agente de IA"
     },
     "groups": {
       "account": "Cuenta",
@@ -2715,11 +2716,26 @@
       "languageGroup": "Idioma",
       "themeId": "ID del tema: {id}",
       "themes": {
-        "violet": { "name": "Violeta", "tagline": "Seguro y un poco juguetón." },
-        "emerald": { "name": "Esmeralda", "tagline": "Transmite crecimiento y recuerda a la mensajería sin copiar el verde de WhatsApp." },
-        "cobalt": { "name": "Cobalto", "tagline": "Azul limpio de software empresarial, sereno y profesional." },
-        "amber": { "name": "Ámbar", "tagline": "Cálido y cercano, ideal para pequeños negocios." },
-        "rose": { "name": "Rosa", "tagline": "Atrevido y moderno: tiendas, creadores, estilo de vida." }
+        "violet": {
+          "name": "Violeta",
+          "tagline": "Seguro y un poco juguetón."
+        },
+        "emerald": {
+          "name": "Esmeralda",
+          "tagline": "Transmite crecimiento y recuerda a la mensajería sin copiar el verde de WhatsApp."
+        },
+        "cobalt": {
+          "name": "Cobalto",
+          "tagline": "Azul limpio de software empresarial, sereno y profesional."
+        },
+        "amber": {
+          "name": "Ámbar",
+          "tagline": "Cálido y cercano, ideal para pequeños negocios."
+        },
+        "rose": {
+          "name": "Rosa",
+          "tagline": "Atrevido y moderno: tiendas, creadores, estilo de vida."
+        }
       }
     },
     "security": {
@@ -2788,9 +2804,9 @@
     "aiConfig": {
       "showKey": "Mostrar clave",
       "hideKey": "Ocultar clave",
-      "title": "Configuración del agente",
-      "description": "Usa tu propia clave de OpenAI o Anthropic. Sin Limite IA llama directamente al proveedor con tu clave — sin tarifas de IA por asiento, y tus datos siguen siendo tuyos. Esto impulsa las respuestas redactadas por IA en la bandeja de entrada, el bot de respuesta automática y la Zona de pruebas.",
-      "adminOnlyConfig": "Solo los administradores y propietarios pueden cambiar la configuración de IA.",
+      "title": "Agente de IA",
+      "description": "Configura cómo responde tu agente: instrucciones del negocio, respuestas automáticas, transferencia a una persona, captura de leads, base de conocimiento y preguntas frecuentes. La IA ya viene incluida en tu plan.",
+      "adminOnlyConfig": "Solo los administradores y propietarios pueden cambiar el agente de IA.",
       "loading": "Cargando…",
       "loadFailed": "Error al cargar la configuración de IA",
       "providerAndKey": "Proveedor y clave",
@@ -2835,10 +2851,19 @@
       "save": "Guardar",
       "missingModel": "Ingresa un nombre de modelo.",
       "missingApiKey": "Ingresa tu clave de API.",
-      "saveSuccess": "Asistente de IA guardado.",
+      "saveSuccess": "Agente de IA guardado.",
       "saveFailed": "Error al guardar.",
       "removeSuccess": "Configuración de IA eliminada.",
-      "removeFailed": "Error al eliminar."
+      "removeFailed": "Error al eliminar.",
+      "statusTitle": "Estado de la IA",
+      "statusPlatform": "Incluida en tu plan: la IA la proporciona la plataforma, no necesitas ninguna clave.",
+      "statusOwn": "Esta cuenta usa su propia clave de IA, configurada por el administrador de la plataforma.",
+      "statusNone": "La IA aún no está disponible en esta plataforma. Contacta al administrador.",
+      "usageThisMonth": "Respuestas de IA este mes",
+      "usageNoLimit": "{used} (sin límite)",
+      "usageOfLimit": "{used} de {limit}",
+      "limitReached": "Llegaste al límite mensual de tu plan: la IA está en pausa y los mensajes pasan a tu equipo hasta el próximo mes.",
+      "migrationPending": "Falta aplicar la migración 072 en Supabase para poder guardar."
     },
     "aiKnowledge": {
       "editDoc": "Editar documento",
@@ -2856,7 +2881,7 @@
       "title": "Bases de conocimiento",
       "description": "Organiza documentos en colecciones con nombre (p. ej. Legal, Ventas, Soporte). El asistente ve para qué sirve cada una y busca en la correcta al redactar y responder automáticamente.{searchType}",
       "semanticSearchOn": " La búsqueda semántica está activada (clave de embeddings configurada).",
-      "keywordSearchOn": " Usando búsqueda por palabras clave — agrega una clave de embeddings arriba para búsqueda semántica.",
+      "keywordSearchOn": " Usando búsqueda por palabras clave (la búsqueda semántica no está activada en la plataforma).",
       "noDocs": "Aún no hay documentos.",
       "editDocFormTitle": "Editar documento",
       "editDocTitle": "Título",
@@ -2959,7 +2984,8 @@
     "pageDesc": "Configuración de todo el despliegue — visible solo para ti, oculta para cada cuenta cliente.",
     "tabBranding": "Marca",
     "tabAccount": "Cuenta",
-    "tabAgent": "Agente de IA",
+    "tabAi": "IA de la plataforma",
+    "tabAccounts": "Cuentas y consumo",
     "tabUsers": "Usuarios",
     "tabModules": "Módulos",
     "branding": {
@@ -3053,6 +3079,76 @@
       "saving": "Guardando…",
       "saved": "Módulos actualizados",
       "saveFailed": "Error al actualizar los módulos"
+    },
+    "platformAi": {
+      "title": "IA de la plataforma",
+      "description": "La clave de IA que pagas tú y cobras dentro del plan. Todas las cuentas la usan, salvo las que tengan su propia clave (Cuentas y consumo). Los clientes nunca la ven.",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudo cargar la IA de la plataforma",
+      "migrationPending": "Falta aplicar la migración 072 en el SQL Editor de Supabase.",
+      "keyTitle": "Proveedor y clave",
+      "keySaved": "Clave guardada (termina en {hint}). Déjala en blanco para conservarla.",
+      "keyMissing": "Aún no hay clave: la IA no funciona en ninguna cuenta sin clave propia.",
+      "apiKey": "Clave de API",
+      "keepKeyPlaceholder": "Déjala vacía para conservar la actual",
+      "test": "Probar",
+      "testSuccess": "La clave funciona: el proveedor respondió.",
+      "testFailed": "El proveedor rechazó la clave.",
+      "encryptionNotice": "Se guarda cifrada (AES-256-GCM) y nunca se vuelve a mostrar.",
+      "embeddingsTitle": "Búsqueda semántica (embeddings)",
+      "embeddingsSaved": "Clave de embeddings guardada (termina en {hint}).",
+      "embeddingsMissing": "Sin clave de embeddings: las bases de conocimiento usan búsqueda por palabras clave.",
+      "embeddingsKey": "Clave de embeddings (OpenAI)",
+      "embeddingsHint": "Puede ser la misma clave de OpenAI de arriba. Al cambiarla o cambiar el modelo, se reindexan en segundo plano las bases de conocimiento de las cuentas sin clave propia.",
+      "embeddingsModel": "Modelo de embeddings",
+      "clearKey": "Quitar",
+      "undoClear": "Deshacer",
+      "missingModel": "Indica un modelo.",
+      "missingKey": "Ingresa la clave de API.",
+      "save": "Guardar",
+      "saved": "IA de la plataforma guardada.",
+      "saveFailed": "No se pudo guardar."
+    },
+    "accountsAi": {
+      "title": "Cuentas y consumo",
+      "description": "Consumo de IA de cada cuenta este mes, su límite mensual y con qué clave funciona. Desde aquí puedes editar el agente de cualquier cuenta.",
+      "loading": "Cargando…",
+      "loadFailed": "No se pudieron cargar las cuentas",
+      "noPlatformKey": "Aún no hay clave de IA de la plataforma: configúrala en «IA de la plataforma».",
+      "migrationPending": "Falta aplicar la migración 072 en el SQL Editor de Supabase (límites y claves por cuenta).",
+      "colAccount": "Cuenta",
+      "colAgent": "Agente",
+      "colKey": "Clave",
+      "colReplies": "Respuestas IA (mes)",
+      "colTokens": "Tokens (mes)",
+      "agentNotSet": "Sin configurar",
+      "agentOff": "Apagado",
+      "agentOn": "Solo borradores",
+      "agentAuto": "Respuesta automática",
+      "sourceOwn": "Propia",
+      "sourcePlatform": "Plataforma",
+      "sourceNone": "Ninguna",
+      "editAgent": "Editar agente",
+      "usageNote": "Cuenta cada respuesta generada por la IA (WhatsApp, widget, borradores) desde el día 1 del mes, hora de Santo Domingo. El límite solo aplica a las cuentas que usan la clave de la plataforma.",
+      "dialogTitle": "Agente de {name}",
+      "dialogDesc": "Límite mensual, clave y comportamiento del agente de esta cuenta.",
+      "limitTitle": "Límite mensual de respuestas de IA",
+      "limitDesc": "Este mes lleva {used}. Al llegar al límite la IA se pausa y los mensajes pasan al equipo hasta el próximo mes.",
+      "noLimit": "Sin límite",
+      "invalidLimit": "El límite debe ser un número de 0 o más.",
+      "keyTitle": "Clave de IA",
+      "ownKeyToggle": "Usar una clave propia para esta cuenta",
+      "ownKeyDesc": "Apagado = usa la clave de la plataforma (la pagas tú). Encendido = el cliente paga su propio proveedor y no tiene límite.",
+      "ownKey": "Clave de API de la cuenta",
+      "keepKeyPlaceholder": "Déjala vacía para conservar la actual",
+      "ownKeyKeep": "Ya tiene una clave propia guardada; escribe una nueva solo para reemplazarla.",
+      "ownKeyMissing": "Ingresa la clave propia de la cuenta.",
+      "agentTitle": "Comportamiento del agente",
+      "kbNote": "La base de conocimiento y las preguntas frecuentes las gestiona cada cuenta en Configuración → Agente de IA.",
+      "cancel": "Cancelar",
+      "save": "Guardar",
+      "saved": "Agente de la cuenta guardado.",
+      "saveFailed": "No se pudo guardar."
     }
   },
   "Reports": {
@@ -3171,12 +3267,12 @@
       "title": "Zona de pruebas",
       "subtitle": "prueba las respuestas como si fueras un cliente",
       "reset": "Reiniciar",
-      "notConfigured": "Todavía no hay un agente configurado. Termina la configuración primero.",
+      "notConfigured": "El agente aún no está listo. Revísalo en Configuración → Agente de IA.",
       "noReply": "No se pudo obtener una respuesta.",
       "unreachable": "No se pudo contactar al agente.",
       "emptyTitle": "Envía un mensaje para ver cómo respondería tu agente.",
       "emptyHint": "Usa tu base de conocimiento y se comporta igual que la respuesta automática, incluido el traspaso a un humano.",
-      "goToSetup": "¿Aún no está configurado? Ir a la configuración",
+      "goToSetup": "Ir a Configuración → Agente de IA",
       "handoff": "Aquí pasaría la conversación a un humano",
       "thinking": "Pensando…",
       "placeholder": "Escribe un mensaje como cliente…",

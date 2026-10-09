@@ -2,11 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import type { AiConfig } from './types'
 import { EMBEDDING_MODEL } from './embeddings'
+import { loadAiQuota, loadPlatformAiConfig } from './platform'
 
 interface AiConfigRow {
   provider: 'openai' | 'anthropic'
   model: string
-  api_key: string
+  /** Null/empty = the account runs on the platform key (migration 072). */
+  api_key: string | null
   system_prompt: string | null
   is_active: boolean
   auto_reply_enabled: boolean
@@ -53,15 +55,38 @@ export async function loadAiConfig(
   // The Playground passes requireActive:false so an admin can test the
   // agent before flipping the master switch on.
   if (requireActive && !row.is_active) return null
-  // Defensive: the column is NOT NULL, but a partial write / manual DB
-  // edit could leave it empty. Treat a missing key as "not configured"
-  // rather than letting decrypt() throw on null.
-  if (!row.api_key) return null
+
+  // Own key (set by a super admin) wins; otherwise the account runs on
+  // the platform key, capped by its monthly limit. No key anywhere means
+  // "not configured".
+  let provider = row.provider
+  let model = row.model
+  let apiKey: string
+  let keySource: 'own' | 'platform'
+  const platform = row.api_key && row.embeddings_api_key ? null : await loadPlatformAiConfig()
+  if (row.api_key) {
+    apiKey = decrypt(row.api_key)
+    keySource = 'own'
+  } else {
+    if (!platform) return null
+    const quota = await loadAiQuota(accountId)
+    if (quota.exceeded) {
+      console.warn(
+        `[ai config] account ${accountId} reached its monthly AI limit (${quota.used}/${quota.limit}) — AI paused until next month.`,
+      )
+      return null
+    }
+    provider = platform.provider
+    model = platform.model
+    apiKey = platform.apiKey
+    keySource = 'platform'
+  }
 
   // The embeddings key is optional and independent of the chat key —
   // a corrupt/undecryptable one should downgrade to lexical KB, not
   // take down draft/auto-reply, so decrypt failures are swallowed here.
   let embeddingsApiKey: string | null = null
+  let embeddingsModel = row.embeddings_model
   if (row.embeddings_api_key) {
     try {
       embeddingsApiKey = decrypt(row.embeddings_api_key)
@@ -73,12 +98,16 @@ export async function loadAiConfig(
       )
       embeddingsApiKey = null
     }
+  } else if (platform?.embeddingsApiKey) {
+    embeddingsApiKey = platform.embeddingsApiKey
+    embeddingsModel = platform.embeddingsModel
   }
 
   return {
-    provider: row.provider,
-    model: row.model,
-    apiKey: decrypt(row.api_key),
+    provider,
+    model,
+    apiKey,
+    keySource,
     systemPrompt: row.system_prompt,
     isActive: row.is_active,
     autoReplyEnabled: row.auto_reply_enabled,
@@ -89,7 +118,7 @@ export async function loadAiConfig(
     handoffOnMissingInfo: row.handoff_on_missing_info,
     leadPipelineId: row.lead_pipeline_id,
     embeddingsApiKey,
-    embeddingsModel: row.embeddings_model,
+    embeddingsModel,
   }
 }
 
@@ -116,7 +145,15 @@ export async function loadEmbeddingsKey(
     .eq('account_id', accountId)
     .maybeSingle()
   const model = data?.embeddings_model || EMBEDDING_MODEL
-  if (error || !data?.embeddings_api_key) return { key: null, corrupt: false, model }
+  if (error || !data?.embeddings_api_key) {
+    // No own embeddings key: fall back to the platform's (migration 072),
+    // with the platform's model so every vector matches the query side.
+    const platform = await loadPlatformAiConfig()
+    if (platform?.embeddingsApiKey) {
+      return { key: platform.embeddingsApiKey, corrupt: false, model: platform.embeddingsModel }
+    }
+    return { key: null, corrupt: false, model }
+  }
   try {
     return { key: decrypt(data.embeddings_api_key), corrupt: false, model }
   } catch {

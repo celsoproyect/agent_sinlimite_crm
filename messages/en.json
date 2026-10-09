@@ -2635,7 +2635,8 @@
       "fields": "Fields & tags",
       "deals": "Deals & currency",
       "members": "Team members",
-      "api": "API keys"
+      "api": "API keys",
+      "ai-agent": "AI agent"
     },
     "groups": {
       "account": "Account",
@@ -2715,11 +2716,26 @@
       "languageGroup": "Language",
       "themeId": "Theme id: {id}",
       "themes": {
-        "violet": { "name": "Violet", "tagline": "Confident, slightly playful." },
-        "emerald": { "name": "Emerald", "tagline": "Growth-coded, nods at messaging without copying WhatsApp green." },
-        "cobalt": { "name": "Cobalt", "tagline": "Clean B2B-SaaS blue, calm and product-y." },
-        "amber": { "name": "Amber", "tagline": "Warm and friendly, feels good for SMB teams." },
-        "rose": { "name": "Rose", "tagline": "Bold and modern: D2C, creator economy, lifestyle." }
+        "violet": {
+          "name": "Violet",
+          "tagline": "Confident, slightly playful."
+        },
+        "emerald": {
+          "name": "Emerald",
+          "tagline": "Growth-coded, nods at messaging without copying WhatsApp green."
+        },
+        "cobalt": {
+          "name": "Cobalt",
+          "tagline": "Clean B2B-SaaS blue, calm and product-y."
+        },
+        "amber": {
+          "name": "Amber",
+          "tagline": "Warm and friendly, feels good for SMB teams."
+        },
+        "rose": {
+          "name": "Rose",
+          "tagline": "Bold and modern: D2C, creator economy, lifestyle."
+        }
       }
     },
     "security": {
@@ -2788,9 +2804,9 @@
     "aiConfig": {
       "showKey": "Show key",
       "hideKey": "Hide key",
-      "title": "Agent setup",
-      "description": "Bring your own OpenAI or Anthropic key. Sin Limite IA calls the provider directly with your key — no per-seat AI fees, and your data stays yours. This powers AI-drafted replies in the inbox, the auto-reply bot, and the Playground.",
-      "adminOnlyConfig": "Only admins and owners can change the AI configuration.",
+      "title": "AI agent",
+      "description": "Set up how your agent replies: business instructions, auto-replies, handoff to a person, lead capture, knowledge base and FAQ. AI is included in your plan.",
+      "adminOnlyConfig": "Only admins and owners can change the AI agent.",
       "loading": "Loading…",
       "loadFailed": "Failed to load AI configuration",
       "providerAndKey": "Provider & key",
@@ -2835,10 +2851,19 @@
       "save": "Save",
       "missingModel": "Enter a model name.",
       "missingApiKey": "Enter your API key.",
-      "saveSuccess": "AI assistant saved.",
+      "saveSuccess": "AI agent saved.",
       "saveFailed": "Failed to save.",
       "removeSuccess": "AI configuration removed.",
-      "removeFailed": "Failed to remove."
+      "removeFailed": "Failed to remove.",
+      "statusTitle": "AI status",
+      "statusPlatform": "Included in your plan: the platform provides the AI, no key needed.",
+      "statusOwn": "This account uses its own AI key, set by the platform administrator.",
+      "statusNone": "AI is not available on this platform yet. Contact the administrator.",
+      "usageThisMonth": "AI replies this month",
+      "usageNoLimit": "{used} (no limit)",
+      "usageOfLimit": "{used} of {limit}",
+      "limitReached": "You reached your plan's monthly limit: the AI is paused and messages go to your team until next month.",
+      "migrationPending": "Migration 072 must be applied in Supabase before saving."
     },
     "aiKnowledge": {
       "editDoc": "Edit document",
@@ -2856,7 +2881,7 @@
       "title": "Knowledge bases",
       "description": "Organize documents into named collections (e.g. Legal, Sales, Support). The assistant sees what each one is for and searches the right one when drafting and auto-replying.{searchType}",
       "semanticSearchOn": " Semantic search is on (embeddings key set).",
-      "keywordSearchOn": " Using keyword search — add an embeddings key above for semantic search.",
+      "keywordSearchOn": " Using keyword search (semantic search is not enabled on the platform).",
       "noDocs": "No documents yet.",
       "editDocFormTitle": "Edit document",
       "editDocTitle": "Title",
@@ -2959,7 +2984,8 @@
     "pageDesc": "Deployment-wide settings — visible only to you, hidden from every client account.",
     "tabBranding": "Branding",
     "tabAccount": "Account",
-    "tabAgent": "AI agent",
+    "tabAi": "Platform AI",
+    "tabAccounts": "Accounts & usage",
     "tabUsers": "Users",
     "tabModules": "Modules",
     "branding": {
@@ -3053,6 +3079,76 @@
       "saving": "Saving…",
       "saved": "Modules updated",
       "saveFailed": "Failed to update modules"
+    },
+    "platformAi": {
+      "title": "Platform AI",
+      "description": "The AI key you pay for and bill inside the plan. Every account uses it unless it has its own key (Accounts & usage). Clients never see it.",
+      "loading": "Loading…",
+      "loadFailed": "Could not load the platform AI",
+      "migrationPending": "Migration 072 must be applied in the Supabase SQL Editor.",
+      "keyTitle": "Provider and key",
+      "keySaved": "Key saved (ends in {hint}). Leave blank to keep it.",
+      "keyMissing": "No key yet: AI won't work on any account without its own key.",
+      "apiKey": "API key",
+      "keepKeyPlaceholder": "Leave empty to keep the current one",
+      "test": "Test",
+      "testSuccess": "The key works: the provider answered.",
+      "testFailed": "The provider rejected the key.",
+      "encryptionNotice": "Stored encrypted (AES-256-GCM) and never shown again.",
+      "embeddingsTitle": "Semantic search (embeddings)",
+      "embeddingsSaved": "Embeddings key saved (ends in {hint}).",
+      "embeddingsMissing": "No embeddings key: knowledge bases use keyword search.",
+      "embeddingsKey": "Embeddings key (OpenAI)",
+      "embeddingsHint": "It can be the same OpenAI key as above. Changing it or the model re-indexes, in the background, the knowledge bases of accounts without their own key.",
+      "embeddingsModel": "Embeddings model",
+      "clearKey": "Remove",
+      "undoClear": "Undo",
+      "missingModel": "Enter a model.",
+      "missingKey": "Enter the API key.",
+      "save": "Save",
+      "saved": "Platform AI saved.",
+      "saveFailed": "Could not save."
+    },
+    "accountsAi": {
+      "title": "Accounts & usage",
+      "description": "Each account's AI usage this month, its monthly limit and which key it runs on. You can edit any account's agent from here.",
+      "loading": "Loading…",
+      "loadFailed": "Could not load the accounts",
+      "noPlatformKey": "There is no platform AI key yet: set it in \"Platform AI\".",
+      "migrationPending": "Migration 072 must be applied in the Supabase SQL Editor (per-account limits and keys).",
+      "colAccount": "Account",
+      "colAgent": "Agent",
+      "colKey": "Key",
+      "colReplies": "AI replies (month)",
+      "colTokens": "Tokens (month)",
+      "agentNotSet": "Not set up",
+      "agentOff": "Off",
+      "agentOn": "Drafts only",
+      "agentAuto": "Auto-reply",
+      "sourceOwn": "Own",
+      "sourcePlatform": "Platform",
+      "sourceNone": "None",
+      "editAgent": "Edit agent",
+      "usageNote": "Counts every AI-generated reply (WhatsApp, widget, drafts) since the 1st of the month, Santo Domingo time. The limit only applies to accounts on the platform key.",
+      "dialogTitle": "{name}'s agent",
+      "dialogDesc": "Monthly limit, key and agent behaviour for this account.",
+      "limitTitle": "Monthly AI reply limit",
+      "limitDesc": "{used} so far this month. At the limit the AI pauses and messages go to the team until next month.",
+      "noLimit": "No limit",
+      "invalidLimit": "The limit must be a number of 0 or more.",
+      "keyTitle": "AI key",
+      "ownKeyToggle": "Use this account's own key",
+      "ownKeyDesc": "Off = runs on the platform key (you pay). On = the client pays their own provider and has no limit.",
+      "ownKey": "Account API key",
+      "keepKeyPlaceholder": "Leave empty to keep the current one",
+      "ownKeyKeep": "An own key is already saved; type a new one only to replace it.",
+      "ownKeyMissing": "Enter the account's own key.",
+      "agentTitle": "Agent behaviour",
+      "kbNote": "Each account manages its knowledge base and FAQ in Settings → AI agent.",
+      "cancel": "Cancel",
+      "save": "Save",
+      "saved": "Account agent saved.",
+      "saveFailed": "Could not save."
     }
   },
   "Reports": {
@@ -3171,12 +3267,12 @@
       "title": "Playground",
       "subtitle": "test replies as if you were a customer",
       "reset": "Reset",
-      "notConfigured": "No agent configured yet. Finish Setup first.",
+      "notConfigured": "The agent isn't ready yet. Check Settings → AI agent.",
       "noReply": "Couldn't get a reply.",
       "unreachable": "Couldn't reach the agent.",
       "emptyTitle": "Send a message to see how your agent would reply.",
       "emptyHint": "It uses your knowledge base and behaves exactly like the auto-reply bot, including handoff.",
-      "goToSetup": "Not set up yet? Go to Setup",
+      "goToSetup": "Go to Settings → AI agent",
       "handoff": "Would hand off to a human here",
       "thinking": "Thinking…",
       "placeholder": "Type a customer message…",

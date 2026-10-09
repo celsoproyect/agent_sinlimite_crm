@@ -1,23 +1,24 @@
 import { NextResponse } from 'next/server'
-import { requireRole, toErrorResponse } from '@/lib/auth/account'
+import { requireSuperAdmin, toErrorResponse } from '@/lib/auth/account'
 import { checkRateLimit, rateLimitResponse, RATE_LIMITS } from '@/lib/rate-limit'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { validateAiCredentials } from '@/lib/ai/validate'
 import { DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
+import { loadPlatformAiRow } from '@/lib/ai/platform'
 import { AiError, type AiProvider } from '@/lib/ai/types'
 
 /**
- * POST /api/ai/test  (admin+)
+ * POST /api/ai/test  (super admin only)
  *
- * "Test key" button: validate a candidate provider/model/key against
- * the provider WITHOUT saving. When `api_key` is omitted the stored
- * key is used, so an admin can re-test an existing config (e.g. after
- * changing the model). Returns `{ ok: true }` on success, 400 with the
- * provider's message on failure.
+ * "Test key" button of the platform AI panel: validate a candidate
+ * provider/model/key against the provider WITHOUT saving. When `api_key`
+ * is omitted the stored platform key is used, so the model can be
+ * re-tested after changing it. Returns `{ ok: true }` on success, 400
+ * with the provider's message on failure.
  */
 export async function POST(request: Request) {
   try {
-    const { supabase, accountId, userId } = await requireRole('admin')
+    const { userId } = await requireSuperAdmin()
 
     const limit = checkRateLimit(`ai-test:${userId}`, RATE_LIMITS.adminAction)
     if (!limit.success) return rateLimitResponse(limit)
@@ -42,19 +43,15 @@ export async function POST(request: Request) {
     const rawKey = typeof body.api_key === 'string' ? body.api_key.trim() : ''
     let apiKeyPlain = rawKey
     if (!apiKeyPlain) {
-      const { data: existing } = await supabase
-        .from('ai_configs')
-        .select('api_key')
-        .eq('account_id', accountId)
-        .maybeSingle()
-      if (!existing?.api_key) {
+      const stored = await loadPlatformAiRow()
+      if (!stored?.api_key) {
         return NextResponse.json(
           { error: 'Enter an API key to test.' },
           { status: 400 },
         )
       }
       try {
-        apiKeyPlain = decrypt(existing.api_key)
+        apiKeyPlain = decrypt(stored.api_key)
       } catch {
         return NextResponse.json(
           { error: 'Stored API key could not be decrypted — re-enter your key.' },

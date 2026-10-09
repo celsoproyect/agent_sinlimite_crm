@@ -10,24 +10,27 @@ import {
   Loader2,
   UsersRound,
   ToggleLeft,
+  Gauge,
 } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { AiConfig } from '@/components/settings/ai-config';
 import { BrandingPanel } from '@/components/super-admin/branding-panel';
 import { AccountNamePanel } from '@/components/super-admin/account-name-panel';
 import { UsersPanel } from '@/components/super-admin/users-panel';
 import { ModulesPanel } from '@/components/super-admin/modules-panel';
+import { PlatformAiPanel } from '@/components/super-admin/platform-ai-panel';
+import { AccountsAiPanel } from '@/components/super-admin/accounts-ai-panel';
 
-type TabId = 'branding' | 'account' | 'agent' | 'users' | 'modules';
+type TabId = 'branding' | 'account' | 'ai' | 'accounts' | 'users' | 'modules';
 
 function isTabId(value: string | null): value is TabId {
   return (
     value === 'branding' ||
     value === 'account' ||
-    value === 'agent' ||
+    value === 'ai' ||
+    value === 'accounts' ||
     value === 'users' ||
     value === 'modules'
   );
@@ -56,9 +59,9 @@ function SuperAdminPageInner() {
   const { isSuperAdmin, profileLoading } = useAuth();
   const t = useTranslations('SuperAdmin');
 
-  const tab: TabId = isTabId(searchParams.get('tab'))
-    ? (searchParams.get('tab') as TabId)
-    : 'branding';
+  // The old "agent" tab became the platform AI panel (migration 072).
+  const rawTab = searchParams.get('tab') === 'agent' ? 'ai' : searchParams.get('tab');
+  const tab: TabId = isTabId(rawTab) ? rawTab : 'branding';
 
   const go = (next: TabId) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -99,8 +102,11 @@ function SuperAdminPageInner() {
           <TabsTrigger value="account">
             <Building2 className="mr-1.5 h-4 w-4" /> {t('tabAccount')}
           </TabsTrigger>
-          <TabsTrigger value="agent">
-            <Bot className="mr-1.5 h-4 w-4" /> {t('tabAgent')}
+          <TabsTrigger value="ai">
+            <Bot className="mr-1.5 h-4 w-4" /> {t('tabAi')}
+          </TabsTrigger>
+          <TabsTrigger value="accounts">
+            <Gauge className="mr-1.5 h-4 w-4" /> {t('tabAccounts')}
           </TabsTrigger>
           <TabsTrigger value="users">
             <UsersRound className="mr-1.5 h-4 w-4" /> {t('tabUsers')}
@@ -116,8 +122,11 @@ function SuperAdminPageInner() {
         <TabsContent value="account" className="mt-4">
           <AccountNamePanel />
         </TabsContent>
-        <TabsContent value="agent" className="mt-4">
-          <AiConfig />
+        <TabsContent value="ai" className="mt-4">
+          <PlatformAiPanel />
+        </TabsContent>
+        <TabsContent value="accounts" className="mt-4">
+          <AccountsAiPanel />
         </TabsContent>
         <TabsContent value="users" className="mt-4">
           <UsersPanel />

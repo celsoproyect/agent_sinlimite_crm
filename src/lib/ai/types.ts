@@ -17,6 +17,9 @@ export interface AiConfig {
   provider: AiProvider
   model: string
   apiKey: string
+  /** Whose key `apiKey` is: the account's own (set by a super admin) or
+   *  the platform's (migration 072). Absent in hand-built test configs. */
+  keySource?: 'own' | 'platform'
   systemPrompt: string | null
   isActive: boolean
   autoReplyEnabled: boolean
