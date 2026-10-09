@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,6 +18,7 @@ import { KeyRound } from "lucide-react";
 const MIN_PASSWORD = 8;
 
 export default function ResetPasswordPage() {
+  const t = useTranslations("AuthPages");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -28,11 +30,11 @@ export default function ResetPasswordPage() {
     setError(null);
 
     if (password.length < MIN_PASSWORD) {
-      setError(`Password must be at least ${MIN_PASSWORD} characters`);
+      setError(t("passwordMin", { min: MIN_PASSWORD }));
       return;
     }
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwordsMismatch"));
       return;
     }
 
@@ -54,16 +56,16 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center justify-items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
             <KeyRound className="h-6 w-6 text-primary" />
           </div>
           <CardTitle className="text-xl text-foreground">
-            Set a new password
+            {t("resetTitle")}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            Choose a new password for your account
+            {t("resetDesc")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -76,12 +78,12 @@ export default function ResetPasswordPage() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="password" className="text-muted-foreground">
-                New password
+                {t("newPassword")}
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="At least 8 characters"
+                placeholder={t("atLeast", { min: MIN_PASSWORD })}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 autoComplete="new-password"
@@ -96,12 +98,12 @@ export default function ResetPasswordPage() {
                 htmlFor="confirmPassword"
                 className="text-muted-foreground"
               >
-                Confirm new password
+                {t("confirmNewPassword")}
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Repeat your password"
+                placeholder={t("repeatPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 autoComplete="new-password"
@@ -116,7 +118,7 @@ export default function ResetPasswordPage() {
               disabled={loading}
               className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {loading ? "Saving..." : "Save new password"}
+              {loading ? t("saving") : t("saveNew")}
             </Button>
           </form>
         </CardContent>

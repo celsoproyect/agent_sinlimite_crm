@@ -79,7 +79,7 @@ function LoginPageInner() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center justify-items-center text-center">
           {inviteToken ? (
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
@@ -90,9 +90,9 @@ function LoginPageInner() {
               logoUrl={logoUrl}
               logoLightUrl={logoLightUrl}
               alt={companyName}
-              width={128}
-              height={128}
-              className="mb-2 h-28 w-28 rounded-2xl object-contain"
+              width={240}
+              height={72}
+              className="mb-3 h-16 w-auto max-w-[240px] object-contain"
             />
           )}
           <CardTitle className="text-xl text-foreground">

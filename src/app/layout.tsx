@@ -62,8 +62,8 @@ export async function generateMetadata(): Promise<Metadata> {
 }
 
 export const viewport: Viewport = {
-  themeColor: "#020617",
-  colorScheme: "dark light",
+  themeColor: "#F5F7FB",
+  colorScheme: "light dark",
 };
 
 // Inline boot script — runs before React hydrates so the user's

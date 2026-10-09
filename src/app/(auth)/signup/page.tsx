@@ -3,6 +3,7 @@
 import { Suspense, useEffect, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
+import { useTranslations } from "next-intl";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -48,27 +49,13 @@ type Gate =
   | { status: "invalid"; reason: PeekFail["reason"] }
   | { status: "ok"; accountName: string };
 
+// Message keys (AuthPages namespace) for each closed-gate state.
 const GATE_COPY: Record<"no_invite" | PeekFail["reason"], { title: string; body: string }> = {
-  no_invite: {
-    title: "Invite only",
-    body: "New accounts are created by invitation only. Ask your account admin for an invite link.",
-  },
-  not_found: {
-    title: "Invite not found",
-    body: "This link doesn’t match a valid invitation. Ask the person who invited you to send a new one.",
-  },
-  used: {
-    title: "Invite already used",
-    body: "This invitation has already been accepted. Ask the account admin to send a fresh link.",
-  },
-  expired: {
-    title: "Invite expired",
-    body: "This invitation has expired. Ask the account admin to send a new one.",
-  },
-  server_error: {
-    title: "Something went wrong",
-    body: "We couldn’t verify this invitation right now. Try refreshing the page in a moment.",
-  },
+  no_invite: { title: "gateNoInviteTitle", body: "gateNoInviteBody" },
+  not_found: { title: "gateNotFoundTitle", body: "gateNotFoundBody" },
+  used: { title: "gateUsedTitle", body: "gateUsedBody" },
+  expired: { title: "gateExpiredTitle", body: "gateExpiredBody" },
+  server_error: { title: "gateErrorTitle", body: "gateErrorBody" },
 };
 
 function SignupPageInner() {
@@ -79,6 +66,7 @@ function SignupPageInner() {
   // points back at /join/<token> so the user lands on the redeem
   // step after verifying instead of being dropped on /dashboard.
   const inviteToken = searchParams.get("invite");
+  const t = useTranslations("AuthPages");
 
   const [gate, setGate] = useState<Gate>(
     inviteToken ? { status: "loading" } : { status: "no_invite" },
@@ -127,12 +115,12 @@ function SignupPageInner() {
     setError(null);
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match");
+      setError(t("passwordsMismatch"));
       return;
     }
 
     if (password.length < 6) {
-      setError("Password must be at least 6 characters");
+      setError(t("passwordMin", { min: 6 }));
       return;
     }
 
@@ -170,10 +158,10 @@ function SignupPageInner() {
   if (gate.status === "loading") {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border-border bg-card">
+        <Card className="w-full max-w-sm border-border bg-card">
           <CardContent className="flex flex-col items-center gap-3 py-12">
             <Loader2 className="size-6 animate-spin text-primary" />
-            <p className="text-sm text-muted-foreground">Verifying invitation…</p>
+            <p className="text-sm text-muted-foreground">{t("verifying")}</p>
           </CardContent>
         </Card>
       </div>
@@ -185,14 +173,14 @@ function SignupPageInner() {
       gate.status === "no_invite" ? GATE_COPY.no_invite : GATE_COPY[gate.reason];
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border-border bg-card">
+        <Card className="w-full max-w-sm border-border bg-card">
           <CardHeader className="items-center justify-items-center text-center">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-red-500/10">
               <MailX className="h-6 w-6 text-red-400" />
             </div>
-            <CardTitle className="text-xl text-foreground">{copy.title}</CardTitle>
+            <CardTitle className="text-xl text-foreground">{t(copy.title)}</CardTitle>
             <CardDescription className="text-muted-foreground">
-              {copy.body}
+              {t(copy.body)}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -201,7 +189,7 @@ function SignupPageInner() {
                 variant="outline"
                 className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Back to sign in
+                {t("backToSignIn")}
               </Button>
             </Link>
           </CardContent>
@@ -213,18 +201,16 @@ function SignupPageInner() {
   if (success) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background px-4">
-        <Card className="w-full max-w-md border-border bg-card">
+        <Card className="w-full max-w-sm border-border bg-card">
           <CardHeader className="items-center justify-items-center text-center">
             <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
               <CheckCircle className="h-6 w-6 text-primary" />
             </div>
             <CardTitle className="text-xl text-foreground">
-              Check your email
+              {t("checkEmail")}
             </CardTitle>
             <CardDescription className="text-muted-foreground">
-              We&apos;ve sent a confirmation link to{" "}
-              <span className="text-foreground">{email}</span>. Please check your
-              inbox and click the link to verify your account.
+              {t("signupSent", { email })}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -239,7 +225,7 @@ function SignupPageInner() {
                 variant="outline"
                 className="w-full border-border text-muted-foreground hover:bg-muted hover:text-foreground"
               >
-                Back to sign in
+                {t("backToSignIn")}
               </Button>
             </Link>
           </CardContent>
@@ -250,7 +236,7 @@ function SignupPageInner() {
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
-      <Card className="w-full max-w-md border-border bg-card">
+      <Card className="w-full max-w-sm border-border bg-card">
         <CardHeader className="items-center justify-items-center text-center">
           <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-primary/10">
             {inviteToken ? (
@@ -260,12 +246,10 @@ function SignupPageInner() {
             )}
           </div>
           <CardTitle className="text-xl text-foreground">
-            {inviteToken ? "Create account & join" : "Create account"}
+            {inviteToken ? t("titleJoin") : t("titleCreate")}
           </CardTitle>
           <CardDescription className="text-muted-foreground">
-            {inviteToken
-              ? "Verify your email, then accept the invitation to join your team."
-              : "Get started with CRM Template for WhatsApp"}
+            {inviteToken ? t("descJoin") : t("descCreate")}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -278,12 +262,12 @@ function SignupPageInner() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="fullName" className="text-muted-foreground">
-                Full name
+                {t("fullName")}
               </Label>
               <Input
                 id="fullName"
                 type="text"
-                placeholder="John Doe"
+                placeholder={t("fullNamePlaceholder")}
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
                 required
@@ -293,12 +277,12 @@ function SignupPageInner() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="email" className="text-muted-foreground">
-                Email
+                {t("emailLabel")}
               </Label>
               <Input
                 id="email"
                 type="email"
-                placeholder="you@example.com"
+                placeholder={t("emailPlaceholder")}
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -308,12 +292,12 @@ function SignupPageInner() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="password" className="text-muted-foreground">
-                Password
+                {t("passwordLabel")}
               </Label>
               <Input
                 id="password"
                 type="password"
-                placeholder="At least 6 characters"
+                placeholder={t("atLeast", { min: 6 })}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -323,12 +307,12 @@ function SignupPageInner() {
 
             <div className="flex flex-col gap-2">
               <Label htmlFor="confirmPassword" className="text-muted-foreground">
-                Confirm password
+                {t("confirmPassword")}
               </Label>
               <Input
                 id="confirmPassword"
                 type="password"
-                placeholder="Repeat your password"
+                placeholder={t("repeatPassword")}
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
                 required
@@ -341,12 +325,12 @@ function SignupPageInner() {
               disabled={loading}
               className="mt-2 h-10 w-full bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
             >
-              {loading ? "Creating account..." : "Create account"}
+              {loading ? t("creating") : t("createAccount")}
             </Button>
           </form>
 
           <p className="mt-6 text-center text-sm text-muted-foreground">
-            Already have an account?{" "}
+            {t("haveAccount")}{" "}
             <Link
               href={
                 inviteToken
@@ -355,7 +339,7 @@ function SignupPageInner() {
               }
               className="text-primary hover:text-primary/80"
             >
-              Sign in
+              {t("signIn")}
             </Link>
           </p>
         </CardContent>

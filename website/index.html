@@ -498,7 +498,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
     </nav>
     <div class="nav-actions">
       <a class="btn btn-ghost login" href="https://app.crm.agentesinlimite.com/login">Entrar</a>
-      <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Prueba gratis</a>
+      <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Prueba gratis</a>
     </div>
   </div>
 </header>
@@ -512,7 +512,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
       <h1>Atiende, vende y agenda por WhatsApp. <span class="always">Sin límite.</span></h1>
       <p class="lede">Agentes Sin Límite es un agente de inteligencia artificial que trabaja en el WhatsApp de tu negocio a cualquier hora: resuelve dudas con tu información, vende con tu catálogo y precios reales, y agenda citas y reservas. Tu equipo ve cada conversación en un CRM sencillo y entra cuando quiera.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Prueba gratis 14 días</a>
+        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Prueba gratis 14 días</a>
         <a class="btn btn-ghost" href="#demo">Agenda una demo</a>
       </div>
       <div class="hero-notes">
@@ -887,7 +887,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         </div>
         <div class="price"><b data-base="49">$49</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-ghost" href="https://app.crm.agentesinlimite.com/signup">Probar gratis</a>
+        <a class="btn btn-ghost" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Incluye</span>
         <ul class="checks">
           <li>1 número de WhatsApp Business</li>
@@ -909,7 +909,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         </div>
         <div class="price"><b data-base="99">$99</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Probar gratis</a>
+        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Todo lo de Inicial, más</span>
         <ul class="checks">
           <li>5 usuarios</li>
@@ -1049,11 +1049,10 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
         <h2>Esta noche, que conteste tu agente.</h2>
         <p>Pruébalo 14 días gratis o pide una demo y te enseñamos cómo atendería, vendería y agendaría en tu negocio.</p>
         <div class="hero-ctas" style="margin-top: 26px">
-          <a class="btn btn-primary" href="https://app.crm.agentesinlimite.com/signup">Crear mi cuenta gratis</a>
+          <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Crear mi cuenta gratis</a>
         </div>
       </div>
-      <!-- TODO: connect this form (e.g. to the CRM's leads API or a webhook). -->
-      <form class="demo-form" id="demoForm">
+            <form class="demo-form" id="demoForm">
         <h3>Agenda una demo</h3>
         <label>Tu nombre<input name="name" required autocomplete="name"></label>
         <div class="row">
@@ -1078,7 +1077,7 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
           </select>
         </label>
         <button class="btn" type="submit">Quiero una demo</button>
-        <p class="form-ok" id="formOk" role="status" hidden>Gracias. Te escribiremos por WhatsApp para coordinar la demo.</p>
+        <p class="form-ok" id="formOk" role="status" hidden>Listo. Envía el mensaje que se abrió en WhatsApp y coordinamos tu demo.</p>
       </form>
     </div>
   </div>
@@ -1211,10 +1210,24 @@ footer { padding-block: 56px 40px; border-top: 1px solid var(--line); margin-top
   applyPeriod(periodBtns[0]);
 
   // Demo form: no backend yet.
+  // The demo request goes out as a WhatsApp message to the business line,
+  // where the agent picks it up like any other lead.
   document.getElementById('demoForm').addEventListener('submit', function (e) {
     e.preventDefault();
+    var f = e.target;
+    var text = 'Hola, quiero una demo de Agentes Sin Límite.
+' +
+      'Nombre: ' + f.name.value + '
+' +
+      'Negocio: ' + f.business.value + '
+' +
+      'WhatsApp: ' + f.phone.value + '
+' +
+      'Sector: ' + f.sector.value;
+    var url = 'https://wa.me/18298059191?text=' + encodeURIComponent(text);
+    if (!window.open(url, '_blank', 'noopener')) window.location.href = url;
     document.getElementById('formOk').hidden = false;
-    e.target.reset();
+    f.reset();
   });
 
   document.getElementById('year').textContent = new Date().getFullYear();
