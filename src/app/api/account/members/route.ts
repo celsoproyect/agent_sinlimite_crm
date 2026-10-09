@@ -16,6 +16,8 @@ import { NextResponse } from "next/server";
 
 import { getCurrentAccount, toErrorResponse } from "@/lib/auth/account";
 import { canManageMembers, isAccountRole } from "@/lib/auth/roles";
+import { supabaseAdmin } from "@/lib/super-admin/admin-client";
+import { withoutSupportVisitors } from "@/lib/support/sessions";
 import type { AccountMember } from "@/types";
 
 interface ProfileRow {
@@ -49,7 +51,15 @@ export async function GET() {
 
     const canSeeEmails = canManageMembers(ctx.role);
 
-    const members: AccountMember[] = (data as ProfileRow[]).flatMap((row) => {
+    // A super admin visiting in support mode (migration 073) is a member
+    // for RLS, but not part of the client's team.
+    const rows = await withoutSupportVisitors(
+      supabaseAdmin(),
+      ctx.accountId,
+      data as ProfileRow[],
+    );
+
+    const members: AccountMember[] = rows.flatMap((row) => {
       // Defensive: the DB enum should never let an unknown role
       // through, but if a migration ever broadens the enum without
       // updating TS, skip the row rather than crash the page.

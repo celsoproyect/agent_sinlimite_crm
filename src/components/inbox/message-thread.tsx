@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAccountMembers, teamProfiles } from "@/lib/account/members";
 import { useAuth } from "@/hooks/use-auth";
 import { usePresence } from "@/hooks/use-presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
@@ -229,18 +230,17 @@ export function MessageThread({
   useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
-    supabase
-      .from("profiles")
-      .select("*")
-      .order("full_name")
-      .then(({ data, error }) => {
-        if (cancelled) return;
-        if (error) {
-          console.error("Failed to fetch profiles:", error);
-          return;
-        }
-        setProfiles((data as Profile[]) ?? []);
-      });
+    void Promise.all([
+      supabase.from("profiles").select("*").order("full_name"),
+      fetchAccountMembers(),
+    ]).then(([{ data, error }, members]) => {
+      if (cancelled) return;
+      if (error) {
+        console.error("Failed to fetch profiles:", error);
+        return;
+      }
+      setProfiles(teamProfiles((data as Profile[]) ?? [], members));
+    });
     return () => {
       cancelled = true;
     };

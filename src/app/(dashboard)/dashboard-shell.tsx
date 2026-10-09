@@ -7,6 +7,7 @@ import { AuthProvider, useAuth } from "@/hooks/use-auth";
 import { Sidebar } from "@/components/layout/sidebar";
 import { Header } from "@/components/layout/header";
 import { AccountAccessAlert } from "@/components/layout/account-access-alert";
+import { SupportModeBar } from "@/components/layout/support-mode-bar";
 import { PresenceHeartbeat } from "@/components/presence/presence-heartbeat";
 
 // Auth-gated dashboard shell. Extracted from the layout so the layout
@@ -49,6 +50,8 @@ function DashboardShellInner({ children }: { children: React.ReactNode }) {
       <PresenceHeartbeat />
       <Sidebar open={sidebarOpen} onClose={closeSidebar} />
       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
+        {/* Super admin inside a client's account: say so on every page. */}
+        <SupportModeBar />
         <Header onOpenSidebar={() => setSidebarOpen(true)} />
         {/* Thinner horizontal padding on mobile so cards have room to breathe. */}
         <main className="min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] sm:p-6 sm:pb-[calc(1.5rem+env(safe-area-inset-bottom))]">

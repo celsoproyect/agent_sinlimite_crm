@@ -35,6 +35,7 @@ import { loadEmbeddingsKey } from '@/lib/ai/config'
 import { reindexKnowledge } from '@/lib/ai/knowledge'
 import { findEmbeddingModel, DEFAULT_EMBEDDINGS_MODEL } from '@/lib/ai/models'
 import type { AiProvider } from '@/lib/ai/types'
+import { withoutSupportVisitors } from '@/lib/support/sessions'
 
 function bad(message: string) {
   return NextResponse.json({ error: message }, { status: 400 })
@@ -101,7 +102,9 @@ export async function GET(_request: Request, { params }: Params) {
       platform_configured: !!platform,
       monthly_limit: account.ai_monthly_limit ?? null,
       monthly_used: used,
-      members: (members ?? []).map((m) => ({
+      members: (
+        await withoutSupportVisitors(admin, id, (members ?? []) as { user_id: string; full_name: string | null; email: string | null }[])
+      ).map((m) => ({
         user_id: m.user_id,
         label: m.full_name || m.email || m.user_id,
       })),

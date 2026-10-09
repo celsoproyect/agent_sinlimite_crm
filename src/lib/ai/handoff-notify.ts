@@ -3,6 +3,7 @@ import { generateReply } from './generate'
 import { contentToText, type AiConfig, type ChatMessage } from './types'
 import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
 import { sendPushToUsers, trimPushBody } from '@/lib/push/send'
+import { withoutSupportVisitors } from '@/lib/support/sessions'
 
 /** Sent to the customer when the model hands off without writing its own
  *  goodbye (or comes back empty), so they're never left on read. */
@@ -76,12 +77,15 @@ export async function notifyTeamOfHandoff(
   })
 
   try {
-    const { data: admins, error } = await db
+    const { data: rows, error } = await db
       .from('profiles')
       .select('user_id')
       .eq('account_id', args.accountId)
       .in('account_role', ['owner', 'admin'])
-    if (error || !admins?.length) return
+    if (error || !rows?.length) return
+    // A super admin visiting in support mode is not the client's team.
+    const admins = await withoutSupportVisitors(db, args.accountId, rows as { user_id: string }[])
+    if (!admins.length) return
     const title = `${args.contactName} quiere hablar con un agente humano`
     const userIds = admins.map((a: { user_id: string }) => a.user_id)
     const push = sendPushToUsers(

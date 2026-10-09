@@ -3148,7 +3148,12 @@
       "cancel": "Cancelar",
       "save": "Guardar",
       "saved": "Agente de la cuenta guardado.",
-      "saveFailed": "No se pudo guardar."
+      "saveFailed": "No se pudo guardar.",
+      "enterAccount": "Entrar",
+      "youAreHere": "Estás aquí",
+      "enterFailed": "No se pudo entrar a la cuenta.",
+      "supportMigrationPending": "Falta aplicar la migración 073 (modo soporte) en el SQL Editor de Supabase.",
+      "supportNote": "\"Entrar\" te mete en la cuenta del cliente como administrador para darle soporte: ves y editas todo como él. El cliente no te ve en su equipo y cada visita queda registrada."
     }
   },
   "Reports": {
@@ -3707,5 +3712,11 @@
     "createAccount": "Crear cuenta",
     "haveAccount": "¿Ya tienes una cuenta?",
     "signIn": "Iniciar sesión"
+  },
+  "SupportMode": {
+    "banner": "Modo soporte: estás en la cuenta de {name}.",
+    "hint": "Lo que hagas aquí afecta al cliente; los mensajes salen por su WhatsApp.",
+    "exit": "Volver a mi cuenta",
+    "exitFailed": "No se pudo volver a tu cuenta. Inténtalo de nuevo."
   }
 }

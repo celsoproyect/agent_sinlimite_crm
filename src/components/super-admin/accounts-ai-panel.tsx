@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useTranslations } from 'next-intl';
-import { Bot, Loader2, Pencil } from 'lucide-react';
+import { Bot, LogIn, Loader2, Pencil } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,6 +31,8 @@ import { ProviderModelFields, SecretInput } from './platform-ai-panel';
 import { AI_PROVIDER_DEFAULT_MODEL } from '@/lib/ai/defaults';
 import type { AiProvider } from '@/lib/ai/types';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
+import { enterAccount } from '@/lib/support/client';
 
 type KeySource = 'own' | 'platform' | 'none';
 
@@ -60,6 +62,17 @@ export function AccountsAiPanel() {
   const [platformConfigured, setPlatformConfigured] = useState(true);
   const [limitsAvailable, setLimitsAvailable] = useState(true);
   const [editing, setEditing] = useState<AccountAiRow | null>(null);
+  const [entering, setEntering] = useState<string | null>(null);
+  const { accountId: currentAccountId } = useAuth();
+
+  const enter = async (row: AccountAiRow) => {
+    setEntering(row.id);
+    const result = await enterAccount(row.id);
+    if (!result.ok) {
+      setEntering(null);
+      toast.error(result.code === 'migration_pending' ? t('supportMigrationPending') : t('enterFailed'));
+    }
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -106,7 +119,7 @@ export function AccountsAiPanel() {
       ) : (
         <Card className="overflow-hidden p-0">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[640px] text-sm">
+            <table className="w-full min-w-[760px] text-sm">
               <thead>
                 <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   <th className="px-4 py-3 font-medium">{t('colAccount')}</th>
@@ -150,10 +163,30 @@ export function AccountsAiPanel() {
                       <td className="px-4 py-3 text-right tabular-nums text-muted-foreground">
                         {nf.format(r.monthly_tokens)}
                       </td>
-                      <td className="px-4 py-3 text-right">
-                        <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
-                          <Pencil className="mr-1.5 h-3.5 w-3.5" /> {t('editAgent')}
-                        </Button>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap justify-end gap-2">
+                          <Button variant="outline" size="sm" onClick={() => setEditing(r)}>
+                            <Pencil className="mr-1.5 h-3.5 w-3.5" /> {t('editAgent')}
+                          </Button>
+                          {r.id === currentAccountId ? (
+                            <span className="inline-flex h-8 items-center px-2 text-xs text-muted-foreground">
+                              {t('youAreHere')}
+                            </span>
+                          ) : (
+                            <Button
+                              size="sm"
+                              onClick={() => enter(r)}
+                              disabled={entering !== null}
+                            >
+                              {entering === r.id ? (
+                                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+                              ) : (
+                                <LogIn className="mr-1.5 h-3.5 w-3.5" />
+                              )}
+                              {t('enterAccount')}
+                            </Button>
+                          )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -164,6 +197,7 @@ export function AccountsAiPanel() {
         </Card>
       )}
       <p className="mt-2 text-xs text-muted-foreground">{t('usageNote')}</p>
+      <p className="mt-1 text-xs text-muted-foreground">{t('supportNote')}</p>
 
       <AccountAgentDialog
         account={editing}

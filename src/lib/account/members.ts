@@ -23,3 +23,18 @@ export async function fetchAccountMembers(): Promise<AccountMember[]> {
 export function memberLabel(m: AccountMember): string {
   return m.full_name || m.email || m.user_id;
 }
+
+/**
+ * Keep only the profiles that are part of the account's team, using the
+ * members API (which leaves out a super admin visiting in support mode).
+ * When the members list is empty (error, older deployment) the profiles
+ * pass through unchanged.
+ */
+export function teamProfiles<T extends { user_id: string }>(
+  profiles: T[],
+  members: AccountMember[],
+): T[] {
+  if (members.length === 0) return profiles;
+  const ids = new Set(members.map((m) => m.user_id));
+  return profiles.filter((p) => ids.has(p.user_id));
+}

@@ -3,6 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { fetchAccountMembers, teamProfiles } from "@/lib/account/members";
 import { useAuth } from "@/hooks/use-auth";
 import { CURRENCIES } from "@/lib/currency";
 import type {
@@ -119,13 +120,14 @@ export function DealForm({
     if (!open) return;
     let cancelled = false;
     (async () => {
-      const [c, p] = await Promise.all([
+      const [c, p, members] = await Promise.all([
         supabase.from("contacts").select("*").order("name"),
         supabase.from("profiles").select("*").order("full_name"),
+        fetchAccountMembers(),
       ]);
       if (cancelled) return;
       setContacts((c.data ?? []) as Contact[]);
-      setProfiles((p.data ?? []) as Profile[]);
+      setProfiles(teamProfiles((p.data ?? []) as Profile[], members));
     })();
     return () => {
       cancelled = true;

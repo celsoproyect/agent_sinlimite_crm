@@ -3148,7 +3148,12 @@
       "cancel": "Cancel",
       "save": "Save",
       "saved": "Account agent saved.",
-      "saveFailed": "Could not save."
+      "saveFailed": "Could not save.",
+      "enterAccount": "Enter",
+      "youAreHere": "You are here",
+      "enterFailed": "Could not enter the account.",
+      "supportMigrationPending": "Migration 073 (support mode) has not been applied in the Supabase SQL Editor yet.",
+      "supportNote": "\"Enter\" puts you inside the client's account as an admin to support them: you see and edit everything they do. The client does not see you in their team and every visit is logged."
     }
   },
   "Reports": {
@@ -3707,5 +3712,11 @@
     "createAccount": "Create account",
     "haveAccount": "Already have an account?",
     "signIn": "Sign in"
+  },
+  "SupportMode": {
+    "banner": "Support mode: you are in {name}'s account.",
+    "hint": "What you do here affects the client; messages go out from their WhatsApp.",
+    "exit": "Back to my account",
+    "exitFailed": "Could not return to your account. Try again."
   }
 }

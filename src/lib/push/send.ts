@@ -3,6 +3,7 @@ import webpush from 'web-push'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import type { AccountRole } from '@/lib/auth/roles'
+import { withoutSupportVisitors } from '@/lib/support/sessions'
 
 /**
  * Web Push sender (module `web_push`, migration 071).
@@ -146,9 +147,11 @@ export async function sendPushToAccountRoles(
       .eq('account_id', accountId)
       .in('account_role', roles)
     if (error || !data?.length) return NOTHING
+    const team = await withoutSupportVisitors(db, accountId, data as { user_id: string }[])
+    if (!team.length) return NOTHING
     return sendPushToUsers(
       accountId,
-      data.map((p: { user_id: string }) => p.user_id),
+      team.map((p) => p.user_id),
       payload,
       db,
     )
