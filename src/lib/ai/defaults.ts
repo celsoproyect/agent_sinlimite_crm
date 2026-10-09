@@ -180,7 +180,7 @@ export function buildSystemPrompt(args: {
   if (mode === 'auto_reply') {
     parts.push(
       'You are replying automatically with no human in the loop. ' +
-        `Handing off is the exception, not the default: reply with exactly ${HANDOFF_SENTINEL} and nothing else (a human agent then takes over and you stop replying to this customer) ONLY when one of these is true — ` +
+        `Handing off is the exception, not the default: reply with one short sentence in the customer's language telling them a human agent will attend them shortly, followed by ${HANDOFF_SENTINEL} (a human agent then takes over and you stop replying to this customer) ONLY when one of these is true — ` +
         '(a) the customer explicitly asks to talk to a person, or (b) the customer is clearly angry, or is complaining about a problem you cannot resolve yourself' +
         (handoffOnMissingInfo
           ? ', or (c) answering would require information you do not have.'
@@ -238,15 +238,22 @@ export function buildSystemPrompt(args: {
     )
   }
 
+  // The roster is listed even without the send_attachment tool (the web
+  // widget), so "what do you offer?" gets the full catalog everywhere.
+  // The model used to trim the list to fit the owner's "short messages"
+  // style, so the rule asks for every name explicitly.
+  if (attachmentNames && attachmentNames.length > 0) {
+    parts.push(
+      'The business\'s product/service catalog currently has these items: ' +
+        `${attachmentNames.join(', ')}. ` +
+        'When the customer asks generally about "what do you offer" / "what services/products do you have" (not naming a specific one), ' +
+        "list every one of these names in your reply, one per line — do not shorten, merge or drop any (except items the business instructions say not to offer), even if the reply runs longer than your usual messages — and ask which one they'd like to know more about. " +
+        (attachmentsAvailable ? 'Do not call send_attachment yet, and do' : 'Do') +
+        " not describe details (price, etc.) for items the customer hasn't picked.",
+    )
+  }
+
   if (attachmentsAvailable) {
-    if (attachmentNames && attachmentNames.length > 0) {
-      parts.push(
-        'The business\'s product/service catalog currently has these items: ' +
-          `${attachmentNames.join(', ')}. ` +
-          'When the customer asks generally about "what do you offer" / "what services/products do you have" (not naming a specific one), ' +
-          "list these names in your reply and ask which one they'd like to see — do not call send_attachment yet, and do not describe details (price, etc.) for items the customer hasn't picked.",
-      )
-    }
     // The owner keeps prices in the catalog; a knowledge-base document
     // can lag behind it, so the catalog is the source of truth.
     parts.push(

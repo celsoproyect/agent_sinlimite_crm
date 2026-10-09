@@ -30,7 +30,7 @@ import {
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
+import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
 
 // Pending reply-delay timers, keyed by conversation. In-process only —
 // doesn't survive a restart and doesn't coordinate across replicas, which
@@ -396,11 +396,26 @@ export async function dispatchInboundToAiReply(
       // configured handoff agent — null leaves it in the shared queue —
       // and (c) leave a short internal note so whoever picks it up has
       // context. Assigning fires the `on_conversation_assigned` trigger,
-      // which notifies the agent.
-      const summary = buildHandoffSummary({
-        messages,
-        replyCount: conv.ai_reply_count ?? 0,
-      })
+      // which notifies the agent. The customer first gets a goodbye (the
+      // model's own, or HANDOFF_FAREWELL) so they aren't left on read.
+      try {
+        await engineSendText({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          text: text || HANDOFF_FAREWELL,
+          aiGenerated: true,
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] handoff goodbye send failed:', err)
+      }
+      const summary =
+        (await summarizeHandoff(config, messages)) ??
+        buildHandoffSummary({
+          messages,
+          replyCount: conv.ai_reply_count ?? 0,
+        })
       // Loud on purpose: "the bot handed off and I don't know why" is the
       // hardest thing to diagnose from the outside, and `reason` says
       // whether the model deliberately asked for a human (the sentinel)
@@ -434,10 +449,12 @@ export async function dispatchInboundToAiReply(
         update.assigned_agent_id = config.handoffAgentId
       }
       await db.from('conversations').update(update).eq('id', conversationId)
-      void notifyOwnerOfHandoff(db, accountId, {
+      await notifyTeamOfHandoff(db, {
+        accountId,
+        conversationId,
+        contactId,
         contactName: contactRow?.name || contactRow?.phone || 'Un cliente',
         summary,
-        conversationId,
       })
       return
     }

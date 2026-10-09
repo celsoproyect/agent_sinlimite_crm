@@ -153,6 +153,7 @@ vi.mock('./admin-client', () => ({
 }))
 
 import { dispatchInboundToAiReply } from './auto-reply'
+import { HANDOFF_FAREWELL } from './handoff-notify'
 
 const ARGS = {
   accountId: 'acct-1',
@@ -603,10 +604,15 @@ describe('dispatchInboundToAiReply — capture side effects', () => {
 })
 
 describe('dispatchInboundToAiReply — handoff', () => {
-  it('disables auto-reply, writes a summary, and does not send on handoff', async () => {
+  it('disables auto-reply, writes a summary, and sends the default goodbye on handoff', async () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     await dispatchInboundToAiReply(ARGS)
-    expect(h.engineSendText).not.toHaveBeenCalled()
+    expect(h.engineSendText).toHaveBeenCalledTimes(1)
+    expect(h.engineSendText.mock.calls[0][0]).toMatchObject({
+      text: HANDOFF_FAREWELL,
+      aiGenerated: true,
+    })
+    // The goodbye doesn't consume a reply slot.
     expect(h.state.rpcCalls).toHaveLength(0)
     expect(h.state.updatePayload).toMatchObject({ ai_autoreply_disabled: true })
     expect(h.state.updatePayload?.ai_handoff_summary).toContain(
@@ -614,6 +620,19 @@ describe('dispatchInboundToAiReply — handoff', () => {
     )
     // No handoff target configured → conversation left unassigned.
     expect(h.state.updatePayload).not.toHaveProperty('assigned_agent_id')
+  })
+
+  it("sends the model's own goodbye and uses its summary when it writes them", async () => {
+    h.generateReply
+      .mockResolvedValueOnce({ text: 'Te paso con un asesor ahora mismo.', handoff: true })
+      .mockResolvedValueOnce({ text: 'Quiere el Plan Profesional para su clínica.', handoff: false })
+    await dispatchInboundToAiReply(ARGS)
+    expect(h.engineSendText.mock.calls[0][0]).toMatchObject({
+      text: 'Te paso con un asesor ahora mismo.',
+    })
+    expect(h.state.updatePayload?.ai_handoff_summary).toBe(
+      'Quiere el Plan Profesional para su clínica.',
+    )
   })
 
   it('also inserts the handoff summary as a contact note', async () => {

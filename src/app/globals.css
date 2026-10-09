@@ -243,7 +243,21 @@ html[data-theme="rose"] {
     /* Every Tailwind size/spacing utility is rem-based, so this one bump
      * scales text, icons, padding and gaps together across the whole app —
      * the "everything looks small" fix without touching each screen.
-     * 25.5px = 17px * 1.5 (all texts sized up 50% per user request). */
-    font-size: 25.5px;
+     * 18px: 25.5px (+50%) read as oversized; 17px read as small. */
+    font-size: 18px;
   }
+}
+/* Light mode chat: WhatsApp-style green outgoing bubbles on a soft green
+ * thread, like the marketing site's phone. Unlayered so it beats the
+ * bg-* utilities. Re-pointing --primary inside the bubble also recolors
+ * its timestamp, AI badge, reply quote and template chip. */
+html[data-mode="light"] .chat-bubble-out {
+  --primary: #d9fdd3;
+  --primary-foreground: #111b21;
+}
+html[data-mode="light"] .chat-bubble-in {
+  background-color: #ffffff;
+}
+html[data-mode="light"] .chat-area {
+  background-color: #e6f2e0;
 }

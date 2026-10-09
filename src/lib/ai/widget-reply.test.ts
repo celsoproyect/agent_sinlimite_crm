@@ -37,6 +37,7 @@ vi.mock('./booking', () => ({
 }))
 
 import { generateWidgetReply } from './widget-reply'
+import { HANDOFF_FAREWELL } from './handoff-notify'
 
 function aiConfig(overrides: Partial<AiConfig> = {}): AiConfig {
   return {
@@ -249,12 +250,13 @@ describe('generateWidgetReply — handoff', () => {
     h.generateReply.mockResolvedValue({ text: '', handoff: true })
     const { db, calls } = makeDb({ conv: { assigned_agent_id: null, ai_autoreply_disabled: false, ai_reply_count: 0 } })
     const res = await generateWidgetReply({ db, ...ARGS_BASE })
-    expect(res).toEqual({ ok: false, reason: 'handoff' })
+    // The visitor is told a person is coming instead of getting silence.
+    expect(res).toEqual({ ok: true, text: HANDOFF_FAREWELL })
     expect(calls.noteInserts).toHaveLength(1)
     expect(calls.noteInserts[0]).toMatchObject({ contact_id: 'contact-1', source: 'ai' })
-    expect(calls.conversationUpdates).toEqual([
+    expect(calls.conversationUpdates[0]).toEqual(
       expect.objectContaining({ ai_autoreply_disabled: true }),
-    ])
+    )
   })
 })
 

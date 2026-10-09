@@ -2,6 +2,7 @@ import type { SupabaseClient } from '@supabase/supabase-js'
 import { loadAiConfig } from './config'
 import { buildConversationContext } from './context'
 import { retrieveKnowledge, retrieveKnowledgeFromKb, getKnowledgeBaseRoster } from './knowledge'
+import { getAttachmentRoster } from './attachments'
 import { applyLeadCapture, getCustomFieldRoster, getLeadPipelineStages } from './custom-fields'
 import {
   bookingEnabled,
@@ -20,7 +21,7 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { notifyOwnerOfHandoff } from '@/lib/telegram/send'
+import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
 import { accountModuleEnabled } from '@/lib/modules-server'
 
 interface WidgetReplyArgs {
@@ -101,7 +102,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   if (!acctLimit.success) return { ok: false, reason: 'rate_limited' }
 
   const widgetBooking = await accountModuleEnabled(db, accountId, 'widget_booking')
-  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster, clinic, venue] = await Promise.all([
+  const [knowledge, knowledgeBases, bookingAvailable, businessHoursSummary, customFieldRoster, leadStageRoster, clinic, venue, attachmentRoster] = await Promise.all([
     retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
     getKnowledgeBaseRoster(db, accountId),
     // Saved hours, the agenda module AND the widget_booking module on.
@@ -114,6 +115,9 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     getClinicDirectory(db, accountId),
     // Tables and halls are booked from the widget under the same switch.
     widgetBooking ? loadVenue(db, accountId) : Promise.resolve({ restaurant: null, events: null }),
+    // Catalog names only (no send_attachment here), so "what do you
+    // offer?" lists the full catalog in the widget too.
+    getAttachmentRoster(db, accountId),
   ])
   const venueOn = !!(venue.restaurant || venue.events)
   const customFieldNames = customFieldRoster.map((f) => f.field_name)
@@ -126,6 +130,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     knowledgeBases,
     toolAvailable: true,
     attachmentsAvailable: false,
+    attachmentNames: attachmentRoster.map((a) => a.name),
     bookingAvailable,
     businessHoursSummary,
     bookingManageAvailable: bookingAvailable || venueOn,
@@ -252,7 +257,9 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   })
 
   if (handoff || !text) {
-    const summary = buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 })
+    const summary =
+      (await summarizeHandoff(config, messages)) ??
+      buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 })
     try {
       await db.from('contact_notes').insert({
         contact_id: contactId,
@@ -270,12 +277,32 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     }
     if (config.handoffAgentId) update.assigned_agent_id = config.handoffAgentId
     await db.from('conversations').update(update).eq('id', conversationId)
-    void notifyOwnerOfHandoff(db, accountId, {
+    await notifyTeamOfHandoff(db, {
+      accountId,
+      conversationId,
+      contactId,
       contactName: needsCustomerName ? 'Un visitante web' : contactName,
       summary,
-      conversationId,
     })
-    return { ok: false, reason: 'handoff' }
+    // Tell the visitor a person is coming instead of going silent.
+    const goodbye = text || HANDOFF_FAREWELL
+    const { error: goodbyeErr } = await db.from('messages').insert({
+      conversation_id: conversationId,
+      sender_type: 'bot',
+      content_type: 'text',
+      content_text: goodbye,
+      status: 'sent',
+      ai_generated: true,
+    })
+    if (goodbyeErr) {
+      console.error('[widget ai reply] handoff goodbye insert failed:', goodbyeErr)
+      return { ok: false, reason: 'handoff' }
+    }
+    await db
+      .from('conversations')
+      .update({ last_message_text: goodbye, last_message_at: new Date().toISOString() })
+      .eq('id', conversationId)
+    return { ok: true, text: goodbye }
   }
 
   const { data: claimed, error: claimErr } = await db.rpc('claim_ai_reply_slot', {
