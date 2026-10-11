@@ -36,6 +36,8 @@ export interface AgentBehaviour {
   handoffOnMissingInfo: boolean;
   /** '' = no lead capture. */
   leadPipelineId: string;
+  /** One per line; '' = the default questions (module ai_qualification). */
+  qualificationQuestions: string;
 }
 
 export const DEFAULT_AGENT_BEHAVIOUR: AgentBehaviour = {
@@ -49,6 +51,7 @@ export const DEFAULT_AGENT_BEHAVIOUR: AgentBehaviour = {
   handoffAgentId: '',
   handoffOnMissingInfo: true,
   leadPipelineId: '',
+  qualificationQuestions: '',
 };
 
 /** Map an `ai_configs` row (snake_case, from the APIs) onto the form. */
@@ -66,6 +69,7 @@ export function behaviourFromRow(row: Record<string, unknown> | null | undefined
     handoffAgentId: (row.handoff_agent_id as string | null) ?? '',
     handoffOnMissingInfo: row.handoff_on_missing_info !== false,
     leadPipelineId: (row.lead_pipeline_id as string | null) ?? '',
+    qualificationQuestions: (row.qualification_questions as string | null) ?? '',
   };
 }
 
@@ -81,6 +85,7 @@ export function behaviourToBody(b: AgentBehaviour) {
     handoff_agent_id: b.handoffAgentId || null,
     handoff_on_missing_info: b.handoffOnMissingInfo,
     lead_pipeline_id: b.leadPipelineId || null,
+    qualification_questions: b.qualificationQuestions.trim() || null,
   };
 }
 
@@ -284,6 +289,20 @@ export function AgentBehaviourForm({
             ))}
           </SelectContent>
         </Select>
+      </div>
+
+      <div className="space-y-2">
+        <Label htmlFor={id('qualification-questions')}>{t('qualificationQuestions')}</Label>
+        <p className="text-xs text-muted-foreground">{t('qualificationQuestionsDesc')}</p>
+        <Textarea
+          id={id('qualification-questions')}
+          value={value.qualificationQuestions}
+          onChange={(e) => set('qualificationQuestions', e.target.value)}
+          placeholder={t('qualificationQuestionsPlaceholder')}
+          rows={5}
+          maxLength={2000}
+          disabled={disabled}
+        />
       </div>
     </div>
   );

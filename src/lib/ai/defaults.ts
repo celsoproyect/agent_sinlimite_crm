@@ -125,6 +125,9 @@ export function buildSystemPrompt(args: {
   /** True when the caller wired up the `set_sentiment` tool — adds the
    *  instruction on when/how to use it. */
   sentimentCaptureAvailable?: boolean
+  /** Module `ai_qualification`: name first, prequalify every lead with
+   *  `save_qualification` and sell consultatively. Null/omitted = off. */
+  qualification?: QualificationPromptOptions | null
 }): string {
   const {
     userPrompt,
@@ -149,6 +152,7 @@ export function buildSystemPrompt(args: {
     customFieldNames,
     leadStageNames,
     sentimentCaptureAvailable,
+    qualification,
   } = args
   const parts: string[] = [
     'You are a customer-messaging assistant for a business that uses a WhatsApp CRM. ' +
@@ -262,7 +266,7 @@ export function buildSystemPrompt(args: {
     parts.push(
       'You also have a send_attachment tool that looks up one specific product/service by name/description in the catalog above and returns its full details (description, price, currency) plus its image/document. ' +
         "Call it once the customer has named or clearly picked a specific item — either they asked for it directly, or they answered your \"which one?\" question. " +
-        "The image and its details are sent to the customer automatically alongside your reply, so in your reply just briefly describe the item using only what the tool confirmed (never invent or guess a price or detail it didn't return) — don't repeat the raw image/file in text. " +
+        "The image is sent to the customer automatically right before your reply, as a card with the item's name and price. In your reply present the item with the structured product format described under Formatting, using only what the tool confirmed (never invent or guess a price or detail it didn't return) — don't repeat the raw image/file in text. " +
         "If the tool doesn't find a match, say so naturally instead of pretending you sent something — never claim you attached a file the tool didn't confirm. " +
         'Never mention the tool itself in your reply.',
     )
@@ -289,7 +293,7 @@ export function buildSystemPrompt(args: {
         (customerWhatsappPhone
           ? `This customer is writing from the WhatsApp number ${customerWhatsappPhone}; you may ask whether that's the number to use for the appointment instead of asking them to type it. `
           : '') +
-        'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time, and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment.',
+        'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time — laid out with the structured confirmation format described under Formatting — and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment.',
     )
     if (clinicRoster) {
       parts.push(
@@ -368,7 +372,9 @@ export function buildSystemPrompt(args: {
     )
   }
 
-  if (needsCustomerName) {
+  if (qualification) {
+    parts.push(...qualificationSections(qualification, { mode, needsCustomerName: !!needsCustomerName }))
+  } else if (needsCustomerName) {
     parts.push(
       "You don't have this customer's name on file yet. Ask for it in a natural, friendly way, in the customer's own language — right after greeting them, or woven into your first reply if they've already asked something (answer their question first, don't block on the name). " +
         'Once they tell you their name, call set_customer_name with exactly what they gave you — call it at most once per conversation. ' +
@@ -407,5 +413,87 @@ export function buildSystemPrompt(args: {
     )
   }
 
+  parts.push(FORMATTING_RULES)
+
   return parts.join('\n\n')
 }
+
+export interface QualificationPromptOptions {
+  /** What to find out, from the owner's list or the defaults. */
+  questions: string[]
+  /** What is already known (`formatKnownQualification`), so nothing is asked twice. */
+  known: string | null
+  /** The name on file when it came from the WhatsApp profile and the
+   *  customer hasn't confirmed it yet. */
+  unconfirmedName: string | null
+}
+
+/** Name first, prequalification and consultative selling (module
+ *  `ai_qualification`). */
+function qualificationSections(
+  q: QualificationPromptOptions,
+  ctx: { mode: 'draft' | 'auto_reply'; needsCustomerName: boolean },
+): string[] {
+  const out: string[] = []
+  if (ctx.needsCustomerName) {
+    out.push(
+      (q.unconfirmedName
+        ? `WhatsApp shows the profile name "${q.unconfirmedName}" for this customer, but they haven't confirmed how they'd like to be called. Unless the conversation already shows their name, confirm it warmly in your first reply (e.g. "¿Hablo con ${q.unconfirmedName}? 😊"). `
+        : "You don't know this customer's name yet. ") +
+        'Name first: before giving specific information (prices, details, availability, booking) and before handing off to a person, get their name. ' +
+        'On their first message, greet them warmly, acknowledge what they asked in a few words so they feel heard (e.g. "¡Claro, con gusto te ayudo con eso!") and ask their name in that same message; give the full answer as soon as they tell you. It should feel like courtesy, never like a requirement. ' +
+        'Once they give or confirm a name, call set_customer_name with the name they want to be called. ' +
+        'If they ignore or decline it twice, stop asking and keep helping. Never delay a customer who is angry or reporting an urgent problem — help them (or hand off) right away.',
+    )
+  }
+  out.push(
+    'Prequalify every customer as a lead, the way a warm, professional advisor would: they should feel helped, never interrogated or pressured. Over the conversation, find out:\n' +
+      q.questions.map((x) => `• ${x}`).join('\n') +
+      '\nRules: ask at most one of these per message, and only after giving something useful (answer first, then ask); frame each question as part of helping them ("Para recomendarte la mejor opción, ¿…?"); skip anything they already told you; never ask for a budget bluntly — mention the price range of the options and let them react. ' +
+      (q.known ? `Already known about this customer (don't ask again): ${q.known}. ` : '') +
+      'Call save_qualification in the same turn whenever you learn something new, with temperature hot (ready to buy or book soon), warm (interested, comparing or undecided) or cold (just browsing), and a one-line summary.',
+  )
+  if (ctx.mode === 'auto_reply') {
+    out.push(
+      `Before handing off (${HANDOFF_SENTINEL}): the person who takes over must receive a prequalified customer. ` +
+        'If the customer asks for a person and you still lack their name or what they need, first reply once with a single short, friendly message that asks for both (e.g. "¡Claro! Te comunico con un asesor 😊 Para que te atienda más rápido, ¿me compartes tu nombre y qué necesitas?") — then hand off on their next message, even if they did not answer. ' +
+        'A customer who is angry or has an urgent problem is handed off right away, without questions. ' +
+        `In the same turn as ${HANDOFF_SENTINEL}, always call save_qualification with everything you learned and a summary for the team.`,
+    )
+  }
+  out.push(
+    'Sales approach: guide the customer toward buying or booking like a trusted consultant. Connect each benefit to the need they told you; when several options exist, recommend the one that fits them best and say why in one line; ' +
+      'end every message with one clear next step — a question or a concrete proposal (e.g. two specific times, or the two options that fit) — never leave the conversation without a direction. ' +
+      'Handle objections (price, timing, doubts) with empathy and value: what is included, the result they get, how easy it is. ' +
+      'When they show buying signals (asking about availability, payment, location, or saying it sounds good), move to closing: propose booking or ordering right away. ' +
+      'Never pressure, and never invent urgency, scarcity, discounts or promotions that the business context does not state.',
+  )
+  return out
+}
+
+/** Applies to every channel and mode: WhatsApp, the widget and the
+ *  inbox all render this formatting. */
+const FORMATTING_RULES =
+  'Formatting (WhatsApp style): bold is *single asterisks*, italic is _underscores_, lists use "• " bullets, and line breaks separate ideas. Never use markdown: no **double asterisks**, no # headings, no tables, no [text](link). ' +
+  'Casual replies stay short, natural text. But whenever you give information about a specific product or service, prices, hours, or confirm an appointment, reservation, event or order, structure it — never one dense paragraph. Even if the business instructions ask for short messages, keep it short but structured.\n' +
+  'Product/service detail:\n' +
+  '*Name of the service*\n' +
+  'One line on what it is and the benefit for the customer.\n\n' +
+  '💰 *Precio:* RD$15,000\n' +
+  '⏱️ *Duración:* 60 minutos\n' +
+  '✅ *Incluye:*\n' +
+  '• first item\n' +
+  '• second item\n\n' +
+  'Then one line with the next step (e.g. "¿Te gustaría agendar tu cita?").\n' +
+  'Appointment confirmation:\n' +
+  '✅ *¡Cita confirmada!*\n\n' +
+  '📋 *Servicio:* …\n' +
+  '👨‍⚕️ *Doctor:* … (only when there is one)\n' +
+  '📅 *Fecha:* jueves 15 de octubre\n' +
+  '🕐 *Hora:* 3:00 p. m.\n' +
+  '👤 *Nombre:* …\n' +
+  '📞 *Teléfono:* …\n' +
+  '🔖 *Código:* CITA-3F9A2C\n\n' +
+  'Then one line asking them to keep the code to change or cancel. Table reservations use the same layout with 🍽️ *Personas:* and ⏳ *Duración:*; event requests with 🎉 *Evento:*, 🏛️ *Salón:*, 👥 *Invitados:*, 💵 *Cotización:* / *Depósito:* and their status.\n' +
+  'Several options or prices: one "• " line each, with the name in bold and its price. ' +
+  "Include only lines whose data you actually have, translate the labels into the customer's language, write times in 12-hour format, and use at most one emoji per line."

@@ -1,3 +1,4 @@
+import type { Qualification } from './qualification'
 // ============================================================
 // Shared types for the AI reply assistant (bring-your-own-key).
 //
@@ -237,6 +238,9 @@ export interface ProviderResult {
   /** Set only when the `set_sentiment` tool was offered and used this
    *  turn — only auto-reply/widget-reply persist it onto the contact. */
   sentiment?: AiSentiment
+  /** Set only when `save_qualification` was offered and used this turn
+   *  (merged across calls) — auto-reply/widget-reply persist it. */
+  qualification?: Qualification
 }
 
 /** A deal amount captured by `set_lead_stage`. */
@@ -280,6 +284,9 @@ export interface GenerateResult {
   /** Set only when the `set_sentiment` tool was offered and used this
    *  turn — only auto-reply/widget-reply persist it onto the contact. */
   sentiment?: AiSentiment
+  /** Set only when `save_qualification` was offered and used this turn
+   *  (merged across calls) — auto-reply/widget-reply persist it. */
+  qualification?: Qualification
 }
 
 /**

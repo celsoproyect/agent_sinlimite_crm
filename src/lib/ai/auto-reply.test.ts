@@ -48,6 +48,11 @@ vi.mock('./custom-fields', async (importOriginal) => ({
   getLeadPipelineStages: h.getLeadPipelineStages,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+// The ai_qualification module has its own tests (qualification.test.ts).
+vi.mock('./qualification-server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./qualification-server')>()),
+  loadQualificationContext: async () => null,
+}))
 vi.mock('@/lib/deals/close', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/deals/close')>()),
   closeDeal: h.closeDeal,

@@ -122,6 +122,9 @@ export interface Contact {
    *  tool. `null`/absent means no signal yet. */
   ai_sentiment?: 'positive' | 'neutral' | 'negative' | null;
   ai_sentiment_updated_at?: string | null;
+  /** AI prequalification (module ai_qualification, migration 075). */
+  qualification?: import('@/lib/ai/qualification').Qualification | null;
+  qualified_at?: string | null;
 }
 
 export interface Tag {

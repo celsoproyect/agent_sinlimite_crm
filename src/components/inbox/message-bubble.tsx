@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { ReplyQuote } from "./reply-quote";
+import { WhatsAppText } from "./whatsapp-text";
 import { MessageReactions } from "./message-reactions";
 import {
   MediaAudioBubble,
@@ -83,7 +84,7 @@ function MessageContent({
     case "text":
       return (
         <p className="whitespace-pre-wrap break-words text-sm">
-          {message.content_text}
+          <WhatsAppText text={message.content_text ?? ""} />
         </p>
       );
 
@@ -109,7 +110,7 @@ function MessageContent({
           {media}
           {message.content_text && (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
+              <WhatsAppText text={message.content_text} />
             </p>
           )}
         </div>
@@ -126,7 +127,7 @@ function MessageContent({
           )}
           {message.content_text && (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
+              <WhatsAppText text={message.content_text} />
             </p>
           )}
         </div>
@@ -186,7 +187,7 @@ function MessageContent({
           </span>
           {message.content_text ? (
             <p className="mt-1 whitespace-pre-wrap break-words text-sm">
-              {message.content_text}
+              <WhatsAppText text={message.content_text} />
             </p>
           ) : (
             message.template_name && (

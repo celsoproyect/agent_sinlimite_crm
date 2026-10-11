@@ -28,6 +28,7 @@ import {
   parseAgentSettings,
   saveAgentSettings,
   validateAgentRefs,
+  loadQualificationQuestions,
 } from '@/lib/ai/agent-settings'
 import { checkChatKey, checkEmbeddingsKey } from '@/lib/ai/key-check'
 import { countAiRunsThisMonth, loadPlatformAiRow } from '@/lib/ai/platform'
@@ -93,7 +94,11 @@ export async function GET(_request: Request, { params }: Params) {
     if (cfg) {
       const { api_key, embeddings_api_key, ...safe } = cfg
       if (api_key) keySource = 'own'
-      config = { ...safe, has_own_embeddings_key: !!embeddings_api_key }
+      config = {
+        ...safe,
+        qualification_questions: await loadQualificationQuestions(admin, id),
+        has_own_embeddings_key: !!embeddings_api_key,
+      }
     }
 
     return NextResponse.json({

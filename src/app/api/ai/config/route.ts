@@ -10,6 +10,7 @@ import {
   parseAgentSettings,
   saveAgentSettings,
   validateAgentRefs,
+  loadQualificationQuestions,
 } from '@/lib/ai/agent-settings'
 import { loadAiQuota, loadPlatformAiConfig } from '@/lib/ai/platform'
 
@@ -64,6 +65,7 @@ export async function GET() {
       })
     }
     const { api_key, embeddings_api_key, ...safe } = data
+    const qualificationQuestions = await loadQualificationQuestions(supabase, accountId)
     const keySource = api_key ? 'own' : platform ? 'platform' : 'none'
     return NextResponse.json({
       configured: true,
@@ -72,6 +74,7 @@ export async function GET() {
       has_embeddings_key: !!embeddings_api_key,
       has_embeddings: !!embeddings_api_key || !!platform?.embeddingsApiKey,
       ...safe,
+      qualification_questions: qualificationQuestions,
       // The model actually answering: the platform's unless the account
       // has its own key.
       provider: keySource === 'platform' && platform ? platform.provider : safe.provider,

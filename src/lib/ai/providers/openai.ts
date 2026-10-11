@@ -9,6 +9,7 @@ import {
   type ResolvedAttachment,
 } from '../types'
 import { MAX_OUTPUT_TOKENS } from '../defaults'
+import { mergeQualification, parseQualification, type Qualification } from '../qualification'
 import { findChatModel } from '../models'
 import {
   excerptsToToolResult,
@@ -29,6 +30,9 @@ import {
   CAPTURE_LEAD_STAGE_TOOL_NAME,
   CAPTURE_NAME_TOOL_NAME,
   CAPTURE_SENTIMENT_TOOL_NAME,
+  SAVE_QUALIFICATION_DESCRIPTION,
+  SAVE_QUALIFICATION_PARAMETERS,
+  SAVE_QUALIFICATION_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
   MAX_TOOL_ROUNDS,
@@ -75,6 +79,7 @@ function buildTools(
   customFieldNames: string[] | null,
   leadStageNames: string[] | null,
   sentimentCaptureEnabled: boolean,
+  qualificationEnabled: boolean,
 ) {
   const tools: { type: 'function'; function: Record<string, unknown> }[] = []
   if (knowledgeBaseNames) {
@@ -218,6 +223,16 @@ function buildTools(
       },
     })
   }
+  if (qualificationEnabled) {
+    tools.push({
+      type: 'function',
+      function: {
+        name: SAVE_QUALIFICATION_TOOL_NAME,
+        description: SAVE_QUALIFICATION_DESCRIPTION,
+        parameters: SAVE_QUALIFICATION_PARAMETERS,
+      },
+    })
+  }
   return tools
 }
 
@@ -275,6 +290,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const customFieldNames = toolArgs?.customFieldNames ?? null
   const leadStageNames = toolArgs?.leadStageNames ?? null
   const sentimentCaptureEnabled = !!toolArgs?.sentimentCapture
+  const qualificationEnabled = !!toolArgs?.qualificationCapture
   const supportsVision = findChatModel(model)?.supportsVision ?? false
   // The o-series reasoning models 400 on any non-default temperature —
   // omit the field entirely for them rather than send a value they'll
@@ -289,6 +305,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
     customFieldNames,
     leadStageNames,
     sentimentCaptureEnabled,
+    qualificationEnabled,
   )
 
   const conversation: OpenAiMessage[] = [
@@ -307,6 +324,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   const customFields: CapturedCustomField[] = []
   const leadStageCapture: { stage?: string; value?: LeadValue } = {}
   const sentimentCapture: { sentiment?: ProviderResult['sentiment'] } = {}
+  const qualificationCapture: { value?: Qualification } = {}
 
   async function callOpenAi(withTools: boolean): Promise<OpenAiResponse> {
     let res: Response
@@ -379,6 +397,8 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
             customFields,
             leadStageCapture,
             sentimentCapture,
+            qualificationEnabled,
+            qualificationCapture,
           ),
         })
       }
@@ -403,6 +423,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
       leadStage: leadStageCapture.stage,
       leadValue: leadStageCapture.value,
       sentiment: sentimentCapture.sentiment,
+      qualification: qualificationCapture.value,
     }
   }
 }
@@ -424,6 +445,8 @@ async function runOpenAiTool(
   customFields: CapturedCustomField[],
   leadStageCapture: { stage?: string; value?: LeadValue },
   sentimentCapture: { sentiment?: ProviderResult['sentiment'] },
+  qualificationEnabled: boolean,
+  qualificationCapture: { value?: Qualification },
 ): Promise<string> {
   let parsed: Record<string, unknown> = {}
   try {
@@ -493,6 +516,13 @@ async function runOpenAiTool(
     const result = parseSentiment(parsed)
     if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
     sentimentCapture.sentiment = result.sentiment
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolCall.function.name === SAVE_QUALIFICATION_TOOL_NAME && qualificationEnabled) {
+    const result = parseQualification(parsed)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    qualificationCapture.value = mergeQualification(qualificationCapture.value, result.qualification)
     return JSON.stringify({ recorded: true })
   }
 

@@ -24,6 +24,7 @@ import {
   Plus,
   CalendarClock,
   ClipboardList,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -38,6 +39,7 @@ import { businessDate, businessTime } from "@/lib/business-timezone";
 import { useLocale, useTranslations } from "next-intl";
 import { es as esLocale } from "date-fns/locale";
 import { ContactPhotoEditor } from "@/components/contacts/contact-photo-editor";
+import type { Qualification } from "@/lib/ai/qualification";
 
 interface ContactSidebarProps {
   contact: Contact | null;
@@ -60,6 +62,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
   const [nextBooking, setNextBooking] = useState<Booking | null>(null);
   const [customFields, setCustomFields] = useState<CustomField[]>([]);
   const [customValues, setCustomValues] = useState<ContactCustomValue[]>([]);
+  const [qualification, setQualification] = useState<Qualification | null>(null);
   const [newNote, setNewNote] = useState("");
   const [addingNote, setAddingNote] = useState(false);
 
@@ -68,7 +71,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
 
     const supabase = createClient();
 
-    const [dealsRes, notesRes, tagsRes, bookingRes, customFieldsRes, customValuesRes] =
+    const [dealsRes, notesRes, tagsRes, bookingRes, customFieldsRes, customValuesRes, qualificationRes] =
       await Promise.all([
         supabase
           .from("deals")
@@ -100,6 +103,12 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
           .from("contact_custom_values")
           .select("*")
           .eq("contact_id", contact.id),
+        // Errors (42703) until migration 075 runs; then there's simply none.
+        supabase
+          .from("contacts")
+          .select("qualification")
+          .eq("id", contact.id)
+          .maybeSingle(),
       ]);
 
     if (dealsRes.data) setDeals(dealsRes.data);
@@ -116,6 +125,8 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
     setNextBooking(bookingRes.data ?? null);
     if (customFieldsRes.data) setCustomFields(customFieldsRes.data);
     if (customValuesRes.data) setCustomValues(customValuesRes.data);
+    const q = (qualificationRes.data as { qualification?: Qualification | null } | null)?.qualification;
+    setQualification(q && typeof q === "object" ? q : null);
   }, [contact, accountId]);
 
   // Load on contact change. setContactData/setTags run inside async
@@ -324,6 +335,71 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
 
           {/* Divider */}
           <div className="my-4 border-t border-border" />
+
+          {/* AI prequalification (module ai_qualification) */}
+          {qualification && hasQualificationData(qualification) && (
+            <>
+              <div>
+                <div className="flex items-center justify-between px-1">
+                  <div className="flex items-center gap-2 text-xs font-medium uppercase tracking-wider text-muted-foreground">
+                    <ClipboardCheck className="h-3 w-3" />
+                    {tSidebar("qualification.title")}
+                  </div>
+                  {qualification.temperature && (
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        qualification.temperature === "hot" && "bg-red-100 text-red-700",
+                        qualification.temperature === "warm" && "bg-amber-100 text-amber-800",
+                        qualification.temperature === "cold" && "bg-sky-100 text-sky-800",
+                      )}
+                    >
+                      {tSidebar(`qualification.temperature.${qualification.temperature}`)}
+                    </span>
+                  )}
+                </div>
+                <dl className="mt-2 space-y-1.5 px-1 text-sm">
+                  {(
+                    [
+                      ["interest", qualification.interest],
+                      ["need", qualification.need],
+                      ["timeline", qualification.timeline],
+                      ["budget", qualification.budget],
+                    ] as const
+                  )
+                    .filter(([, v]) => !!v)
+                    .map(([key, v]) => (
+                      <div key={key}>
+                        <dt className="text-xs text-muted-foreground">{tSidebar(`qualification.${key}`)}</dt>
+                        <dd className="text-foreground">{v}</dd>
+                      </div>
+                    ))}
+                  {(qualification.answers ?? []).map((a) => (
+                    <div key={a.question}>
+                      <dt className="text-xs text-muted-foreground">{a.question}</dt>
+                      <dd className="text-foreground">{a.answer}</dd>
+                    </div>
+                  ))}
+                </dl>
+                {qualification.summary && (
+                  <p className="mt-2 rounded-lg bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    {qualification.summary}
+                  </p>
+                )}
+                {qualification.updated_at && (
+                  <p className="mt-1 px-1 text-[11px] text-muted-foreground">
+                    {tSidebar("qualification.updated", {
+                      when: formatDistanceToNow(new Date(qualification.updated_at), {
+                        addSuffix: true,
+                        locale: dfLocale,
+                      }),
+                    })}
+                  </p>
+                )}
+              </div>
+              <div className="my-4 border-t border-border" />
+            </>
+          )}
 
           {/* Tags */}
           <div>
@@ -540,4 +616,8 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
       </ScrollArea>
     </div>
   );
+}
+
+function hasQualificationData(q: Qualification): boolean {
+  return !!(q.interest || q.need || q.timeline || q.budget || q.summary || q.temperature || q.answers?.length);
 }

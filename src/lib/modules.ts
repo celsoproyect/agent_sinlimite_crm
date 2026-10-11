@@ -27,6 +27,9 @@
 // pipelines and the raw web form submissions (migration 070).
 // `web_push` sends handoff alerts as Web Push notifications to the
 // owners'/admins' phones (Notificaciones page).
+// `ai_qualification` makes the agent ask the name first, prequalify
+// every lead (`save_qualification`, migration 075) and sell
+// consultatively.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -43,6 +46,7 @@ export const MODULE_KEYS = [
   "widget_booking",
   "google_calendar",
   "web_push",
+  "ai_qualification",
   "clinic",
   "restaurant",
   "events",

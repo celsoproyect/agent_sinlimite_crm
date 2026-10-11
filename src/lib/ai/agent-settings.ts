@@ -24,6 +24,31 @@ export interface AgentSettings {
   handoff_on_missing_info?: boolean
   /** Absent = leave unchanged. '' / null = no lead capture. */
   lead_pipeline_id?: string | null
+  /** Absent = leave unchanged. '' / null = the default questions
+   *  (module ai_qualification, migration 075). */
+  qualification_questions?: string | null
+}
+
+function isMissingColumn(code: string | undefined): boolean {
+  return code === '42703' || code === 'PGRST204'
+}
+
+/** The owner's prequalification questions, or null (none saved, or
+ *  migration 075 not run yet). */
+export async function loadQualificationQuestions(
+  db: SupabaseClient,
+  accountId: string,
+): Promise<string | null> {
+  const { data, error } = await db
+    .from('ai_configs')
+    .select('qualification_questions')
+    .eq('account_id', accountId)
+    .maybeSingle()
+  if (error) {
+    if (!isMissingColumn(error.code)) console.error('[agent settings] questions load error:', error)
+    return null
+  }
+  return (data as { qualification_questions?: string | null } | null)?.qualification_questions ?? null
 }
 
 /** Normalize a request body into the columns we store. Pure. */
@@ -76,7 +101,20 @@ export function parseAgentSettings(body: Record<string, unknown>): AgentSettings
         ? body.lead_pipeline_id.trim()
         : null
   }
+  if ('qualification_questions' in body) {
+    settings.qualification_questions =
+      typeof body.qualification_questions === 'string' && body.qualification_questions.trim()
+        ? body.qualification_questions.trim().slice(0, 2000)
+        : null
+  }
   return settings
+}
+
+/** Settings without the columns of a migration that hasn't run yet. */
+function withoutPendingColumns(settings: AgentSettings): AgentSettings {
+  const rest = { ...settings }
+  delete rest.qualification_questions
+  return rest
 }
 
 /**
@@ -139,11 +177,12 @@ export async function saveAgentSettings(
   }
 
   if (existing) {
-    const { data, error } = await db
-      .from('ai_configs')
-      .update(settings)
-      .eq('account_id', accountId)
-      .select('id')
+    const update = (values: AgentSettings) =>
+      db.from('ai_configs').update(values).eq('account_id', accountId).select('id')
+    let { data, error } = await update(settings)
+    if (error && isMissingColumn(error.code) && 'qualification_questions' in settings) {
+      ;({ data, error } = await update(withoutPendingColumns(settings)))
+    }
     if (error) {
       console.error('[agent settings] update error:', error)
       return { ok: false, code: error.code === '42501' ? 'migration_pending' : 'save_failed' }
@@ -153,17 +192,22 @@ export async function saveAgentSettings(
   }
 
   const platform = await loadPlatformAiRow()
-  const { data, error } = await db
-    .from('ai_configs')
-    .insert({
-      account_id: accountId,
-      created_by: userId,
-      provider: platform?.provider ?? 'openai',
-      model: platform?.model ?? AI_PROVIDER_DEFAULT_MODEL.openai,
-      api_key: null,
-      ...settings,
-    })
-    .select('id')
+  const insert = (values: AgentSettings) =>
+    db
+      .from('ai_configs')
+      .insert({
+        account_id: accountId,
+        created_by: userId,
+        provider: platform?.provider ?? 'openai',
+        model: platform?.model ?? AI_PROVIDER_DEFAULT_MODEL.openai,
+        api_key: null,
+        ...values,
+      })
+      .select('id')
+  let { data, error } = await insert(settings)
+  if (error && isMissingColumn(error.code) && 'qualification_questions' in settings) {
+    ;({ data, error } = await insert(withoutPendingColumns(settings)))
+  }
   if (error) {
     console.error('[agent settings] insert error:', error)
     const pending = error.code === '23502' || error.code === '42501'

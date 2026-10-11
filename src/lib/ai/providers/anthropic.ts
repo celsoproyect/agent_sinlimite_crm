@@ -9,6 +9,7 @@ import {
   type ResolvedAttachment,
 } from '../types'
 import { MAX_OUTPUT_TOKENS } from '../defaults'
+import { mergeQualification, parseQualification, type Qualification } from '../qualification'
 import {
   excerptsToToolResult,
   mergeConsecutive,
@@ -28,6 +29,9 @@ import {
   CAPTURE_LEAD_STAGE_TOOL_NAME,
   CAPTURE_NAME_TOOL_NAME,
   CAPTURE_SENTIMENT_TOOL_NAME,
+  SAVE_QUALIFICATION_DESCRIPTION,
+  SAVE_QUALIFICATION_PARAMETERS,
+  SAVE_QUALIFICATION_TOOL_NAME,
   KNOWLEDGE_SEARCH_TOOL_NAME,
   SEND_ATTACHMENT_TOOL_NAME,
   MAX_TOOL_ROUNDS,
@@ -113,6 +117,7 @@ function buildTools(
   customFieldNames: string[] | null,
   leadStageNames: string[] | null,
   sentimentCaptureEnabled: boolean,
+  qualificationEnabled: boolean,
 ) {
   const tools: { name: string; description: string; input_schema: Record<string, unknown> }[] = []
   if (knowledgeBaseNames) {
@@ -232,6 +237,13 @@ function buildTools(
       },
     })
   }
+  if (qualificationEnabled) {
+    tools.push({
+      name: SAVE_QUALIFICATION_TOOL_NAME,
+      description: SAVE_QUALIFICATION_DESCRIPTION,
+      input_schema: SAVE_QUALIFICATION_PARAMETERS,
+    })
+  }
   return tools
 }
 
@@ -266,6 +278,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   const customFieldNames = toolArgs?.customFieldNames ?? null
   const leadStageNames = toolArgs?.leadStageNames ?? null
   const sentimentCaptureEnabled = !!toolArgs?.sentimentCapture
+  const qualificationEnabled = !!toolArgs?.qualificationCapture
   const tools = buildTools(
     knowledgeTool ? knowledgeTool.knowledgeBases.map((kb) => kb.name) : null,
     !!attachmentTool,
@@ -275,6 +288,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
     customFieldNames,
     leadStageNames,
     sentimentCaptureEnabled,
+    qualificationEnabled,
   )
 
   const conversation: AnthropicMessage[] = normalizeForAnthropic(messages).map((m) => ({
@@ -290,6 +304,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
   const customFields: CapturedCustomField[] = []
   const leadStageCapture: { stage?: string; value?: LeadValue } = {}
   const sentimentCapture: { sentiment?: ProviderResult['sentiment'] } = {}
+  const qualificationCapture: { value?: Qualification } = {}
 
   async function callAnthropic(withTools: boolean): Promise<AnthropicResponse> {
     let res: Response
@@ -360,6 +375,8 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
             customFields,
             leadStageCapture,
             sentimentCapture,
+            qualificationEnabled,
+            qualificationCapture,
           ),
         })
       }
@@ -389,6 +406,7 @@ export async function generateAnthropic(args: ProviderArgs): Promise<ProviderRes
       leadStage: leadStageCapture.stage,
       leadValue: leadStageCapture.value,
       sentiment: sentimentCapture.sentiment,
+      qualification: qualificationCapture.value,
     }
   }
 }
@@ -410,6 +428,8 @@ async function runAnthropicTool(
   customFields: CapturedCustomField[],
   leadStageCapture: { stage?: string; value?: LeadValue },
   sentimentCapture: { sentiment?: ProviderResult['sentiment'] },
+  qualificationEnabled: boolean,
+  qualificationCapture: { value?: Qualification },
 ): Promise<string> {
   if (toolUse.name === KNOWLEDGE_SEARCH_TOOL_NAME && knowledgeTool) {
     const input = toolUse.input as { query?: string; knowledge_base?: string } | undefined
@@ -474,6 +494,13 @@ async function runAnthropicTool(
     const result = parseSentiment(toolUse.input)
     if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
     sentimentCapture.sentiment = result.sentiment
+    return JSON.stringify({ recorded: true })
+  }
+
+  if (toolUse.name === SAVE_QUALIFICATION_TOOL_NAME && qualificationEnabled) {
+    const result = parseQualification(toolUse.input)
+    if ('error' in result) return JSON.stringify({ recorded: false, error: result.error })
+    qualificationCapture.value = mergeQualification(qualificationCapture.value, result.qualification)
     return JSON.stringify({ recorded: true })
   }
 

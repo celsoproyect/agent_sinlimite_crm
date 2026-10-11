@@ -366,9 +366,45 @@ export const CAPTURE_LEAD_STAGE_TOOL_NAME = 'set_lead_stage'
  *  `ProviderResult.sentiment` for the caller to persist onto the contact. */
 export const CAPTURE_SENTIMENT_TOOL_NAME = 'set_sentiment'
 
+/** The `save_qualification` tool (module `ai_qualification`). Like the
+ *  other capture tools it never writes: the adapter accumulates the
+ *  report into `ProviderResult.qualification` for the caller to merge
+ *  into `contacts.qualification`. */
+export const SAVE_QUALIFICATION_TOOL_NAME = 'save_qualification'
+
+export const SAVE_QUALIFICATION_DESCRIPTION =
+  "Save what you've learned to prequalify this customer as a lead. Call it whenever they reveal something new (interest, need, timeline, budget, an answer to one of the business's questions), and always before handing off. Only pass what they actually said."
+
+/** JSON schema shared by both adapters. */
+export const SAVE_QUALIFICATION_PARAMETERS = {
+  type: 'object',
+  properties: {
+    interest: { type: 'string', description: 'Product or service they are interested in.' },
+    need: { type: 'string', description: 'Their need, goal or situation, in a few words.' },
+    timeline: { type: 'string', description: 'When they want it (e.g. "this week", "in March").' },
+    budget: { type: 'string', description: 'Their budget, as they said it.' },
+    answers: {
+      type: 'array',
+      description: "Answers to the business's own prequalification questions.",
+      items: {
+        type: 'object',
+        properties: { question: { type: 'string' }, answer: { type: 'string' } },
+        required: ['question', 'answer'],
+      },
+    },
+    temperature: {
+      type: 'string',
+      enum: ['hot', 'warm', 'cold'],
+      description: 'hot = ready to buy/book soon; warm = interested, comparing or undecided; cold = just browsing.',
+    },
+    summary: { type: 'string', description: 'One or two lines for the sales team.' },
+  },
+} as const
+
 /** Tool-call rounds allowed before the adapter forces a final,
- *  tool-free round to guarantee text comes back. */
-export const MAX_TOOL_ROUNDS = 2
+ *  tool-free round to guarantee text comes back. Three, so a booking
+ *  (check, then book) still leaves room for a capture call. */
+export const MAX_TOOL_ROUNDS = 3
 
 /** Serialize excerpts for a tool result message — the model sees them
  *  the same way it sees the automatically-retrieved excerpts (title
@@ -414,6 +450,8 @@ export interface ProviderArgs {
     /** True to expose `set_sentiment` — no executor needed, same shape as
      *  `nameCapture`. */
     sentimentCapture?: boolean
+    /** True to expose `save_qualification` — no executor needed. */
+    qualificationCapture?: boolean
   }
 }
 

@@ -23,6 +23,8 @@ import { latestUserMessage } from './query'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
 import { accountModuleEnabled } from '@/lib/modules-server'
+import { applyQualificationCapture, loadQualificationContext, qualificationPrompt } from './qualification-server'
+import { formatQualificationBlock } from './qualification'
 
 interface WidgetReplyArgs {
   db: SupabaseClient
@@ -58,7 +60,12 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   // "Visitante web" is the placeholder findOrCreateWidgetContact falls
   // back to when the visitor never supplied a name — the signal nobody's
   // captured a real one yet.
-  const needsCustomerName = !contactName || contactName === 'Visitante web'
+  const hasRealName = !!contactName && contactName !== 'Visitante web'
+  const qualificationCtx = await loadQualificationContext(db, accountId, contactId)
+  const qualificationSetup = qualificationCtx
+    ? qualificationPrompt(qualificationCtx, contactName, hasRealName, false)
+    : null
+  const needsCustomerName = qualificationSetup ? qualificationSetup.needsName : !hasRealName
 
   const config = await loadAiConfig(db, accountId)
   if (!config || !config.autoReplyEnabled) return { ok: false, reason: 'ai_unavailable' }
@@ -143,9 +150,21 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     customFieldNames,
     leadStageNames,
     sentimentCaptureAvailable: true,
+    qualification: qualificationSetup?.options ?? null,
   })
 
-  const { text, handoff, usage, customerName, note, customFields, leadStage, leadValue, sentiment } = await generateReply({
+  const {
+    text,
+    handoff,
+    usage,
+    customerName,
+    note,
+    customFields,
+    leadStage,
+    leadValue,
+    sentiment,
+    qualification: capturedQualification,
+  } = await generateReply({
     config,
     systemPrompt,
     messages,
@@ -177,7 +196,9 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
     leadStageNames: leadStageNames.length > 0 ? leadStageNames : undefined,
     captureSentiment: true,
+    captureQualification: !!qualificationCtx,
   })
+  const displayName = customerName || (hasRealName ? contactName : 'Un visitante web')
 
   if (customerName) {
     try {
@@ -247,6 +268,19 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     }
   }
 
+  const qualification = qualificationCtx
+    ? await applyQualificationCapture(db, {
+        accountId,
+        contactId,
+        ctx: qualificationCtx,
+        captured: capturedQualification,
+        nameCaptured: !!customerName,
+        contactName: displayName,
+        channel: 'Widget web',
+        handoff: handoff || !text,
+      })
+    : null
+
   void logAiUsage(db, {
     accountId,
     conversationId,
@@ -257,9 +291,11 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   })
 
   if (handoff || !text) {
-    const summary =
+    const baseSummary =
       (await summarizeHandoff(config, messages)) ??
       buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 })
+    const qualificationBlock = formatQualificationBlock(qualification, displayName)
+    const summary = qualificationBlock ? `${baseSummary}\n\n${qualificationBlock}` : baseSummary
     try {
       await db.from('contact_notes').insert({
         contact_id: contactId,
@@ -281,7 +317,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
       accountId,
       conversationId,
       contactId,
-      contactName: needsCustomerName ? 'Un visitante web' : contactName,
+      contactName: displayName,
       summary,
     })
     // Tell the visitor a person is coming instead of going silent.

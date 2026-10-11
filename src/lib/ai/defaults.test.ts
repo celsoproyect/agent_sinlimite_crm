@@ -95,3 +95,30 @@ describe('buildSystemPrompt — booking rules', () => {
     expect(prompt).not.toContain('You cannot schedule, reserve, or confirm appointments')
   })
 })
+
+describe('buildSystemPrompt — prequalification and formatting', () => {
+  const qualification = { questions: ['Qué servicio le interesa'], known: null, unconfirmedName: 'Ana' }
+
+  it('asks for the name first and confirms a WhatsApp profile name', () => {
+    const prompt = buildSystemPrompt({ userPrompt: null, mode: 'auto_reply', needsCustomerName: true, qualification })
+    expect(prompt).toContain('¿Hablo con Ana?')
+    expect(prompt).toContain('before handing off to a person, get their name')
+    expect(prompt).toContain('• Qué servicio le interesa')
+    expect(prompt).toContain('save_qualification')
+    expect(prompt).toContain('Before handing off')
+  })
+
+  it('skips the name step once it is known, and the handoff step in drafts', () => {
+    const prompt = buildSystemPrompt({ userPrompt: null, mode: 'draft', needsCustomerName: false, qualification })
+    expect(prompt).not.toContain('¿Hablo con')
+    expect(prompt).not.toContain('Before handing off')
+    expect(prompt).toContain('Sales approach')
+  })
+
+  it('always carries the structured formatting rules', () => {
+    const prompt = buildSystemPrompt({ userPrompt: null, mode: 'auto_reply' })
+    expect(prompt).toContain('💰 *Precio:*')
+    expect(prompt).toContain('✅ *¡Cita confirmada!*')
+    expect(prompt).not.toContain('save_qualification')
+  })
+})

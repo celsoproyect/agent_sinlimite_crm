@@ -317,6 +317,7 @@ describe('generateReply — Anthropic', () => {
       .fn()
       .mockResolvedValueOnce(toolCallResponse())
       .mockResolvedValueOnce(toolCallResponse())
+      .mockResolvedValueOnce(toolCallResponse())
       .mockResolvedValueOnce(okResponse({ choices: [{ message: { content: 'Final answer.' } }] }))
     vi.stubGlobal('fetch', fetchMock)
 
@@ -329,10 +330,10 @@ describe('generateReply — Anthropic', () => {
     })
 
     expect(res.text).toBe('Final answer.')
-    expect(fetchMock).toHaveBeenCalledTimes(3)
-    // The third (forced) call must not offer tools.
-    const thirdBody = JSON.parse(fetchMock.mock.calls[2][1].body)
-    expect(thirdBody.tools).toBeUndefined()
+    expect(fetchMock).toHaveBeenCalledTimes(4)
+    // The last (forced) call must not offer tools.
+    const lastBody = JSON.parse(fetchMock.mock.calls[3][1].body)
+    expect(lastBody.tools).toBeUndefined()
   })
 
   it('runs a tool-call round then returns the final text (Anthropic)', async () => {

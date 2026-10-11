@@ -26,6 +26,11 @@ vi.mock('./custom-fields', () => ({
   applyLeadCapture: h.applyLeadCapture,
 }))
 vi.mock('./generate', () => ({ generateReply: h.generateReply }))
+// The ai_qualification module has its own tests (qualification.test.ts).
+vi.mock('./qualification-server', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('./qualification-server')>()),
+  loadQualificationContext: async () => null,
+}))
 vi.mock('./booking', () => ({
   bookingEnabled: h.bookingEnabled,
   getBusinessHoursSummary: () => Promise.resolve(null),

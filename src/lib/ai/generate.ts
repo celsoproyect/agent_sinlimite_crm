@@ -1,3 +1,5 @@
+import type { Qualification } from './qualification'
+import { toWhatsAppFormatting } from './whatsapp-format'
 import {
   AiError,
   type AiConfig,
@@ -66,6 +68,8 @@ export interface GenerateArgs {
   leadStageNames?: string[]
   /** True to expose the `set_sentiment` tool. No executor needed. */
   captureSentiment?: boolean
+  /** True to expose `save_qualification` (module `ai_qualification`). */
+  captureQualification?: boolean
 }
 
 /**
@@ -91,6 +95,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     customFieldNames,
     leadStageNames,
     captureSentiment,
+    captureQualification,
   } = args
   const timeoutMs = aiRequestTimeoutMs()
   const knowledge: KnowledgeSearchTool | undefined =
@@ -113,6 +118,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   const nameCapture = !!captureCustomerName
   const noteCapture = !!captureNote
   const sentimentCapture = !!captureSentiment
+  const qualificationCapture = !!captureQualification
   const providerArgs = {
     apiKey: config.apiKey,
     model: config.model,
@@ -128,8 +134,19 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
       noteCapture ||
       (customFieldNames && customFieldNames.length > 0) ||
       (leadStageNames && leadStageNames.length > 0) ||
-      sentimentCapture
-        ? { knowledge, attachments, booking, nameCapture, noteCapture, customFieldNames, leadStageNames, sentimentCapture }
+      sentimentCapture ||
+      qualificationCapture
+        ? {
+            knowledge,
+            attachments,
+            booking,
+            nameCapture,
+            noteCapture,
+            customFieldNames,
+            leadStageNames,
+            sentimentCapture,
+            qualificationCapture,
+          }
         : undefined,
   }
 
@@ -144,6 +161,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     leadStage?: string
     leadValue?: LeadValue
     sentiment?: AiSentiment
+    qualification?: Qualification
   }
   switch (config.provider) {
     case 'openai':
@@ -170,6 +188,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
     result.leadStage,
     result.sentiment,
     result.leadValue,
+    result.qualification,
   )
 }
 
@@ -191,8 +210,24 @@ export function parseGeneration(
   leadStage?: string,
   sentiment?: AiSentiment,
   leadValue?: LeadValue,
+  qualification?: Qualification,
 ): GenerateResult {
   const handoff = raw.includes(HANDOFF_SENTINEL)
-  const text = raw.split(HANDOFF_SENTINEL).join('').trim()
-  return { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, leadValue, sentiment }
+  // Every channel speaks WhatsApp formatting (the widget and the inbox
+  // render *bold*), so stray markdown is converted once, here.
+  const text = toWhatsAppFormatting(raw.split(HANDOFF_SENTINEL).join('').trim())
+  return {
+    text,
+    handoff,
+    usage,
+    attachments,
+    booking,
+    customerName,
+    note,
+    customFields,
+    leadStage,
+    leadValue,
+    sentiment,
+    qualification,
+  }
 }

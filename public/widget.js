@@ -362,8 +362,27 @@
       if (faq) faq.style.display = show ? '' : 'none';
     }
 
+    // Bot replies use WhatsApp markup (*bold*, _italic_). Built from text
+    // nodes and <b>/<i> elements, never innerHTML.
+    var MARKUP = /(^|[\s(\u00a1\u00bf"'])([*_])(?=\S)([^\n]*?\S)\2(?=$|[\s).,:;!?"'])/g;
+    function appendFormatted(node, text) {
+      var last = 0;
+      var match;
+      MARKUP.lastIndex = 0;
+      while ((match = MARKUP.exec(text))) {
+        var start = match.index + match[1].length;
+        if (start > last) node.appendChild(document.createTextNode(text.slice(last, start)));
+        node.appendChild(el(match[2] === '*' ? 'b' : 'i', null, match[3]));
+        last = start + match[3].length + 2;
+        MARKUP.lastIndex = last;
+      }
+      if (last < text.length) node.appendChild(document.createTextNode(text.slice(last)));
+    }
+
     function render(text, from) {
-      var m = el('div', 'slw-msg slw-msg-' + (from === 'user' ? 'user' : 'bot'), text);
+      var isUser = from === 'user';
+      var m = el('div', 'slw-msg slw-msg-' + (isUser ? 'user' : 'bot'), isUser ? text : null);
+      if (!isUser) appendFormatted(m, String(text || ''));
       msgs.appendChild(m);
       scrollDown();
     }

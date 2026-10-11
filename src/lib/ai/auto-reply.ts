@@ -31,6 +31,9 @@ import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
+import { applyQualificationCapture, loadQualificationContext, qualificationPrompt } from './qualification-server'
+import { formatQualificationBlock } from './qualification'
+import { productCardCaption } from './whatsapp-format'
 
 // Pending reply-delay timers, keyed by conversation. In-process only —
 // doesn't survive a restart and doesn't coordinate across replicas, which
@@ -173,7 +176,14 @@ export async function dispatchInboundToAiReply(
       .select('name, phone')
       .eq('id', contactId)
       .maybeSingle()
-    const needsCustomerName = !!contactRow && (!contactRow.name || contactRow.name === contactRow.phone)
+    const hasRealName = !!contactRow?.name && contactRow.name !== contactRow.phone
+    // Module ai_qualification: name first (a WhatsApp profile name is
+    // confirmed once), prequalification and guided selling.
+    const qualificationCtx = contactRow ? await loadQualificationContext(db, accountId, contactId) : null
+    const qualificationSetup = qualificationCtx
+      ? qualificationPrompt(qualificationCtx, contactRow?.name, hasRealName)
+      : null
+    const needsCustomerName = !!contactRow && (qualificationSetup ? qualificationSetup.needsName : !hasRealName)
 
     // Account-wide throttle on the shared BYO key. The per-conversation
     // cap bounds one thread; this bounds a burst across many threads (a
@@ -249,10 +259,23 @@ export async function dispatchInboundToAiReply(
       customFieldNames,
       leadStageNames,
       sentimentCaptureAvailable: true,
+      qualification: qualificationSetup?.options ?? null,
     })
 
-    const { text, handoff, usage, attachments, booking, customerName, note, customFields, leadStage, leadValue, sentiment } =
-      await generateReply({
+    const {
+      text,
+      handoff,
+      usage,
+      attachments,
+      booking,
+      customerName,
+      note,
+      customFields,
+      leadStage,
+      leadValue,
+      sentiment,
+      qualification: capturedQualification,
+    } = await generateReply({
         config,
         systemPrompt,
         messages,
@@ -298,7 +321,9 @@ export async function dispatchInboundToAiReply(
         customFieldNames: customFieldNames.length > 0 ? customFieldNames : undefined,
         leadStageNames: leadStageNames.length > 0 ? leadStageNames : undefined,
         captureSentiment: true,
+        captureQualification: !!qualificationCtx,
       })
+    const contactName = customerName || contactRow?.name || contactRow?.phone || 'Un cliente'
 
     // Persist a captured name right away, regardless of handoff — the
     // conversation should show the real name in the inbox even if the
@@ -375,6 +400,19 @@ export async function dispatchInboundToAiReply(
       }
     }
 
+    const qualification = qualificationCtx
+      ? await applyQualificationCapture(db, {
+          accountId,
+          contactId,
+          ctx: qualificationCtx,
+          captured: capturedQualification,
+          nameCaptured: !!customerName,
+          contactName,
+          channel: 'WhatsApp',
+          handoff: handoff || !text,
+        })
+      : null
+
     // Record token spend on the account's BYO key. Fire-and-forget so it
     // never adds latency to the customer-facing send: `logAiUsage`
     // swallows its own errors, so the floating promise can't reject.
@@ -410,12 +448,16 @@ export async function dispatchInboundToAiReply(
       } catch (err) {
         console.error('[ai auto-reply] handoff goodbye send failed:', err)
       }
-      const summary =
+      const baseSummary =
         (await summarizeHandoff(config, messages)) ??
         buildHandoffSummary({
           messages,
           replyCount: conv.ai_reply_count ?? 0,
         })
+      // The prequalification travels with the alert, so whoever takes
+      // over knows who the customer is and what they want.
+      const qualificationBlock = formatQualificationBlock(qualification, contactName)
+      const summary = qualificationBlock ? `${baseSummary}\n\n${qualificationBlock}` : baseSummary
       // Loud on purpose: "the bot handed off and I don't know why" is the
       // hardest thing to diagnose from the outside, and `reason` says
       // whether the model deliberately asked for a human (the sentinel)
@@ -453,7 +495,7 @@ export async function dispatchInboundToAiReply(
         accountId,
         conversationId,
         contactId,
-        contactName: contactRow?.name || contactRow?.phone || 'Un cliente',
+        contactName,
         summary,
       })
       return
@@ -481,6 +523,43 @@ export async function dispatchInboundToAiReply(
     }
     if (claimed !== true) return // lost the per-conversation cap race
 
+    // Dispatch any attachment(s) the model selected via send_attachment
+    // before the text, so the picture lands first and the structured
+    // detail reads as its description. Best-effort: a failed media send
+    // never blocks the text. A catalog entry with a price goes as a
+    // product card: a short caption (bold name and price) plus structured
+    // metadata so the inbox thread renders the enriched card.
+    for (const attachment of attachments ?? []) {
+      try {
+        const isProduct = attachment.price != null
+        const caption = isProduct
+          ? productCardCaption(attachment.name, attachment.price, attachment.currency)
+          : `*${attachment.name}*`
+        const metadata: ProductCardMetadata | undefined = isProduct
+          ? {
+              kind: 'product_card',
+              name: attachment.name,
+              price: attachment.price,
+              currency: attachment.currency,
+              description: attachment.description,
+            }
+          : undefined
+        await engineSendMedia({
+          accountId,
+          userId: configOwnerUserId,
+          conversationId,
+          contactId,
+          kind: attachment.kind,
+          link: attachment.mediaUrl,
+          filename: attachment.filename,
+          caption,
+          metadata,
+          aiGenerated: true,
+        })
+      } catch (err) {
+        console.error('[ai auto-reply] attachment send failed:', err)
+      }
+    }
     // When the model offered real slots via check_availability, fold the
     // reply text into the interactive message body so the offer and the
     // tappable buttons land as one WhatsApp message, in the customer's own
@@ -550,49 +629,6 @@ export async function dispatchInboundToAiReply(
       console.error('[ai auto-reply] last_ai_reply_at update failed:', err)
     }
 
-    // Dispatch any attachment(s) the model selected via send_attachment,
-    // after the text — best-effort: a failed media send shouldn't undo
-    // the text reply that already landed. When the catalog entry has a
-    // price, send it as a full product card (caption on the WhatsApp
-    // media itself, plus structured metadata so the inbox thread renders
-    // the enriched card) instead of a bare image/file.
-    for (const attachment of attachments) {
-      try {
-        const isProduct = attachment.price != null
-        const caption = isProduct
-          ? [
-              attachment.name,
-              attachment.description,
-              `${attachment.currency ?? ''} ${attachment.price}`.trim(),
-            ]
-              .filter(Boolean)
-              .join('\n')
-          : attachment.name
-        const metadata: ProductCardMetadata | undefined = isProduct
-          ? {
-              kind: 'product_card',
-              name: attachment.name,
-              price: attachment.price,
-              currency: attachment.currency,
-              description: attachment.description,
-            }
-          : undefined
-        await engineSendMedia({
-          accountId,
-          userId: configOwnerUserId,
-          conversationId,
-          contactId,
-          kind: attachment.kind,
-          link: attachment.mediaUrl,
-          filename: attachment.filename,
-          caption,
-          metadata,
-          aiGenerated: true,
-        })
-      } catch (err) {
-        console.error('[ai auto-reply] attachment send failed:', err)
-      }
-    }
   } catch (err) {
     console.error('[ai auto-reply] dispatch failed:', err)
   }
