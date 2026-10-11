@@ -2863,7 +2863,7 @@
       "leadPipelineDesc": "Cuando se configura, el bot puede mover contactos por las etapas de este embudo a medida que la conversación revela interés — creando un negocio si aún no existe uno.",
       "leadPipelineNone": "Ninguno (no capturar leads)",
       "qualificationQuestions": "Preguntas de precalificación",
-      "qualificationQuestionsDesc": "Lo que el agente averigua de cada cliente, con naturalidad y una pregunta a la vez. Una por línea. Vacío = qué le interesa, para qué, para cuándo y presupuesto aproximado. Se usa cuando el módulo de precalificación está activo.",
+      "qualificationQuestionsDesc": "Lo que el agente averigua de cada cliente, con naturalidad y una pregunta a la vez. Una por línea. Vacío = personal o empresa (nombre y rubro), qué le interesa, para qué, qué usa hoy, para cuándo, quién decide, presupuesto aproximado y cómo nos conoció. Se usa cuando el módulo de precalificación está activo.",
       "qualificationQuestionsPlaceholder": "Qué servicio le interesa\nPara qué fecha lo necesita\nSi es su primera visita",
       "remove": "Quitar",
       "save": "Guardar",

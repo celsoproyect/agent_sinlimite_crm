@@ -37,10 +37,14 @@ export interface Qualification {
 
 /** Fallback questions when the owner hasn't written their own. */
 export const DEFAULT_QUALIFICATION_QUESTIONS = [
+  'Si es para uso personal o para su negocio (si es un negocio: el nombre de la empresa y a qué se dedica)',
   'Qué producto o servicio le interesa',
-  'Para qué lo necesita (su objetivo o situación)',
+  'Para qué lo necesita o qué quiere resolver',
+  'Qué usa hoy o cómo lo resuelve ahora (solo si aplica)',
   'Para cuándo lo necesita',
+  'Si decide solo o con alguien más',
   'Si tiene un presupuesto aproximado (solo si encaja natural en la conversación)',
+  'Cómo supo de nosotros',
 ]
 
 const MAX_TEXT = 300

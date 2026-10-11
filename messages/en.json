@@ -2863,7 +2863,7 @@
       "leadPipelineDesc": "When set, the bot can move contacts through this pipeline's stages as the conversation reveals interest — creating a deal if none exists yet.",
       "leadPipelineNone": "None (don't capture leads)",
       "qualificationQuestions": "Prequalification questions",
-      "qualificationQuestionsDesc": "What the agent finds out about every customer, naturally and one question at a time. One per line. Empty = what they want, why, when and a rough budget. Used while the prequalification module is on.",
+      "qualificationQuestionsDesc": "What the agent finds out about every customer, naturally and one question at a time. One per line. Empty = personal or business (name and industry), what they want, why, what they use today, when, who decides, rough budget and how they found us. Used while the prequalification module is on.",
       "qualificationQuestionsPlaceholder": "Which service they want\nWhen they need it\nWhether it is their first visit",
       "remove": "Remove",
       "save": "Save",
