@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url'
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
 const BRAND = 'Agentes Sin Límite'
 // Free trials start on WhatsApp: signup in the app is invite-only.
-const SIGNUP = 'https://wa.me/18298059191?text=' + encodeURIComponent('Hola, quiero probar Agentes Sin Límite 14 días gratis.')
+const SIGNUP = 'https://wa.me/18298059191?text=' + encodeURIComponent('Hola, quiero probar la demo de Agentes Sin Límite')
 
 const ICONS = {
   clinicas: '<path d="M9 3h6v6h6v6h-6v6H9v-6H3V9h6z"/>',
@@ -479,7 +479,7 @@ ${header}
       <h1>${esc(s.h1)}</h1>
       <p class="lede">${esc(s.lede)}</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="${SIGNUP}" target="_blank" rel="noopener">Prueba gratis 14 días</a>
+        <a class="btn btn-primary" href="${SIGNUP}" target="_blank" rel="noopener">Probar el agente en vivo</a>
         <a class="btn btn-ghost" href="../index.html#demo">Agenda una demo</a>
       </div>
     </div>

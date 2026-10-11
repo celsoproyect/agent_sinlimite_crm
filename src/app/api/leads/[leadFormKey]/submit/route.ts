@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { isUniqueViolation } from '@/lib/contacts/dedupe'
+import { findExistingContact, isUniqueViolation } from '@/lib/contacts/dedupe'
 import { mintSyntheticPhone } from '@/lib/contacts/synthetic-phone'
 import { sendTelegramMessage } from '@/lib/telegram/send'
 import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
@@ -14,8 +14,10 @@ import { isMissingTableError, rawSubmissionFields } from '@/lib/leads/submission
 // The public, unauthenticated connector behind an external lead-
 // capture form (e.g. a "Request a free consultation" form built in
 // Lovable on the client's own marketing site). A submission:
-//   1. finds-or-creates a Contact by email (native name/email/company
-//      columns — same shape the dashboard's Contacts UI already reads);
+//   1. finds-or-creates a Contact by email, else by phone (native
+//      name/email/phone/company columns — same shape the dashboard's
+//      Contacts UI already reads). A form needs a name plus an email or
+//      a phone (the agentesinlimite.com demo form only asks WhatsApp);
 //   2. stores the form's other fields (service, employee count,
 //      message) via the existing custom_fields / contact_custom_values
 //      system, auto-provisioning those three field definitions the
@@ -117,10 +119,13 @@ export async function POST(
   }
 
   const fullName = typeof body.full_name === 'string' ? body.full_name.trim().slice(0, 200) : ''
-  const emailRaw = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+  const emailInput = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
+  const emailRaw = EMAIL_RE.test(emailInput) ? emailInput : ''
+  const phoneRaw = typeof body.phone === 'string' ? body.phone.trim().slice(0, 50) : ''
+  const phone = leadPhone(phoneRaw)
   if (!fullName) return json({ error: 'full_name is required' }, 400)
-  if (!emailRaw || !EMAIL_RE.test(emailRaw)) {
-    return json({ error: 'A valid email is required' }, 400)
+  if (!emailRaw && !phone) {
+    return json({ error: 'A valid email or phone is required' }, 400)
   }
 
   const company = typeof body.company === 'string' ? body.company.trim().slice(0, MAX_FIELD_LENGTH) : ''
@@ -133,6 +138,7 @@ export async function POST(
     const contact = await findOrCreateLeadContact(db, account.id, account.owner_user_id, {
       fullName,
       email: emailRaw,
+      phone,
       company,
     })
 
@@ -150,8 +156,8 @@ export async function POST(
       contact_id: contact.id,
       deal_id: dealId,
       name: fullName,
-      email: emailRaw,
-      phone: typeof body.phone === 'string' ? body.phone.trim().slice(0, 50) || null : null,
+      email: emailRaw || null,
+      phone: phoneRaw || null,
       message: message || null,
       fields: rawSubmissionFields(body),
       source_url: sourceUrl(request, body),
@@ -165,7 +171,7 @@ export async function POST(
       account.telegram_bot_token &&
       account.telegram_chat_id
     ) {
-      const summary = buildTelegramSummary({ fullName, email: emailRaw, company, service, employeeCount, message })
+      const summary = buildTelegramSummary({ fullName, email: emailRaw, phone: phoneRaw, company, service, employeeCount, message })
       // Best-effort — a Telegram hiccup must never fail the lead
       // capture itself (the contact/deal are already committed).
       sendTelegramMessage({
@@ -213,18 +219,44 @@ async function saveSubmission(db: AdminDb, row: Record<string, unknown>): Promis
   }
 }
 
+/** Digits of a form phone, ready to store as a contact phone (null when
+ *  too short to be one). A 10-digit number is North American (the
+ *  business is in the Dominican Republic: 809/829/849), so it gets the
+ *  country code WhatsApp uses. */
+function leadPhone(raw: string): string | null {
+  const digits = raw.replace(/\D/g, '')
+  if (digits.length < 7 || digits.length > 15) return null
+  return digits.length === 10 ? `1${digits}` : digits
+}
+
+async function findLeadContact(
+  db: AdminDb,
+  accountId: string,
+  fields: { email: string; phone: string | null },
+): Promise<{ id: string; name: string | null } | null> {
+  if (fields.email) {
+    const { data } = await db
+      .from('contacts')
+      .select('id, name')
+      .eq('account_id', accountId)
+      .ilike('email', fields.email)
+      .maybeSingle()
+    if (data) return data
+  }
+  if (fields.phone) {
+    const found = await findExistingContact(db, accountId, fields.phone)
+    if (found) return { id: found.id, name: found.name ?? null }
+  }
+  return null
+}
+
 async function findOrCreateLeadContact(
   db: AdminDb,
   accountId: string,
   ownerUserId: string,
-  fields: { fullName: string; email: string; company: string },
+  fields: { fullName: string; email: string; phone: string | null; company: string },
 ) {
-  const { data: existing } = await db
-    .from('contacts')
-    .select('id, name')
-    .eq('account_id', accountId)
-    .ilike('email', fields.email)
-    .maybeSingle()
+  const existing = await findLeadContact(db, accountId, fields)
   if (existing) return existing
 
   const { data: created, error } = await db
@@ -232,24 +264,19 @@ async function findOrCreateLeadContact(
     .insert({
       account_id: accountId,
       user_id: ownerUserId,
-      phone: mintSyntheticPhone(),
+      phone: fields.phone ?? mintSyntheticPhone(),
       name: fields.fullName,
-      email: fields.email,
+      email: fields.email || null,
       company: fields.company || null,
     })
     .select('id, name')
     .single()
 
   if (error) {
-    // Lost a race with a concurrent submission from the same email
-    // (double-click, retried request) — re-resolve instead of failing.
+    // Lost a race with a concurrent submission from the same email or
+    // phone (double-click, retried request) — re-resolve instead of failing.
     if (isUniqueViolation(error)) {
-      const { data: raced } = await db
-        .from('contacts')
-        .select('id, name')
-        .eq('account_id', accountId)
-        .ilike('email', fields.email)
-        .maybeSingle()
+      const raced = await findLeadContact(db, accountId, fields)
       if (raced) return raced
     }
     throw error
@@ -373,15 +400,15 @@ async function createLeadDeal(
 function buildTelegramSummary(fields: {
   fullName: string
   email: string
+  phone: string
   company: string
   service: string
   employeeCount: string
   message: string
 }): string {
-  const lines = [
-    `🆕 Nuevo lead: ${fields.fullName}`,
-    `Email: ${fields.email}`,
-  ]
+  const lines = [`🆕 Nuevo lead: ${fields.fullName}`]
+  if (fields.email) lines.push(`Email: ${fields.email}`)
+  if (fields.phone) lines.push(`Teléfono: ${fields.phone}`)
   if (fields.company) lines.push(`Empresa: ${fields.company}`)
   if (fields.service) lines.push(`Servicio de interés: ${fields.service}`)
   if (fields.employeeCount) lines.push(`Cantidad de empleados: ${fields.employeeCount}`)

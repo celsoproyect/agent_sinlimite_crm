@@ -87,6 +87,7 @@ function builder(table: string) {
     return b
   })
   b.ilike = vi.fn(chain)
+  b.like = vi.fn(chain)
   b.insert = vi.fn((payload: Record<string, unknown>) => {
     didInsert = true
     insertPayload = payload
@@ -181,8 +182,20 @@ describe('POST /api/leads/[leadFormKey]/submit', () => {
     expect(res.status).toBe(400)
   })
 
-  it('400s when email is invalid', async () => {
+  it('400s when email is invalid and there is no phone', async () => {
     const res = await submit({ ...VALID_BODY, email: 'not-an-email' })
+    expect(res.status).toBe(400)
+  })
+
+  it('accepts a phone instead of an email and stores it with the country code', async () => {
+    const res = await submit({ full_name: 'Ana Rosario', phone: '809-555-0142', company: 'Bella Spa' })
+    expect(res.status).toBe(200)
+    expect(contactInserts[0]).toMatchObject({ name: 'Ana Rosario', phone: '18095550142', email: null })
+    expect(submissionInserts[0]).toMatchObject({ phone: '809-555-0142', email: null })
+  })
+
+  it('400s when the phone is too short to be one and there is no email', async () => {
+    const res = await submit({ full_name: 'Ana Rosario', phone: '12' })
     expect(res.status).toBe(400)
   })
 

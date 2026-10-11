@@ -559,7 +559,7 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
     </nav>
     <div class="nav-actions">
       <a class="btn btn-ghost login" href="https://app.crm.agentesinlimite.com/login">Entrar</a>
-      <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Prueba gratis</a>
+      <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Prueba gratis</a>
     </div>
   </div>
 </header>
@@ -571,9 +571,9 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
     <div class="hero-copy">
       <span class="pain"><span class="time">23:47</span> Un cliente quiere comprar. Tu equipo ya se fue a dormir.</span>
       <h1>Atiende, vende y agenda por WhatsApp. <span class="always">Sin límite.</span></h1>
-      <p class="lede">Agentes Sin Límite es un agente de inteligencia artificial que trabaja en el WhatsApp de tu negocio a cualquier hora: resuelve dudas con tu información, vende con tu catálogo y precios reales, y agenda citas y reservas. Tu equipo ve cada conversación en un CRM sencillo y entra cuando quiera.</p>
+      <p class="lede">Tu negocio sigue atendiendo aunque tú no estés. Nuestro agente de IA responde clientes, recomienda productos, agenda citas y da seguimiento a oportunidades de venta por WhatsApp, mientras tú controlas todo desde tu CRM.</p>
       <div class="hero-ctas">
-        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Prueba gratis 14 días</a>
+        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Probar el agente en vivo</a>
         <a class="btn btn-ghost" href="#demo">Agenda una demo</a>
       </div>
       <div class="hero-notes">
@@ -948,7 +948,7 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         </div>
         <div class="price"><b data-base="49">$49</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-ghost" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Probar gratis</a>
+        <a class="btn btn-ghost" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Incluye</span>
         <ul class="checks">
           <li>1 número de WhatsApp Business</li>
@@ -970,7 +970,7 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         </div>
         <div class="price"><b data-base="99">$99</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
-        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Probar gratis</a>
+        <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Todo lo de Inicial, más</span>
         <ul class="checks">
           <li>5 usuarios</li>
@@ -1110,7 +1110,7 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         <h2>Esta noche, que conteste tu agente.</h2>
         <p>Pruébalo 14 días gratis o pide una demo y te enseñamos cómo atendería, vendería y agendaría en tu negocio.</p>
         <div class="hero-ctas" style="margin-top: 26px">
-          <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20Agentes%20Sin%20L%C3%ADmite%2014%20d%C3%ADas%20gratis." target="_blank" rel="noopener">Crear mi cuenta gratis</a>
+          <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Crear mi cuenta gratis</a>
         </div>
       </div>
             <form class="demo-form" id="demoForm">
@@ -1291,6 +1291,10 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
   // Demo form: no backend yet.
   // The demo request goes out as a WhatsApp message to the business line,
   // where the agent picks it up like any other lead.
+  // Public lead-form key of the Agentes Sin Límite account (Canales ->
+  // Formulario de leads). It can only create leads, nothing else.
+  var LEAD_FORM_URL = 'https://app.crm.agentesinlimite.com/api/leads/e4484e94-90d7-4da3-ac56-83e7dff9087b/submit';
+
   document.getElementById('demoForm').addEventListener('submit', function (e) {
     e.preventDefault();
     var f = e.target;
@@ -1300,6 +1304,24 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
       'WhatsApp: ' + f.phone.value + '\n' +
       'Sector: ' + f.sector.value;
     var url = 'https://wa.me/18298059191?text=' + encodeURIComponent(text);
+    // Save the lead in the CRM (Leads -> Formularios) before WhatsApp
+    // opens, so it is there even if the visitor never sends the message.
+    // keepalive lets the request finish while the page navigates away.
+    try {
+      fetch(LEAD_FORM_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        keepalive: true,
+        body: JSON.stringify({
+          full_name: f.name.value,
+          phone: f.phone.value,
+          company: f.business.value,
+          service: f.sector.value,
+          message: 'Pidió una demo desde la web',
+          source_url: window.location.href
+        })
+      }).catch(function () {});
+    } catch (err) { /* old browser: WhatsApp still carries the data */ }
     if (!window.open(url, '_blank', 'noopener')) window.location.href = url;
     document.getElementById('formOk').hidden = false;
     f.reset();
