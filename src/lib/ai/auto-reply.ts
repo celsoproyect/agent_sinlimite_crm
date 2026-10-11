@@ -30,7 +30,8 @@ import {
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
+import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff, withHandoffReason } from './handoff-notify'
+import { assignChatWithoutAi, autoAssignConversation } from '@/lib/assignment/server'
 import { applyQualificationCapture, loadQualificationContext, qualificationPrompt } from './qualification-server'
 import { formatQualificationBlock } from './qualification'
 import { productCardCaption } from './whatsapp-format'
@@ -89,8 +90,13 @@ export async function dispatchInboundToAiReply(
   try {
     const db = supabaseAdmin()
 
+    // The AI won't answer this chat: with automatic assignment set to
+    // cover that (`assign_when_ai_off`), a teammate gets it instead.
+    const handToTeam = () => assignChatWithoutAi(db, { accountId, conversationId, contactId })
+
     const config = await loadAiConfig(db, accountId)
     if (!config || !config.autoReplyEnabled) {
+      await handToTeam()
       return
     }
 
@@ -125,6 +131,7 @@ export async function dispatchInboundToAiReply(
       return // a human owns this thread
     }
     if (conv.ai_autoreply_disabled) {
+      await handToTeam()
       return // handed off / turned off here
     }
     // Cheap early-out; the authoritative cap check is the atomic claim
@@ -134,6 +141,7 @@ export async function dispatchInboundToAiReply(
       config.autoReplyMaxPerConversation != null &&
       conv.ai_reply_count >= config.autoReplyMaxPerConversation
     ) {
+      await handToTeam()
       return
     }
 
@@ -265,6 +273,7 @@ export async function dispatchInboundToAiReply(
     const {
       text,
       handoff,
+      handoffReason,
       usage,
       attachments,
       booking,
@@ -448,12 +457,17 @@ export async function dispatchInboundToAiReply(
       } catch (err) {
         console.error('[ai auto-reply] handoff goodbye send failed:', err)
       }
-      const baseSummary =
-        (await summarizeHandoff(config, messages)) ??
-        buildHandoffSummary({
-          messages,
-          replyCount: conv.ai_reply_count ?? 0,
-        })
+      // An empty reply means the model had nothing to say: treat it as
+      // missing information, not as the customer asking for a person.
+      const reason = handoffReason ?? (text ? 'requested' : 'missing_info')
+      const baseSummary = withHandoffReason(
+        (await summarizeHandoff(config, messages, reason)) ??
+          buildHandoffSummary({
+            messages,
+            replyCount: conv.ai_reply_count ?? 0,
+          }),
+        reason,
+      )
       // The prequalification travels with the alert, so whoever takes
       // over knows who the customer is and what they want.
       const qualificationBlock = formatQualificationBlock(qualification, contactName)
@@ -481,13 +495,18 @@ export async function dispatchInboundToAiReply(
       } catch (err) {
         console.error('[ai auto-reply] handoff note insert failed:', err)
       }
+      // With automatic assignment on (module `auto_assign`), the next
+      // teammate in the rotation gets the chat and the summary.
+      const assigned = conv.assigned_agent_id
+        ? null
+        : await autoAssignConversation(db, { accountId, conversationId, contactId, contactName, reason, summary })
       const update: Record<string, unknown> = {
         ai_autoreply_disabled: true,
         ai_handoff_summary: summary,
       }
       // Only set the assignee when a target is configured AND the thread
       // isn't already owned — never stomp an existing human assignment.
-      if (config.handoffAgentId && !conv.assigned_agent_id) {
+      if (!assigned && config.handoffAgentId && !conv.assigned_agent_id) {
         update.assigned_agent_id = config.handoffAgentId
       }
       await db.from('conversations').update(update).eq('id', conversationId)
@@ -497,6 +516,8 @@ export async function dispatchInboundToAiReply(
         contactId,
         contactName,
         summary,
+        reason,
+        assignedTo: assigned ? assigned.name : null,
       })
       return
     }

@@ -1,6 +1,7 @@
 // Pure plan math (no I/O), shared by the server and the browser.
 
 import { MODULE_KEYS, isModuleEnabled, type EnabledModules } from '@/lib/modules'
+import { businessDate, businessLocalToInstant, businessToday } from '@/lib/business-timezone'
 
 import {
   EXPIRING_DAYS,
@@ -145,4 +146,39 @@ export function extendPaidUntil(
   if (interval === 'year') next.setUTCFullYear(next.getUTCFullYear() + 1)
   else next.setUTCMonth(next.getUTCMonth() + 1)
   return next.toISOString()
+}
+
+export interface MonthlyForecast {
+  /** How many are left this month (Infinity when unlimited). */
+  remaining: number
+  /** Business-local date (YYYY-MM-DD) the monthly count starts over. */
+  resetsOn: string
+  /** Business-local date the limit runs out at this month's pace, or
+   *  null when it lasts the month (or there's no limit / no usage yet).
+   *  Today when it's already used up. */
+  runsOutOn: string | null
+}
+
+/**
+ * Remaining, reset date and run-out projection for a monthly resource
+ * (AI replies, broadcasts), counted per business month like the server
+ * does. The pace is this month's usage over the time elapsed so far.
+ */
+export function monthlyForecast(used: number, limit: number | null, now: Date = new Date()): MonthlyForecast {
+  const today = businessToday(now)
+  const [y, m] = today.split('-').map(Number)
+  const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
+  const left = remaining(used, limit)
+  const base = { remaining: left, resetsOn: nextMonth }
+  if (limit === null || used <= 0) return { ...base, runsOutOn: null }
+  if (left === 0) return { ...base, runsOutOn: today }
+
+  const monthStart = businessLocalToInstant(`${today.slice(0, 7)}-01`, '00:00').getTime()
+  const resetAt = businessLocalToInstant(nextMonth, '00:00').getTime()
+  // At least an hour elapsed, so a burst in the first minutes of the
+  // month doesn't project an absurd pace.
+  const elapsed = Math.max(now.getTime() - monthStart, 60 * 60 * 1000)
+  const perMs = used / elapsed
+  const runOutAt = now.getTime() + left / perMs
+  return { ...base, runsOutOn: runOutAt < resetAt ? businessDate(new Date(runOutAt)) : null }
 }

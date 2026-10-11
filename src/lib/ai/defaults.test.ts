@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSystemPrompt, HANDOFF_SENTINEL } from './defaults'
+import { buildSystemPrompt, HANDOFF_MISSING_INFO_SENTINEL, HANDOFF_SENTINEL } from './defaults'
 
 const KNOWLEDGE = [
   { kbName: 'Policies', title: 'Returns', content: 'Returns accepted within 30 days.' },
@@ -47,7 +47,7 @@ describe('buildSystemPrompt — handoff rules', () => {
     // The only mentions of the sentinel left are the "when to hand off"
     // rule and its "never emit it just because" counterweight — none of
     // them tied to the knowledge base falling short.
-    expect(prompt).not.toContain(`do not guess — reply with exactly ${HANDOFF_SENTINEL}`)
+    expect(prompt).not.toContain(HANDOFF_MISSING_INFO_SENTINEL)
   })
 
   it('still routes uncovered questions to a human when the toggle is on', () => {
@@ -57,7 +57,7 @@ describe('buildSystemPrompt — handoff rules', () => {
       handoffOnMissingInfo: true,
       knowledge: KNOWLEDGE,
     })
-    expect(prompt).toContain(`do not guess — reply with exactly ${HANDOFF_SENTINEL}`)
+    expect(prompt).toContain(`followed by ${HANDOFF_MISSING_INFO_SENTINEL}, so a human can help`)
   })
 
   it('keeps greetings and vague messages out of handoff territory', () => {

@@ -11,7 +11,7 @@ import { MODULE_META } from "@/components/super-admin/modules-panel";
 import { useAccountPlan } from "@/hooks/use-account-plan";
 import { BUSINESS_TIME_ZONE } from "@/lib/business-timezone";
 import { isModuleKey } from "@/lib/modules";
-import { PLAN_RESOURCES, type PlanState } from "@/lib/plans/types";
+import { MONTHLY_RESOURCES, PLAN_RESOURCES, type PlanState } from "@/lib/plans/types";
 
 const STATE_VARIANT: Record<PlanState, ChipVariant> = {
   none: "muted",
@@ -112,6 +112,7 @@ export function PlanPanel() {
                   label={t(`resources.${r}`)}
                   used={info.usage![r]}
                   limit={info.limits[r]}
+                  monthly={MONTHLY_RESOURCES.has(r)}
                 />
               ))}
               <p className="text-xs text-muted-foreground">{t("usageNote")}</p>

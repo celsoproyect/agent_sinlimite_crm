@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import {
+  monthlyForecast,
   activeExtras,
   effectiveLimits,
   extendPaidUntil,
@@ -160,5 +161,30 @@ describe('extendPaidUntil', () => {
 
   it('counts from now with no date', () => {
     expect(extendPaidUntil(null, 'month', NOW)).toBe('2026-11-09T15:00:00.000Z')
+  })
+})
+
+describe('monthlyForecast', () => {
+  // 2026-10-11 12:00 in Santo Domingo (UTC-4) = 16:00 UTC.
+  const now = new Date('2026-10-11T16:00:00Z')
+
+  it('gives the remaining and the 1st of next month', () => {
+    expect(monthlyForecast(400, 1500, now)).toMatchObject({ remaining: 1100, resetsOn: '2026-11-01' })
+    expect(monthlyForecast(0, 500, new Date('2026-12-20T16:00:00Z')).resetsOn).toBe('2027-01-01')
+  })
+
+  it('projects the run-out date from the pace so far', () => {
+    // 10.5 days elapsed, 1050 used = 100/day; 450 left = 4.5 days.
+    expect(monthlyForecast(1050, 1500, now).runsOutOn).toBe('2026-10-16')
+  })
+
+  it('returns null when the limit lasts the month, is unlimited or unused', () => {
+    expect(monthlyForecast(100, 1500, now).runsOutOn).toBeNull()
+    expect(monthlyForecast(100, null, now)).toMatchObject({ remaining: Infinity, runsOutOn: null })
+    expect(monthlyForecast(0, 1500, now).runsOutOn).toBeNull()
+  })
+
+  it('says today once it is used up', () => {
+    expect(monthlyForecast(1500, 1500, now)).toMatchObject({ remaining: 0, runsOutOn: '2026-10-11' })
   })
 })

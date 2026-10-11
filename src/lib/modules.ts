@@ -30,6 +30,10 @@
 // `ai_qualification` makes the agent ask the name first, prequalify
 // every lead (`save_qualification`, migration 075) and sell
 // consultatively.
+// `auto_assign` hands chats to the team automatically (round robin,
+// sequence or least busy) when the AI passes a customer to a person,
+// moves them on when nobody answers in time, and keeps one person per
+// chat (migration 076, Configuración → Miembros del equipo).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -47,6 +51,7 @@ export const MODULE_KEYS = [
   "google_calendar",
   "web_push",
   "ai_qualification",
+  "auto_assign",
   "clinic",
   "restaurant",
   "events",

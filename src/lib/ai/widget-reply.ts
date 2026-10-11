@@ -21,7 +21,8 @@ import { buildHandoffSummary } from './handoff'
 import { logAiUsage } from './usage'
 import { latestUserMessage } from './query'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
-import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff } from './handoff-notify'
+import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff, withHandoffReason } from './handoff-notify'
+import { autoAssignConversation } from '@/lib/assignment/server'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import { applyQualificationCapture, loadQualificationContext, qualificationPrompt } from './qualification-server'
 import { formatQualificationBlock } from './qualification'
@@ -156,6 +157,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   const {
     text,
     handoff,
+    handoffReason,
     usage,
     customerName,
     note,
@@ -291,9 +293,12 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
   })
 
   if (handoff || !text) {
-    const baseSummary =
-      (await summarizeHandoff(config, messages)) ??
-      buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 })
+    const reason = handoffReason ?? (text ? 'requested' : 'missing_info')
+    const baseSummary = withHandoffReason(
+      (await summarizeHandoff(config, messages, reason)) ??
+        buildHandoffSummary({ messages, replyCount: conv.ai_reply_count ?? 0 }),
+      reason,
+    )
     const qualificationBlock = formatQualificationBlock(qualification, displayName)
     const summary = qualificationBlock ? `${baseSummary}\n\n${qualificationBlock}` : baseSummary
     try {
@@ -311,7 +316,21 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
       ai_autoreply_disabled: true,
       ai_handoff_summary: summary,
     }
-    if (config.handoffAgentId) update.assigned_agent_id = config.handoffAgentId
+    // With automatic assignment on (module `auto_assign`), the next
+    // teammate in the rotation gets the chat and the summary.
+    const assigned = conv.assigned_agent_id
+      ? null
+      : await autoAssignConversation(db, {
+          accountId,
+          conversationId,
+          contactId,
+          contactName: displayName,
+          reason,
+          summary,
+        })
+    if (!assigned && config.handoffAgentId && !conv.assigned_agent_id) {
+      update.assigned_agent_id = config.handoffAgentId
+    }
     await db.from('conversations').update(update).eq('id', conversationId)
     await notifyTeamOfHandoff(db, {
       accountId,
@@ -319,6 +338,8 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
       contactId,
       contactName: displayName,
       summary,
+      reason,
+      assignedTo: assigned ? assigned.name : null,
     })
     // Tell the visitor a person is coming instead of going silent.
     const goodbye = text || HANDOFF_FAREWELL

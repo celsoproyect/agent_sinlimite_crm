@@ -8,6 +8,7 @@ import { usePresence } from "@/hooks/use-presence";
 import { PresenceDot } from "@/components/presence/presence-dot";
 import { presenceLabel } from "@/lib/presence";
 import { cn } from "@/lib/utils";
+import { isModuleEnabled } from "@/lib/modules";
 import { ContactAvatar } from "@/components/contacts/contact-avatar";
 import type {
   Conversation,
@@ -29,6 +30,7 @@ import {
   RefreshCw,
   PanelRightOpen,
   PanelRightClose,
+  Lock,
 } from "lucide-react";
 import { format, isToday, isYesterday, differenceInHours } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
@@ -184,7 +186,7 @@ export function MessageThread({
   const tPresence = useTranslations("Presence");
   const locale = useLocale();
 
-  const { user, canOverrideLock } = useAuth();
+  const { user, account, canOverrideLock } = useAuth();
   const { getPresence, getRow, now } = usePresence();
   const [loading, setLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -927,6 +929,10 @@ export function MessageThread({
   const assignLabel = assignedAgentId
     ? (currentAssignee?.full_name ?? t("assigned"))
     : t("assign");
+  const heldByOther = !!assignedAgentId && assignedAgentId !== user?.id;
+  const composerLocked =
+    heldByOther &&
+    (!canOverrideLock || isModuleEnabled(account?.enabled_modules, "auto_assign"));
 
   return (
     // `min-w-0` is load-bearing: the page already puts min-w-0 on the
@@ -1241,18 +1247,30 @@ export function MessageThread({
         onChange={(agentId) => onAssignChange(conversation.id, agentId)}
       />
 
-      {/* Composer */}
-      <MessageComposer
-        conversationId={conversation.id}
-        sessionExpired={sessionInfo.expired}
-        onSend={handleSend}
-        onTyping={handleTyping}
-        onSendMedia={handleSendMedia}
-        onSendInteractive={handleSendInteractive}
-        onOpenTemplates={handleOpenTemplates}
-        replyTo={replyTo}
-        onClearReply={() => setReplyTo(null)}
-      />
+      {/* Composer — one person per chat: while someone else holds it,
+          agents can't write (the send route refuses them anyway), and with
+          automatic assignment on, admins take it over first. */}
+      {composerLocked ? (
+        <div className="flex items-center gap-2 border-t border-border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          <Lock className="h-4 w-4 flex-shrink-0" />
+          <span className="min-w-0">
+            {t("attendedBy", { name: currentAssignee?.full_name ?? t("anotherAgent") })}{" "}
+            {canOverrideLock ? t("attendedByAdminHint") : t("attendedByHint")}
+          </span>
+        </div>
+      ) : (
+        <MessageComposer
+          conversationId={conversation.id}
+          sessionExpired={sessionInfo.expired}
+          onSend={handleSend}
+          onTyping={handleTyping}
+          onSendMedia={handleSendMedia}
+          onSendInteractive={handleSendInteractive}
+          onOpenTemplates={handleOpenTemplates}
+          replyTo={replyTo}
+          onClearReply={() => setReplyTo(null)}
+        />
+      )}
 
       <TemplatePicker
         open={templateModalOpen}

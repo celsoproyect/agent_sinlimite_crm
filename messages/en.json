@@ -175,6 +175,7 @@
     "waitlistModule": "Waitlist",
     "webPushModule": "Push notifications on phones (handoff alerts)",
     "aiQualificationModule": "AI lead prequalification (name first, guided selling)",
+    "autoAssignModule": "Automatic chat assignment to the team",
     "primaryNav": "Primary navigation"
   },
   "Push": {
@@ -379,6 +380,10 @@
       "today": "Today",
       "next7": "Next 7 days",
       "empty": "No upcoming appointments."
+    },
+    "planUsage": {
+      "title": "This month's usage",
+      "viewPlan": "View my plan"
     }
   },
   "Inbox": {
@@ -435,7 +440,11 @@
       "waitForSend": "Wait for the message to finish sending",
       "reactionFailed": "Reaction failed: {reason}",
       "claimedByOther": "This conversation is claimed by another agent.",
-      "assignFailed": "Failed to update assignment"
+      "assignFailed": "Failed to update assignment",
+      "attendedBy": "Handled by {name}.",
+      "anotherAgent": "another teammate",
+      "attendedByHint": "Only they can reply, so the customer never gets two answers.",
+      "attendedByAdminHint": "Press “Take over” above to reply yourself."
     },
     "sessionTimer": {
       "expired": "Expired",
@@ -606,7 +615,9 @@
       "claimedBy": "Claimed by {name}",
       "claimError": "Couldn’t claim this conversation.",
       "releaseError": "Couldn’t release this conversation.",
-      "lockedError": "This conversation is claimed by another agent."
+      "lockedError": "This conversation is claimed by another agent.",
+      "take": "Take over",
+      "takeError": "Could not take over this conversation."
     }
   },
   "Contacts": {
@@ -3908,6 +3919,62 @@
       "suspended": "The account is suspended. Renew the plan to continue.",
       "limitReached": "You reached your plan's limit ({limit} {resource}). Upgrade your plan to add more.",
       "limitReachedNoNumber": "You reached your plan's {resource} limit. Upgrade your plan to add more."
-    }
+    },
+    "remainingLeft": "{count} left",
+    "usedUp": "Used up",
+    "resetsOn": "Resets on {date}",
+    "runsOutOn": "At this pace it runs out on {date}"
+  },
+  "Assignment": {
+    "title": "Automatic chat assignment",
+    "description": "When the AI hands a customer to a person, the chat goes to one teammate with a summary, and nobody else replies to it.",
+    "loadFailed": "Could not load the assignment settings.",
+    "notMigrated": "Migration 076 must be applied in Supabase to use automatic assignment.",
+    "modeLabel": "How to share out chats",
+    "modes": {
+      "off": {
+        "label": "Off",
+        "help": "Chats stay in the shared inbox."
+      },
+      "round_robin": {
+        "label": "Round robin",
+        "help": "To whoever has gone longest without one."
+      },
+      "sequence": {
+        "label": "Fixed sequence",
+        "help": "Always the first on the list; if they don't answer, the next."
+      },
+      "least_busy": {
+        "label": "Least busy",
+        "help": "To whoever has the fewest open chats."
+      }
+    },
+    "teamLabel": "Who gets chats",
+    "teamHelp": "Tick the people in the rotation. Anyone set to “Away” is skipped.",
+    "teamHelpSequence": "Tick the people and order them with the arrows: the chat goes to the first available and, if they don't answer, to the next.",
+    "noTeam": "There are no members who can handle chats yet.",
+    "includeLabel": "Include {name}",
+    "available": "Available",
+    "away": "Away",
+    "availableSwitch": "Available",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "reassignLabel": "Reassign if unanswered after",
+    "minutes": "minutes",
+    "neverMove": "Never reassign",
+    "reassignHelp": "If the assignee doesn't write to the customer in that time, the chat moves to the next person. Once everyone had a turn, the owner is told.",
+    "whenAiOff": "Also assign new chats when the AI isn't answering",
+    "whenAiOffHelp": "With the AI off, out of monthly replies or paused on that chat, the customer's message is assigned to a teammate.",
+    "aiNote": "While the AI is handling a chat it stays unassigned (assigning stops the AI). It's assigned when the customer asks for a person or is upset, when the AI doesn't have the answer, or by hand at any time.",
+    "save": "Save",
+    "saved": "Assignment saved.",
+    "saveFailed": "Could not save the assignment settings.",
+    "nobodySelected": "Tick at least one person for the rotation.",
+    "minutesInvalid": "Minutes must be between {min} and {max}.",
+    "availabilityFailed": "Could not change the availability.",
+    "myAvailabilityTitle": "Available for chats",
+    "myAvailabilityHelp": "Turn it off when you're not working and automatic assignment will skip you.",
+    "nowAvailable": "You're now receiving chats.",
+    "nowAway": "You won't receive new chats."
   }
 }

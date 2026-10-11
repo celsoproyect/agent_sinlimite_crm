@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { Lock, LockOpen, Loader2 } from "lucide-react";
+import { Hand, Lock, LockOpen, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useTranslations } from "next-intl";
@@ -42,7 +42,7 @@ export function ConversationLockBanner({
   const [busy, setBusy] = useState(false);
 
   const setAssignee = useCallback(
-    async (agentId: string | null, errorKey: "claimError" | "releaseError") => {
+    async (agentId: string | null, errorKey: "claimError" | "releaseError" | "takeError") => {
       setBusy(true);
       try {
         const supabase = createClient();
@@ -103,6 +103,15 @@ export function ConversationLockBanner({
           {isMine ? t("yours") : t("claimedBy", { name: assignedAgentName ?? "—" })}
         </span>
       </div>
+      {!isMine && canOverrideLock && currentUserId && (
+        <BannerButton
+          onClick={() => setAssignee(currentUserId, "takeError")}
+          busy={busy}
+          icon={Hand}
+        >
+          {t("take")}
+        </BannerButton>
+      )}
       {canRelease && (
         <BannerButton
           onClick={() => setAssignee(null, "releaseError")}

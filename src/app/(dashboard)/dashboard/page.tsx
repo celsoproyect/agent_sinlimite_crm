@@ -34,6 +34,7 @@ import { PipelineDonut } from '@/components/dashboard/pipeline-donut'
 import { ResponseTimeChart } from '@/components/dashboard/response-time-chart'
 import { ActivityFeed } from '@/components/dashboard/activity-feed'
 import { UpcomingBookings } from '@/components/dashboard/upcoming-bookings'
+import { PlanUsageCard } from '@/components/dashboard/plan-usage-card'
 import { isModuleEnabled } from '@/lib/modules'
 
 import { useTranslations } from 'next-intl'
@@ -233,6 +234,9 @@ export default function DashboardPage() {
       ) : (
         <ResponseTimeChart data={responseTime} loading={responseTimeLoading} />
       )}
+
+      {/* This month's plan usage (owners/admins, accounts with a plan) */}
+      <PlanUsageCard />
 
       {/* Activity feed */}
       <ActivityFeed items={activity} loading={activityLoading} />

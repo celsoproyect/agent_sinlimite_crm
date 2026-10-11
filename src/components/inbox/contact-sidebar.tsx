@@ -570,6 +570,11 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
             <div className="flex items-center gap-2 px-1 text-xs font-medium uppercase tracking-wider text-muted-foreground">
               <StickyNote className="h-3 w-3" />
               {tSidebar("notes")}
+              {notes.length > 0 && (
+                <span className="ml-auto rounded-full bg-muted px-1.5 py-0.5 text-[0.625rem] font-semibold normal-case tracking-normal">
+                  {notes.length}
+                </span>
+              )}
             </div>
             <div className="mt-2">
               <div className="flex gap-2">
@@ -590,7 +595,12 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
                 </Button>
               </div>
 
-              <div className="mt-2 space-y-2">
+              {/* Own scroll area: AI notes pile up on long threads, and the
+                  list shouldn't push everything else out of the sidebar. */}
+              <div
+                className="mt-2 max-h-80 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
+                aria-label={tSidebar("notes")}
+              >
                 {notes.map((note) => (
                   <div
                     key={note.id}

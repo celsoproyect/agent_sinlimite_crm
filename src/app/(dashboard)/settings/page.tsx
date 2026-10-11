@@ -18,6 +18,7 @@ import { QuickRepliesManager } from '@/components/settings/quick-replies-manager
 import { FieldsAndTagsPanel } from '@/components/settings/fields-and-tags-panel';
 import { DealsSettings } from '@/components/settings/deals-settings';
 import { MembersTab } from '@/components/settings/members-tab';
+import { AssignmentSettingsCard } from '@/components/settings/assignment-settings';
 import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { PlanPanel } from '@/components/settings/plan-panel';
 import {
@@ -82,7 +83,12 @@ function SettingsPageInner() {
     'quick-replies': <QuickRepliesManager />,
     fields: <FieldsAndTagsPanel />,
     deals: <DealsSettings />,
-    members: <MembersTab />,
+    members: (
+      <>
+        <MembersTab />
+        <AssignmentSettingsCard />
+      </>
+    ),
     plan: <PlanPanel />,
     api: <ApiKeysSettings />,
   };

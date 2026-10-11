@@ -57,12 +57,24 @@ describe('parseGeneration', () => {
     expect(parseGeneration('[[HANDOFF]]')).toEqual({
       text: '',
       handoff: true,
+      handoffReason: 'requested',
       usage: null,
       attachments: [],
     })
     expect(parseGeneration('Let me get a human [[HANDOFF]]')).toEqual({
       text: 'Let me get a human',
       handoff: true,
+      handoffReason: 'requested',
+      usage: null,
+      attachments: [],
+    })
+  })
+
+  it('tells a missing-info handoff apart and strips its sentinel', () => {
+    expect(parseGeneration('Una persona te responde eso enseguida. [[HANDOFF:INFO]]')).toEqual({
+      text: 'Una persona te responde eso enseguida.',
+      handoff: true,
+      handoffReason: 'missing_info',
       usage: null,
       attachments: [],
     })

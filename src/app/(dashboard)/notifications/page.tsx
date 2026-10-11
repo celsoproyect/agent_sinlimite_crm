@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { useModuleGate } from "@/hooks/use-module-gate";
 import { PushSettingsCard } from "@/components/notifications/push-settings-card";
+import { AvailabilityCard } from "@/components/notifications/availability-card";
 
 // Icon per notification type.
 const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
@@ -203,6 +204,8 @@ export default function NotificationsPage() {
           {t("markAllRead")}
         </Button>
       </div>
+
+      <AvailabilityCard />
 
       <PushSettingsCard />
 

@@ -12,7 +12,7 @@ import {
   type GenerateResult,
   type ResolvedAttachment,
 } from './types'
-import { HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
+import { HANDOFF_MISSING_INFO_SENTINEL, HANDOFF_SENTINEL, aiRequestTimeoutMs } from './defaults'
 import { generateOpenAi } from './providers/openai'
 import { generateAnthropic } from './providers/anthropic'
 import type { AttachmentSearchTool, BookingSearchTool, KnowledgeSearchTool } from './providers/shared'
@@ -212,13 +212,17 @@ export function parseGeneration(
   leadValue?: LeadValue,
   qualification?: Qualification,
 ): GenerateResult {
-  const handoff = raw.includes(HANDOFF_SENTINEL)
+  const missingInfo = raw.includes(HANDOFF_MISSING_INFO_SENTINEL)
+  const handoff = missingInfo || raw.includes(HANDOFF_SENTINEL)
   // Every channel speaks WhatsApp formatting (the widget and the inbox
   // render *bold*), so stray markdown is converted once, here.
-  const text = toWhatsAppFormatting(raw.split(HANDOFF_SENTINEL).join('').trim())
+  const text = toWhatsAppFormatting(
+    raw.split(HANDOFF_MISSING_INFO_SENTINEL).join('').split(HANDOFF_SENTINEL).join('').trim(),
+  )
   return {
     text,
     handoff,
+    handoffReason: handoff ? (missingInfo ? 'missing_info' : 'requested') : undefined,
     usage,
     attachments,
     booking,

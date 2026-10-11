@@ -27,6 +27,7 @@ import {
   Target,
   Users,
   Workflow,
+  Shuffle,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -66,6 +67,7 @@ export const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string
   google_calendar: { icon: CalendarCheck2, labelKey: "googleCalendarModule" },
   web_push: { icon: BellRing, labelKey: "webPushModule" },
   ai_qualification: { icon: ClipboardCheck, labelKey: "aiQualificationModule" },
+  auto_assign: { icon: Shuffle, labelKey: "autoAssignModule" },
   clinic: { icon: Stethoscope, labelKey: "clinicModule" },
   restaurant: { icon: UtensilsCrossed, labelKey: "restaurant" },
   events: { icon: PartyPopper, labelKey: "events" },

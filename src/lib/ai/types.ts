@@ -250,12 +250,18 @@ export interface LeadValue {
   currency?: string
 }
 
+/** Why the AI handed a chat to a person. */
+export type HandoffReason = 'requested' | 'missing_info'
+
 /** Outcome of a generation call. */
 export interface GenerateResult {
   /** The reply text, with any handoff sentinel stripped. */
   text: string
   /** True when the model asked to hand off to a human (auto-reply mode). */
   handoff: boolean
+  /** Why, when `handoff`: the customer asked for a person (or is upset),
+   *  or the AI didn't have the answer. */
+  handoffReason?: HandoffReason
   /** Provider token usage for this call, or null when unavailable. */
   usage: AiUsage | null
   /** Attachments the model selected via `send_attachment`, resolved but

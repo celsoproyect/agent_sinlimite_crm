@@ -3,6 +3,7 @@ import { drainPendingAutomations } from '@/lib/automations/drain-pending'
 import { autoLoseStaleDeals } from '@/lib/deals/auto-lose'
 import { sendDueWeeklySummaries } from '@/lib/reports/weekly-summary'
 import { checkPlanAlerts } from '@/lib/plans/alerts'
+import { reassignUnanswered } from '@/lib/assignment/server'
 
 type Timers = Record<string, ReturnType<typeof setInterval> | undefined>
 
@@ -39,7 +40,9 @@ function every(key: string, seconds: number, job: () => Promise<unknown>) {
  * - the weekly owner summary goes to Telegram on Monday morning
  *   (checked every 15 minutes, deduped by `weekly_report_sent_at`);
  * - plan alerts (80%/100% of a limit, expiring, past due, suspended)
- *   are checked every hour, deduped by `plan_alerts`.
+ *   are checked every hour, deduped by `plan_alerts`;
+ * - automatically assigned chats nobody answered in the owner's minutes
+ *   move to the next teammate (module `auto_assign`), every minute.
  */
 export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('automations', 60, async () => {
@@ -57,5 +60,9 @@ export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('plan-alerts', 60 * 60, async () => {
     const sent = await checkPlanAlerts(getAdmin())
     if (sent > 0) console.log('[plan-alerts] sent', sent)
+  })
+  every('reassign-unanswered', 60, async () => {
+    const moved = await reassignUnanswered(getAdmin())
+    if (moved > 0) console.log('[assignment] reassigned', moved)
   })
 }

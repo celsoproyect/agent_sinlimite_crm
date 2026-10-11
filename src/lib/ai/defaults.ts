@@ -23,6 +23,13 @@ export const AI_PROVIDER_DEFAULT_MODEL: Record<AiProvider, string> = {
  */
 export const HANDOFF_SENTINEL = '[[HANDOFF]]'
 
+/**
+ * Same handoff, but because the AI didn't have the answer (not in the
+ * prompt, catalog or knowledge base). The person who takes over is told
+ * which question went unanswered.
+ */
+export const HANDOFF_MISSING_INFO_SENTINEL = '[[HANDOFF:INFO]]'
+
 /** Cap on generated reply length — keeps WhatsApp replies short and
  *  bounds token spend on the caller's own key. */
 export const MAX_OUTPUT_TOKENS = 1024
@@ -187,7 +194,7 @@ export function buildSystemPrompt(args: {
         `Handing off is the exception, not the default: reply with one short sentence in the customer's language telling them a human agent will attend them shortly, followed by ${HANDOFF_SENTINEL} (a human agent then takes over and you stop replying to this customer) ONLY when one of these is true — ` +
         '(a) the customer explicitly asks to talk to a person, or (b) the customer is clearly angry, or is complaining about a problem you cannot resolve yourself' +
         (handoffOnMissingInfo
-          ? ', or (c) answering would require information you do not have.'
+          ? `, or (c) answering would require information you do not have — in that case use ${HANDOFF_MISSING_INFO_SENTINEL} instead of ${HANDOFF_SENTINEL}, and your sentence tells the customer a person will answer that question shortly.`
           : '.') +
         ' For everything else — greetings, small talk, vague or unclear messages, questions you can only answer partly, questions outside the business context below — you must answer normally and keep the conversation going. ' +
         `Never emit ${HANDOFF_SENTINEL} just because a message is short, off-topic, or unexpected.` +
@@ -219,7 +226,7 @@ export function buildSystemPrompt(args: {
     // included — handed the thread to a human and switched the bot off.
     const fallback =
       mode === 'auto_reply' && handoffOnMissingInfo
-        ? `if they don't cover the question, do not guess — reply with exactly ${HANDOFF_SENTINEL} so a human can help`
+        ? `if they don't cover the question, do not guess — reply with one short sentence saying a person will answer it, followed by ${HANDOFF_MISSING_INFO_SENTINEL}, so a human can help`
         : "if they don't cover the question, don't guess — say you'll check and follow up, and keep answering whatever else you can"
     parts.push(
       'Knowledge base — excerpts from the business\'s own documentation, retrieved for this question. ' +

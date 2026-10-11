@@ -175,6 +175,7 @@
     "waitlistModule": "Lista de espera",
     "webPushModule": "Notificaciones push en el celular (avisos de traspaso)",
     "aiQualificationModule": "Precalificación de clientes por la IA (nombre primero, venta guiada)",
+    "autoAssignModule": "Asignación automática de chats al equipo",
     "primaryNav": "Navegación principal"
   },
   "Push": {
@@ -379,6 +380,10 @@
       "today": "Hoy",
       "next7": "Próximos 7 días",
       "empty": "No hay citas próximas."
+    },
+    "planUsage": {
+      "title": "Consumo del mes",
+      "viewPlan": "Ver mi plan"
     }
   },
   "Inbox": {
@@ -435,7 +440,11 @@
       "waitForSend": "Espera a que el mensaje termine de enviarse",
       "reactionFailed": "No se pudo reaccionar: {reason}",
       "claimedByOther": "Otro agente ya tomó esta conversación.",
-      "assignFailed": "No se pudo actualizar la asignación"
+      "assignFailed": "No se pudo actualizar la asignación",
+      "attendedBy": "Atendido por {name}.",
+      "anotherAgent": "otro miembro del equipo",
+      "attendedByHint": "Solo esa persona puede responder, para que el cliente no reciba dos respuestas.",
+      "attendedByAdminHint": "Pulsa «Tomar conversación» arriba para responder tú."
     },
     "sessionTimer": {
       "expired": "Expirada",
@@ -606,7 +615,9 @@
       "claimedBy": "Reclamada por {name}",
       "claimError": "No se pudo reclamar esta conversación.",
       "releaseError": "No se pudo liberar esta conversación.",
-      "lockedError": "Esta conversación está reclamada por otro agente."
+      "lockedError": "Esta conversación está reclamada por otro agente.",
+      "take": "Tomar conversación",
+      "takeError": "No se pudo tomar esta conversación."
     }
   },
   "Contacts": {
@@ -3908,6 +3919,62 @@
       "suspended": "La cuenta está suspendida. Renueva el plan para continuar.",
       "limitReached": "Llegaste al límite de tu plan ({limit} {resource}). Mejora tu plan para agregar más.",
       "limitReachedNoNumber": "Llegaste al límite de {resource} de tu plan. Mejora tu plan para agregar más."
-    }
+    },
+    "remainingLeft": "Te quedan {count}",
+    "usedUp": "Agotado",
+    "resetsOn": "Se renueva el {date}",
+    "runsOutOn": "A este ritmo se agota el {date}"
+  },
+  "Assignment": {
+    "title": "Asignación automática de chats",
+    "description": "Cuando la IA pasa un cliente a una persona, el chat le llega a un miembro del equipo con un resumen, y nadie más le responde.",
+    "loadFailed": "No se pudo cargar la asignación.",
+    "notMigrated": "Falta aplicar la migración 076 en Supabase para usar la asignación automática.",
+    "modeLabel": "Cómo repartir los chats",
+    "modes": {
+      "off": {
+        "label": "Desactivada",
+        "help": "Los chats quedan en la bandeja compartida."
+      },
+      "round_robin": {
+        "label": "Por turnos (round robin)",
+        "help": "A quien lleva más tiempo sin recibir uno."
+      },
+      "sequence": {
+        "label": "Secuencia fija",
+        "help": "Siempre al primero de la lista; si no responde, al siguiente."
+      },
+      "least_busy": {
+        "label": "Menos ocupado",
+        "help": "A quien tiene menos chats abiertos."
+      }
+    },
+    "teamLabel": "Quién recibe chats",
+    "teamHelp": "Marca a las personas que entran en el reparto. Quien esté «No disponible» se salta.",
+    "teamHelpSequence": "Marca a las personas y ordénalas con las flechas: el chat va al primero disponible y, si no responde, al siguiente.",
+    "noTeam": "Todavía no hay miembros que puedan atender chats.",
+    "includeLabel": "Incluir a {name}",
+    "available": "Disponible",
+    "away": "No disponible",
+    "availableSwitch": "Disponible",
+    "moveUp": "Subir",
+    "moveDown": "Bajar",
+    "reassignLabel": "Reasignar si no responde en",
+    "minutes": "minutos",
+    "neverMove": "No reasignar nunca",
+    "reassignHelp": "Si la persona asignada no escribe al cliente en ese tiempo, el chat pasa al siguiente. Cuando todos tuvieron su turno, se avisa al dueño.",
+    "whenAiOff": "Asignar también los chats nuevos cuando la IA no responde",
+    "whenAiOffHelp": "Con la IA apagada, sin respuestas disponibles en el mes o pausada en ese chat, el mensaje del cliente se asigna a alguien del equipo.",
+    "aiNote": "Mientras la IA atiende, el chat no se asigna (asignarlo detiene a la IA). Se asigna cuando el cliente pide una persona o está molesto, cuando la IA no tiene la respuesta, o a mano en cualquier momento.",
+    "save": "Guardar",
+    "saved": "Asignación guardada.",
+    "saveFailed": "No se pudo guardar la asignación.",
+    "nobodySelected": "Marca al menos una persona para el reparto.",
+    "minutesInvalid": "Los minutos deben estar entre {min} y {max}.",
+    "availabilityFailed": "No se pudo cambiar la disponibilidad.",
+    "myAvailabilityTitle": "Disponible para recibir chats",
+    "myAvailabilityHelp": "Apágalo cuando no estés trabajando y la asignación automática te saltará.",
+    "nowAvailable": "Ahora recibes chats.",
+    "nowAway": "Ya no recibirás chats nuevos."
   }
 }
