@@ -27,7 +27,6 @@ import {
   ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -258,8 +257,10 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
   const displayName = contact.name || contact.phone;
 
   return (
-    <div className={cn("flex h-full w-70 flex-col border-l border-border bg-card", className)}>
-      <ScrollArea className="flex-1">
+    <div className={cn("flex h-full min-h-0 w-70 flex-col border-l border-border bg-card", className)}>
+      {/* One scrollbar for the whole panel: contact info, lead, booking,
+          captured data and every note. */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain [scrollbar-width:thin]">
         <div className="p-4">
           {/* Contact Info */}
           <div className="flex flex-col items-center text-center">
@@ -595,12 +596,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
                 </Button>
               </div>
 
-              {/* Own scroll area: AI notes pile up on long threads, and the
-                  list shouldn't push everything else out of the sidebar. */}
-              <div
-                className="mt-2 max-h-80 space-y-2 overflow-y-auto overscroll-contain pr-1 [scrollbar-width:thin]"
-                aria-label={tSidebar("notes")}
-              >
+              <div className="mt-2 space-y-2" aria-label={tSidebar("notes")}>
                 {notes.map((note) => (
                   <div
                     key={note.id}
@@ -623,7 +619,7 @@ export function ContactSidebar({ contact, onContactChange, className }: ContactS
             </div>
           </div>
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }

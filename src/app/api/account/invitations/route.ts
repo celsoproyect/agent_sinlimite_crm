@@ -94,10 +94,13 @@ function isHostAllowed(
   return allowList.includes(hostname.toLowerCase());
 }
 
+// The order changed: the host the admin is using now wins over the
+// env var. Production once baked `NEXT_PUBLIC_SITE_URL` with a stray
+// "www." and every invite pointed at a domain that doesn't resolve;
+// the admin's own host is by definition one that works. The env var
+// is the fallback (and the ALLOWED_INVITE_HOSTS check still applies).
 function getBaseUrl(request: Request): string {
-  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim();
-  if (explicit) return explicit.replace(/\/+$/, "");
-
+  const explicit = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, "");
   const allowList = parseAllowedHosts();
   const forwardedHost = request.headers
     .get("x-forwarded-host")
@@ -118,6 +121,8 @@ function getBaseUrl(request: Request): string {
     const reqProto = new URL(request.url).protocol.replace(":", "");
     return `${reqProto}://${host}`;
   }
+
+  if (explicit) return explicit;
 
   // We fall through here when EITHER no Host header was present at
   // all (essentially impossible from a real browser) OR an

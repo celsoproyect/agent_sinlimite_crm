@@ -128,13 +128,40 @@ function SignupPageInner() {
 
     setLoading(true);
 
-    // If we have an invite token, point Supabase's verification
-    // email back at the join page so the user can accept after
-    // verifying. Without a token, Supabase uses its default
-    // redirect (the app root).
-    const emailRedirectTo = inviteToken
-      ? `${window.location.origin}/join/${encodeURIComponent(inviteToken)}`
-      : undefined;
+    // Invite signups are created already confirmed on the server (the
+    // invite link is the proof), then signed in straight away: no
+    // confirmation email to wait for. See /api/invitations/[token]/signup.
+    if (inviteToken) {
+      try {
+        const res = await fetch(`/api/invitations/${encodeURIComponent(inviteToken)}/signup`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password, full_name: fullName }),
+        });
+        if (!res.ok) {
+          const body = (await res.json().catch(() => ({}))) as { error?: string };
+          const code = body.error === "invite_invalid" ? undefined : body.error;
+          setError(
+            body.error === "invite_invalid"
+              ? t(GATE_COPY.not_found.body)
+              : authErrorMessage({ code, status: res.status, message: "" }, tErr),
+          );
+          setLoading(false);
+          return;
+        }
+        const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+        if (signInError) {
+          setError(authErrorMessage(signInError, tErr));
+          setLoading(false);
+          return;
+        }
+        window.location.href = `/join/${encodeURIComponent(inviteToken)}`;
+      } catch {
+        setError(tErr("generic"));
+        setLoading(false);
+      }
+      return;
+    }
 
     const { error } = await supabase.auth.signUp({
       email,
@@ -143,7 +170,6 @@ function SignupPageInner() {
         data: {
           full_name: fullName,
         },
-        ...(emailRedirectTo ? { emailRedirectTo } : {}),
       },
     });
 

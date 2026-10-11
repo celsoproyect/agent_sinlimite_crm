@@ -1164,7 +1164,7 @@
       "subtitlePlaceholder": "Guidance available",
       "avatar": "Agent photo",
       "heroImage": "Banner image",
-      "heroHint": "Optional. Shown large under the header (best: a PNG with a transparent background).",
+      "heroHint": "Optional. Shown large under the header (best: a PNG or SVG with a transparent background; SVGs can be animated).",
       "upload": "Upload image",
       "remove": "Remove",
       "uploadFailed": "Could not upload the image: {message}",

@@ -458,6 +458,7 @@ export function OpportunitiesTable() {
 
       {editing && (
         <DealForm
+          centered
           open={!!editing}
           onOpenChange={(o) => {
             if (!o) setEditing(null);
@@ -472,6 +473,7 @@ export function OpportunitiesTable() {
       )}
 
       <ContactDetailView
+        centered
         open={!!contactId}
         onOpenChange={(o) => {
           if (!o) setContactId(null);

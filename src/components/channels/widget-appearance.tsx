@@ -30,7 +30,8 @@ import {
 } from '@/lib/widget/config';
 
 const MAX_IMAGE_BYTES = 2 * 1024 * 1024;
-const IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif';
+// SVG too (animated characters); the avatars bucket allows image/svg+xml.
+const IMAGE_TYPES = 'image/png,image/jpeg,image/webp,image/gif,image/svg+xml';
 
 interface Props {
   widgetKey: string;

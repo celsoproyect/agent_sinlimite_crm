@@ -498,10 +498,11 @@ details p { padding-bottom: 18px; color: var(--muted); font-size: 15px; max-widt
 .demo-form { min-width: 0; background: var(--surface); color: var(--ink); border-radius: 20px; padding: clamp(18px, 4vw, 24px); display: grid; gap: 12px; }
 .demo-form h3 { font-size: 19px; }
 .demo-form label { min-width: 0; display: grid; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
-.demo-form input, .demo-form select {
+.demo-form input, .demo-form select, .demo-form textarea {
   font: 400 16px/1.3 var(--body); min-height: 46px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
   background: var(--bg); color: var(--ink); width: 100%; max-width: 100%; min-width: 0;
 }
+.demo-form textarea { resize: vertical; min-height: 104px; }
 .demo-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .demo-form .btn { background: var(--accent); color: var(--accent-ink); }
 .demo-form .btn:hover { background: var(--accent-hover); }
@@ -951,14 +952,19 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         <a class="btn btn-ghost" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Incluye</span>
         <ul class="checks">
+          <li><b>1,500</b> respuestas de IA al mes</li>
+          <li><b>2</b> usuarios</li>
+          <li><b>2,000</b> contactos</li>
+          <li><b>10</b> documentos en la base de conocimiento</li>
           <li>1 número de WhatsApp Business</li>
-          <li>2 usuarios</li>
           <li>Agente de IA que atiende y vende</li>
+          <li>Precalificación de clientes por IA</li>
           <li>Catálogo con fotos y precios</li>
           <li>Base de conocimiento con tus documentos</li>
           <li>Bandeja compartida y contactos</li>
           <li>Chat para tu página web</li>
           <li>Paso a humano con aviso</li>
+          <li>Reportes básicos</li>
         </ul>
       </article>
 
@@ -973,30 +979,36 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         <a class="btn btn-primary" href="https://wa.me/18298059191?text=Hola%2C%20quiero%20probar%20la%20demo%20de%20Agentes%20Sin%20L%C3%ADmite" target="_blank" rel="noopener">Probar gratis</a>
         <span class="group">Todo lo de Inicial, más</span>
         <ul class="checks">
-          <li>5 usuarios</li>
+          <li><b>4,000</b> respuestas de IA al mes</li>
+          <li><b>5</b> usuarios</li>
+          <li><b>10,000</b> contactos</li>
+          <li><b>30</b> documentos en la base de conocimiento</li>
           <li>Agenda con citas por IA y recordatorios</li>
-          <li>Embudos de venta y cierres</li>
-          <li>Automatizaciones de seguimiento</li>
+          <li>Citas desde el chat de tu web</li>
+          <li>Embudos de venta, cierres y leads</li>
+          <li>Automatizaciones y flujos de seguimiento</li>
           <li>Google Calendar</li>
           <li>Reportes de IA y de ventas</li>
-          <li>Asistente del dueño en Telegram</li>
+          <li>Asistente del dueño en Telegram y resumen semanal</li>
         </ul>
       </article>
 
       <article class="plan">
         <div>
           <h3>Negocio</h3>
-          <p class="for">Para equipos grandes o varias sucursales.</p>
+          <p class="for">Para equipos grandes o varias sucursales. Incluye un módulo de sector y configuración asistida.</p>
         </div>
         <div class="price"><b data-base="199">$199</b><span>USD / mes</span></div>
         <p class="billed" data-billed></p>
         <a class="btn btn-ghost" href="#demo">Hablar con ventas</a>
         <span class="group">Todo lo de Profesional, más</span>
         <ul class="checks">
-          <li>15 usuarios</li>
+          <li><b>10,000</b> respuestas de IA al mes</li>
+          <li><b>15</b> usuarios</li>
+          <li>Contactos <b>ilimitados</b></li>
+          <li><b>100</b> documentos en la base de conocimiento</li>
           <li>Un módulo de sector incluido</li>
           <li>Configuramos tu agente contigo</li>
-          <li>Resumen semanal del negocio</li>
           <li>Soporte prioritario por WhatsApp</li>
         </ul>
       </article>
@@ -1034,16 +1046,23 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
             <tr><th scope="row">Ventas con catálogo (fotos y precios)</th><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Base de conocimiento</th><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Paso a humano con aviso</th><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+            <tr><th scope="row">Precalificación de clientes</th><td class="yes">Sí</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+            <tr class="group-row"><th colspan="4">Capacidad</th></tr>
+            <tr><th scope="row">Respuestas de IA al mes</th><td>1,500</td><td>4,000</td><td>10,000</td></tr>
             <tr><th scope="row">Usuarios</th><td>2</td><td>5</td><td>15</td></tr>
+            <tr><th scope="row">Contactos</th><td>2,000</td><td>10,000</td><td>Ilimitados</td></tr>
+            <tr><th scope="row">Documentos en la base de conocimiento</th><td>10</td><td>30</td><td>100</td></tr>
             <tr class="group-row"><th colspan="4">Agenda y seguimiento</th></tr>
             <tr><th scope="row">Citas agendadas por la IA</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Recordatorios automáticos</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+            <tr><th scope="row">Citas desde el chat web</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Embudos y cierres</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+            <tr><th scope="row">Leads de formularios</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Automatizaciones</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Google Calendar</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr class="group-row"><th colspan="4">Control</th></tr>
             <tr><th scope="row">Reportes</th><td>Básicos</td><td class="yes">Completos</td><td class="yes">Completos</td></tr>
-            <tr><th scope="row">Asistente en Telegram</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
+            <tr><th scope="row">Asistente en Telegram y resumen semanal</th><td class="no">—</td><td class="yes">Sí</td><td class="yes">Sí</td></tr>
             <tr><th scope="row">Módulo de sector</th><td>+$29</td><td>+$29</td><td class="yes">1 incluido</td></tr>
             <tr><th scope="row">Configuración asistida</th><td class="no">—</td><td class="no">—</td><td class="yes">Sí</td></tr>
           </tbody>
@@ -1114,14 +1133,29 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         </div>
       </div>
             <form class="demo-form" id="demoForm">
-        <h3>Agenda una demo</h3>
-        <label>Tu nombre<input name="name" required autocomplete="name"></label>
+        <h3>Solicita tu consulta gratuita</h3>
         <div class="row">
-          <label>Negocio<input name="business" required autocomplete="organization"></label>
-          <label>WhatsApp<input name="phone" type="tel" required autocomplete="tel"></label>
+          <label>Nombre completo<input name="full_name" required autocomplete="name" placeholder="Tu nombre"></label>
+          <label>Email<input name="email" type="email" required autocomplete="email" placeholder="tu@email.com"></label>
         </div>
-        <label>Sector
-          <select name="sector">
+        <div class="row">
+          <label>Empresa<input name="company" required autocomplete="organization" placeholder="Nombre de tu empresa"></label>
+          <label>WhatsApp<input name="phone" type="tel" required autocomplete="tel" placeholder="809-000-0000"></label>
+        </div>
+        <label>Cantidad de empleados
+          <select name="employee_count" required>
+            <option value="" disabled selected>Selecciona una cantidad</option>
+            <option>Solo yo</option>
+            <option>2-5</option>
+            <option>6-10</option>
+            <option>11-25</option>
+            <option>26-50</option>
+            <option>Más de 50</option>
+          </select>
+        </label>
+        <label>Servicio de interés
+          <select name="service" required>
+            <option value="" disabled selected>Selecciona un servicio</option>
             <option>Clínica o consultorio</option>
             <option>Odontología</option>
             <option>Fisioterapia</option>
@@ -1134,11 +1168,12 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
             <option>Tienda o venta por WhatsApp</option>
             <option>Inmobiliaria</option>
             <option>Taller</option>
-            <option>Otro</option>
+            <option>Otros</option>
           </select>
         </label>
-        <button class="btn" type="submit">Quiero una demo</button>
-        <p class="form-ok" id="formOk" role="status" hidden>Listo. Envía el mensaje que se abrió en WhatsApp y coordinamos tu demo.</p>
+        <label>Mensaje<textarea name="message" rows="4" placeholder="Cuéntanos sobre tu proyecto y cómo podemos ayudarte..."></textarea></label>
+        <button class="btn" type="submit">Solicitar consulta</button>
+        <p class="form-ok" id="formOk" role="status" hidden>Listo, recibimos tu solicitud. Envía también el mensaje que se abrió en WhatsApp y te respondemos por ahí.</p>
       </form>
     </div>
   </div>
@@ -1297,12 +1332,16 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
 
   document.getElementById('demoForm').addEventListener('submit', function (e) {
     e.preventDefault();
-    var f = e.target;
-    var text = 'Hola, quiero una demo de Agentes Sin Límite.\n' +
-      'Nombre: ' + f.name.value + '\n' +
-      'Negocio: ' + f.business.value + '\n' +
-      'WhatsApp: ' + f.phone.value + '\n' +
-      'Sector: ' + f.sector.value;
+    var f = e.target.elements;
+    var v = function (k) { return f[k].value.trim(); };
+    var text = 'Hola, quiero una consulta gratuita de Agentes Sin Límite.\n' +
+      'Nombre: ' + v('full_name') + '\n' +
+      'Email: ' + v('email') + '\n' +
+      'Empresa: ' + v('company') + '\n' +
+      'WhatsApp: ' + v('phone') + '\n' +
+      'Empleados: ' + v('employee_count') + '\n' +
+      'Servicio de interés: ' + v('service') +
+      (v('message') ? '\nMensaje: ' + v('message') : '');
     var url = 'https://wa.me/18298059191?text=' + encodeURIComponent(text);
     // Save the lead in the CRM (Leads -> Formularios) before WhatsApp
     // opens, so it is there even if the visitor never sends the message.
@@ -1313,22 +1352,26 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
         headers: { 'Content-Type': 'application/json' },
         keepalive: true,
         body: JSON.stringify({
-          full_name: f.name.value,
-          phone: f.phone.value,
-          company: f.business.value,
-          service: f.sector.value,
-          message: 'Pidió una demo desde la web',
+          full_name: v('full_name'),
+          email: v('email'),
+          company: v('company'),
+          phone: v('phone'),
+          employee_count: v('employee_count'),
+          service: v('service'),
+          message: v('message'),
           source_url: window.location.href
         })
       }).catch(function () {});
     } catch (err) { /* old browser: WhatsApp still carries the data */ }
     if (!window.open(url, '_blank', 'noopener')) window.location.href = url;
     document.getElementById('formOk').hidden = false;
-    f.reset();
+    e.target.reset();
   });
 
   document.getElementById('year').textContent = new Date().getFullYear();
 })();
 </script>
+<!-- Chat web de Agentes Sin Límite (widget del CRM) -->
+<script src="https://app.crm.agentesinlimite.com/widget.js" data-widget-key="30ae483f-b37a-4a13-b84e-ff84f45cb4aa" async></script>
 </body>
 </html>

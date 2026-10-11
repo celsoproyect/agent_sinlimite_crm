@@ -498,10 +498,11 @@ details p { padding-bottom: 18px; color: var(--muted); font-size: 15px; max-widt
 .demo-form { min-width: 0; background: var(--surface); color: var(--ink); border-radius: 20px; padding: clamp(18px, 4vw, 24px); display: grid; gap: 12px; }
 .demo-form h3 { font-size: 19px; }
 .demo-form label { min-width: 0; display: grid; gap: 6px; font-size: 13.5px; font-weight: 600; color: var(--ink-2); }
-.demo-form input, .demo-form select {
+.demo-form input, .demo-form select, .demo-form textarea {
   font: 400 16px/1.3 var(--body); min-height: 46px; padding: 11px 12px; border-radius: 10px; border: 1px solid var(--line);
   background: var(--bg); color: var(--ink); width: 100%; max-width: 100%; min-width: 0;
 }
+.demo-form textarea { resize: vertical; min-height: 104px; }
 .demo-form .row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .demo-form .btn { background: var(--accent); color: var(--accent-ink); }
 .demo-form .btn:hover { background: var(--accent-hover); }
@@ -829,5 +830,7 @@ footer { padding-block: clamp(40px, 5vw + 16px, 56px) calc(40px + env(safe-area-
   if (year) year.textContent = new Date().getFullYear();
 })();
 </script>
+<!-- Chat web de Agentes Sin Límite (widget del CRM) -->
+<script src="https://app.crm.agentesinlimite.com/widget.js" data-widget-key="30ae483f-b37a-4a13-b84e-ff84f45cb4aa" async></script>
 </body>
 </html>

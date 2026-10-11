@@ -47,6 +47,8 @@ interface ContactDetailViewProps {
   onOpenChange: (open: boolean) => void;
   contactId: string | null;
   onUpdated: () => void;
+  /** Open as a centered modal instead of the right-hand panel. */
+  centered?: boolean;
 }
 
 export function ContactDetailView({
@@ -54,6 +56,7 @@ export function ContactDetailView({
   onOpenChange,
   contactId,
   onUpdated,
+  centered = false,
 }: ContactDetailViewProps) {
   const t = useTranslations('Contacts.detailView');
   const locale = useLocale();
@@ -371,7 +374,7 @@ export function ContactDetailView({
     <>
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="right"
+        side={centered ? 'center' : 'right'}
         className="bg-popover border-border text-popover-foreground sm:max-w-lg w-full p-0"
       >
         {loading || !contact ? (

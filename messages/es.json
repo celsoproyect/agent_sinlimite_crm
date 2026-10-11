@@ -1164,7 +1164,7 @@
       "subtitlePlaceholder": "Orientación disponible",
       "avatar": "Foto del agente",
       "heroImage": "Imagen del banner",
-      "heroHint": "Opcional. Se muestra grande debajo del encabezado (ideal: PNG con fondo transparente).",
+      "heroHint": "Opcional. Se muestra grande debajo del encabezado (ideal: PNG o SVG con fondo transparente; el SVG puede ser animado).",
       "upload": "Subir imagen",
       "remove": "Quitar",
       "uploadFailed": "No se pudo subir la imagen: {message}",

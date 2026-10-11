@@ -47,6 +47,8 @@ interface DealFormProps {
   stages: PipelineStage[];
   defaultStageId?: string;
   onSaved: () => void;
+  /** Open as a centered modal instead of the right-hand panel. */
+  centered?: boolean;
 }
 
 export function DealForm({
@@ -57,6 +59,7 @@ export function DealForm({
   stages,
   defaultStageId,
   onSaved,
+  centered = false,
 }: DealFormProps) {
   const t = useTranslations("Pipelines.form");
   const tc = useTranslations("Pipelines.closed");
@@ -265,7 +268,7 @@ export function DealForm({
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent
-        side="right"
+        side={centered ? "center" : "right"}
         className="bg-popover border-border text-popover-foreground sm:max-w-lg w-full p-0"
       >
         <div className="flex h-full flex-col">

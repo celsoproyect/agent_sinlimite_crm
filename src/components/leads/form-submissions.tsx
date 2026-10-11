@@ -316,7 +316,7 @@ export function FormSubmissions() {
           if (!o) setOpenId(null);
         }}
       >
-        <SheetContent className="w-full sm:max-w-lg">
+        <SheetContent side="center" className="w-full sm:max-w-lg">
           {open && (
             <>
               <SheetHeader>
@@ -413,6 +413,7 @@ export function FormSubmissions() {
 
       {deal && (
         <DealForm
+          centered
           open={!!deal}
           onOpenChange={(o) => {
             if (!o) setDeal(null);
@@ -425,6 +426,7 @@ export function FormSubmissions() {
       )}
 
       <ContactDetailView
+        centered
         open={!!contactId}
         onOpenChange={(o) => {
           if (!o) setContactId(null);

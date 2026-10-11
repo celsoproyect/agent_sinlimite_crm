@@ -577,6 +577,8 @@ ${header}
 ${footer}
 
 ${script}
+<!-- Chat web de Agentes Sin Límite (widget del CRM) -->
+<script src="https://app.crm.agentesinlimite.com/widget.js" data-widget-key="30ae483f-b37a-4a13-b84e-ff84f45cb4aa" async></script>
 </body>
 </html>
 `
