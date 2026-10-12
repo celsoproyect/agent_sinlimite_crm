@@ -139,10 +139,9 @@
       cfg.disclaimer || name + ' es un asistente virtual. Valide la información por los canales oficiales.';
 
     var visitorId = load(storageKey);
+    // A name given to the old name prompt; the agent now greets and asks
+    // for it itself, so new visitors never get one stored.
     var visitorName = load(nameStorageKey);
-    // Returning visitors (already chatted, or already answered/skipped
-    // the name question) are never asked again.
-    var nameDone = !!(visitorId || visitorName !== null);
     var log = [];
     try {
       log = JSON.parse(load(logStorageKey) || '[]');
@@ -224,7 +223,6 @@
       R + '.slw-typing span:nth-child(2){animation-delay:.15s}',
       R + '.slw-typing span:nth-child(3){animation-delay:.3s}',
       '@keyframes slw-dot{0%,60%,100%{opacity:.35;transform:translateY(0)}30%{opacity:1;transform:translateY(-3px)}}',
-      R + '.slw-skip{align-self:flex-start;font-size:13px;color:var(--slw-p);text-decoration:underline;padding:0 4px}',
       // Composer
       R + '.slw-foot{flex-shrink:0;padding:10px 12px 8px;background:#fff;border-top:1px solid #e6ebf2}',
       R + '.slw-form{display:flex;align-items:center;gap:8px;padding:6px 6px 6px 16px;border:1px solid #d9e1ec;border-radius:16px;background:#fff}',
@@ -369,18 +367,9 @@
     // ----------------------------------------------------------
     // Behaviour
     // ----------------------------------------------------------
-    var MSG_PLACEHOLDER = 'Escríbele a ' + name + '…';
-    var NAME_PLACEHOLDER = 'Escribe tu nombre…';
     var busy = false;
-    var askingName = false;
-    var pendingText = null;
-    var skipLink = null;
-
-    function setPlaceholder() {
-      input.placeholder = askingName ? NAME_PLACEHOLDER : MSG_PLACEHOLDER;
-      input.maxLength = askingName ? 120 : 4000;
-    }
-    setPlaceholder();
+    input.placeholder = 'Escríbele a ' + name + '…';
+    input.maxLength = 4000;
 
     function refreshSend() {
       sendBtn.disabled = busy || !input.value.trim();
@@ -447,57 +436,10 @@
     for (var i = 0; i < log.length; i++) render(log[i].text, log[i].from);
     showFaq(log.length === 0);
 
-    function askForName() {
-      askingName = true;
-      setPlaceholder();
-      setTyping(true);
-      setTimeout(function () {
-        setTyping(false);
-        addMessage('Antes de responderte, ¿cómo te llamas?', 'bot');
-        skipLink = el('button', 'slw-skip', 'Prefiero no decirlo');
-        skipLink.type = 'button';
-        skipLink.addEventListener('click', function () {
-          finishName(null);
-        });
-        msgs.appendChild(skipLink);
-        scrollDown();
-        input.focus();
-      }, 500);
-    }
-
-    function finishName(nameValue) {
-      askingName = false;
-      nameDone = true;
-      visitorName = nameValue || null;
-      // An empty string still records "already asked" for a skip.
-      store(nameStorageKey, visitorName || '');
-      if (skipLink) {
-        skipLink.remove();
-        skipLink = null;
-      }
-      setPlaceholder();
-      if (pendingText) {
-        var text = pendingText;
-        pendingText = null;
-        send(text);
-      }
-    }
-
     function submitText(raw) {
       var text = (raw || '').trim();
       if (!text || busy) return;
-      if (askingName) {
-        var nameValue = text.slice(0, 120);
-        addMessage(nameValue, 'user');
-        finishName(nameValue);
-        return;
-      }
       addMessage(text, 'user');
-      if (!nameDone) {
-        pendingText = text;
-        askForName();
-        return;
-      }
       send(text);
     }
 
@@ -512,13 +454,18 @@
       })
         .then(function (res) {
           return res.json().then(function (data) {
-            return { ok: res.ok, data: data };
+            return { ok: res.ok, status: res.status, data: data };
           });
         })
         .then(function (result) {
           setTyping(false);
           if (!result.ok) {
-            addMessage('Ocurrió un error. Intenta de nuevo.', 'bot');
+            addMessage(
+              result.status === 429
+                ? 'Vas muy rápido 😅 Espera un momento y vuelve a escribirme.'
+                : 'No pude enviar tu mensaje. Intenta de nuevo en un momento.',
+              'bot'
+            );
             return;
           }
           if (result.data.visitorId) {
@@ -529,7 +476,7 @@
         })
         .catch(function () {
           setTyping(false);
-          addMessage('Ocurrió un error. Intenta de nuevo.', 'bot');
+          addMessage('No pude conectarme. Revisa tu conexión e intenta de nuevo.', 'bot');
         })
         .then(function () {
           busy = false;
@@ -581,10 +528,6 @@
       store(logStorageKey, null);
       msgs.innerHTML = '';
       typingEl = null;
-      skipLink = null;
-      pendingText = null;
-      askingName = false;
-      setPlaceholder();
       showFaq(true);
       body.scrollTop = 0;
       input.focus();

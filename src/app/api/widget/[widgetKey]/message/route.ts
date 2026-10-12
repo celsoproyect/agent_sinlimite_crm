@@ -42,6 +42,9 @@ const WIDGET_KEY_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]
 
 const MAX_MESSAGE_LENGTH = 4000
 
+const AI_FAILURE_REPLY =
+  '¡Gracias por escribirnos! 😊 En este momento no puedo responderte, pero tu mensaje ya le llegó a nuestro equipo y te contestarán muy pronto por aquí.'
+
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ widgetKey: string }> },
@@ -116,14 +119,23 @@ export async function POST(
     })
     if (bumpErr) console.error('[widget message] bump_conversation_on_inbound failed:', bumpErr)
 
-    const reply = await generateWidgetReply({
-      db,
-      accountId: account.id,
-      conversationId,
-      contactId: contact.id,
-      contactName: contact.name,
-      ownerUserId: account.owner_user_id,
-    })
+    // The visitor's message is already saved in the inbox, so a failing AI
+    // provider (no credits, outage, timeout) must not surface as an error:
+    // the visitor gets a friendly note and the team answers from the inbox.
+    let reply: Awaited<ReturnType<typeof generateWidgetReply>>
+    try {
+      reply = await generateWidgetReply({
+        db,
+        accountId: account.id,
+        conversationId,
+        contactId: contact.id,
+        contactName: contact.name,
+        ownerUserId: account.owner_user_id,
+      })
+    } catch (err) {
+      console.error('[widget message] AI reply failed:', err)
+      return json({ visitorId: visitorPhone, conversationId, reply: AI_FAILURE_REPLY, status: 'ai_error' })
+    }
 
     return json({
       visitorId: visitorPhone,
