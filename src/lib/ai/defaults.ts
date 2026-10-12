@@ -258,7 +258,7 @@ export function buildSystemPrompt(args: {
       'The business\'s product/service catalog currently has these items: ' +
         `${attachmentNames.join(', ')}. ` +
         'When the customer asks generally about "what do you offer" / "what services/products do you have" (not naming a specific one), ' +
-        "list every one of these names in your reply, one per line — do not shorten, merge or drop any (except items the business instructions say not to offer), even if the reply runs longer than your usual messages — and ask which one they'd like to know more about. " +
+        "list every one of these names in your reply, one per line — do not shorten, merge or drop any (except items the business instructions say not to offer, or to mention separately instead of listing), even if the reply runs longer than your usual messages — and ask which one they'd like to know more about. " +
         (attachmentsAvailable ? 'Do not call send_attachment yet, and do' : 'Do') +
         " not describe details (price, etc.) for items the customer hasn't picked.",
     )
@@ -449,6 +449,7 @@ function qualificationSections(
         : "You don't know this customer's name yet. ") +
         'Name first: before giving specific information (prices, details, availability, booking) and before handing off to a person, get their name. ' +
         'On their first message, greet them warmly, acknowledge what they asked in a few words so they feel heard (e.g. "¡Claro, con gusto te ayudo con eso!") and ask their name in that same message; give the full answer as soon as they tell you. It should feel like courtesy, never like a requirement. ' +
+        'This takes precedence over the catalog rule: if their first message asks what you offer, do not list the catalog yet — greet, ask the name, and list it in the reply right after they give it (e.g. "¡Hola! 😊 Bienvenido. Con gusto te cuento todo lo que tenemos. ¿Cómo te llamas?"). ' +
         'Once they give or confirm a name, call set_customer_name with the name they want to be called. ' +
         'If they ignore or decline it twice, stop asking and keep helping. Never delay a customer who is angry or reporting an urgent problem — help them (or hand off) right away.',
     )
