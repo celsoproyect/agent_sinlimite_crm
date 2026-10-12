@@ -173,10 +173,13 @@
       // Character launcher: the full figure floating over a pill
       R + '.slw-launcher.slw-char{flex-direction:column;gap:0;height:auto;padding:0;background:none;box-shadow:none;border-radius:0;color:#fff}',
       R + '.slw-launcher.slw-char:hover{transform:none}',
-      R + '.slw-char-fig{position:relative;display:block;width:116px;height:116px;margin-bottom:-4px;transition:transform .2s}',
+      R + '.slw-char-fig{position:relative;display:block;width:132px;height:132px;margin-bottom:-6px;transition:transform .2s}',
+      // A soft navy halo behind the figure so a white character still
+      // stands out on a light page, whatever the page background is.
+      R + '.slw-char-fig::before{content:"";position:absolute;left:50%;top:52%;width:112px;height:112px;transform:translate(-50%,-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(11,45,91,.28),rgba(11,45,91,.12) 60%,transparent);pointer-events:none}',
       R + '.slw-launcher.slw-char:hover .slw-char-fig{transform:translateY(-4px)}',
-      R + '.slw-char-fig img{position:relative;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 10px rgba(6,24,47,.3))}',
-      R + '.slw-char-glow{position:absolute;left:50%;bottom:0;width:76px;height:14px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(72,198,255,.55),transparent)}',
+      R + '.slw-char-fig img{position:relative;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 0 1.5px rgba(6,24,47,.55)) drop-shadow(0 10px 14px rgba(6,24,47,.4))}',
+      R + '.slw-char-glow{position:absolute;left:50%;bottom:0;width:90px;height:16px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(40,170,255,.75),rgba(11,45,91,.25) 70%,transparent)}',
       R + '.slw-char-pill{display:block;padding:9px 18px;border-radius:999px;background:linear-gradient(180deg,var(--slw-p),#06182f);border:1px solid rgba(255,255,255,.45);font-size:14.5px;font-weight:600;white-space:nowrap;box-shadow:0 6px 18px rgba(6,24,47,.35)}',
       R + '.slw-launcher.slw-char.slw-char-open .slw-char-fig{display:none}',
       // Panel
