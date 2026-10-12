@@ -20,6 +20,14 @@ export interface WidgetConfig {
   avatarUrl: string | null
   /** Optional banner image under the header (a character, a product…). */
   heroImageUrl: string | null
+  /** More banner images; tapping the banner cycles through them. */
+  heroImages: string[]
+  /**
+   * Character launcher: when set, the open-chat button is this full
+   * figure floating over a "Habla con {name}" pill instead of the
+   * round avatar button.
+   */
+  launcherImageUrl: string | null
   /** Empty → "¡Hola! Soy {agentName} 👋". */
   welcomeTitle: string
   welcomeText: string
@@ -40,6 +48,7 @@ export const WIDGET_LIMITS = {
   questionIcon: 8,
   quickQuestions: 6,
   url: 1000,
+  heroImages: 8,
 } as const
 
 export const DEFAULT_WIDGET_ICON = '💬'
@@ -49,6 +58,8 @@ export const DEFAULT_WIDGET_CONFIG: WidgetConfig = {
   subtitle: 'Asistente virtual',
   avatarUrl: null,
   heroImageUrl: null,
+  heroImages: [],
+  launcherImageUrl: null,
   welcomeTitle: '',
   welcomeText: 'Estoy aquí para ayudarte. ¿En qué te puedo ayudar hoy?',
   quickQuestions: [],
@@ -92,6 +103,15 @@ export function normalizeWidgetConfig(raw: unknown): WidgetConfig {
     }
   }
 
+  const heroImages: string[] = []
+  if (Array.isArray(r.heroImages)) {
+    for (const v of r.heroImages) {
+      const u = url(v)
+      if (u && !heroImages.includes(u)) heroImages.push(u)
+      if (heroImages.length >= WIDGET_LIMITS.heroImages) break
+    }
+  }
+
   const color = str(r.primaryColor, 7)
 
   return {
@@ -99,6 +119,8 @@ export function normalizeWidgetConfig(raw: unknown): WidgetConfig {
     subtitle: str(r.subtitle, WIDGET_LIMITS.subtitle) || d.subtitle,
     avatarUrl: url(r.avatarUrl),
     heroImageUrl: url(r.heroImageUrl),
+    heroImages,
+    launcherImageUrl: url(r.launcherImageUrl),
     welcomeTitle: str(r.welcomeTitle, WIDGET_LIMITS.welcomeTitle),
     welcomeText: str(r.welcomeText, WIDGET_LIMITS.welcomeText) || d.welcomeText,
     quickQuestions: questions,

@@ -42,6 +42,8 @@
     subtitle: 'Asistente virtual',
     avatarUrl: null,
     heroImageUrl: null,
+    heroImages: [],
+    launcherImageUrl: null,
     welcomeTitle: '',
     welcomeText: 'Estoy aquí para ayudarte. ¿En qué te puedo ayudar hoy?',
     quickQuestions: [],
@@ -168,6 +170,15 @@
       R + '.slw-avatar-initial{font-size:20px}',
       R + '.slw-online-dot{position:absolute;right:0;bottom:1px;width:13px;height:13px;border-radius:50%;background:#3ccf4e;border:2px solid #fff}',
       R + '.slw-launcher .slw-avatar{width:48px;height:48px;border:2px solid rgba(255,255,255,.85)}',
+      // Character launcher: the full figure floating over a pill
+      R + '.slw-launcher.slw-char{flex-direction:column;gap:0;height:auto;padding:0;background:none;box-shadow:none;border-radius:0;color:#fff}',
+      R + '.slw-launcher.slw-char:hover{transform:none}',
+      R + '.slw-char-fig{position:relative;display:block;width:116px;height:116px;margin-bottom:-4px;transition:transform .2s}',
+      R + '.slw-launcher.slw-char:hover .slw-char-fig{transform:translateY(-4px)}',
+      R + '.slw-char-fig img{position:relative;display:block;width:100%;height:100%;object-fit:contain;filter:drop-shadow(0 8px 10px rgba(6,24,47,.3))}',
+      R + '.slw-char-glow{position:absolute;left:50%;bottom:0;width:76px;height:14px;transform:translateX(-50%);border-radius:50%;background:radial-gradient(closest-side,rgba(72,198,255,.55),transparent)}',
+      R + '.slw-char-pill{display:block;padding:9px 18px;border-radius:999px;background:linear-gradient(180deg,var(--slw-p),#06182f);border:1px solid rgba(255,255,255,.45);font-size:14.5px;font-weight:600;white-space:nowrap;box-shadow:0 6px 18px rgba(6,24,47,.35)}',
+      R + '.slw-launcher.slw-char.slw-char-open .slw-char-fig{display:none}',
       // Panel
       R + '.slw-panel{display:none;flex-direction:column;position:fixed;bottom:92px;right:20px;width:400px;height:680px;max-width:calc(100vw - 32px);max-height:calc(100vh - 112px);background:#f4f7fb;border-radius:18px;box-shadow:0 18px 50px rgba(9,30,66,.35);overflow:hidden}',
       R + '.slw-panel.slw-open{display:flex;animation:slw-in .2s ease-out}',
@@ -236,10 +247,21 @@
     var root = el('div');
     root.id = 'slw-root';
 
-    var launcher = el('button', 'slw-launcher' + (attrAgentName || cfg.avatarUrl ? '' : ' slw-round'));
+    var charLauncher = !!cfg.launcherImageUrl;
+    var launcherClass = charLauncher ? ' slw-char' : attrAgentName || cfg.avatarUrl ? '' : ' slw-round';
+    var launcher = el('button', 'slw-launcher' + launcherClass);
     launcher.type = 'button';
     launcher.setAttribute('aria-label', 'Habla con ' + name);
-    if (attrAgentName || cfg.avatarUrl) {
+    if (charLauncher) {
+      var fig = el('span', 'slw-char-fig');
+      fig.appendChild(el('span', 'slw-char-glow'));
+      var figImg = el('img');
+      figImg.src = cfg.launcherImageUrl;
+      figImg.alt = '';
+      fig.appendChild(figImg);
+      launcher.appendChild(fig);
+      launcher.appendChild(el('span', 'slw-char-pill', 'Habla con ' + name));
+    } else if (attrAgentName || cfg.avatarUrl) {
       launcher.appendChild(avatar(cfg, 'slw-avatar'));
       launcher.appendChild(el('span', 'slw-launcher-label', 'Habla con ' + name));
     } else {
@@ -267,8 +289,16 @@
 
     var body = el('div', 'slw-body');
 
+    // The banner cycles through every image on each tap.
+    var heroImages = [];
+    if (cfg.heroImageUrl) heroImages.push(cfg.heroImageUrl);
+    (cfg.heroImages || []).forEach(function (u) {
+      if (typeof u === 'string' && heroImages.indexOf(u) === -1) heroImages.push(u);
+    });
+    var heroIndex = 0;
     var hero = null;
-    if (cfg.heroImageUrl) {
+    var heroImg = null;
+    if (heroImages.length) {
       hero = el('div', 'slw-hero');
       var sparks = [[8, 18], [22, 78], [12, 90], [40, 6], [62, 88], [30, 30]];
       for (var s = 0; s < sparks.length; s++) {
@@ -277,8 +307,8 @@
         sp.style.left = sparks[s][1] + '%';
         hero.appendChild(sp);
       }
-      var heroImg = el('img');
-      heroImg.src = cfg.heroImageUrl;
+      heroImg = el('img');
+      heroImg.src = heroImages[0];
       heroImg.alt = name;
       hero.appendChild(heroImg);
       hero.appendChild(el('span', 'slw-touch', '¡Tócame! 👆'));
@@ -517,7 +547,10 @@
       opened = !opened;
       panel.classList.toggle('slw-open', opened);
       launcher.style.display = opened && window.innerWidth <= 480 ? 'none' : '';
+      // The figure would sit over the open panel; only the pill stays.
+      launcher.classList.toggle('slw-char-open', opened);
       if (opened) {
+        preloadHero();
         // A fresh chat starts at the top (banner + welcome); an ongoing
         // one at its latest message.
         if (log.length) scrollDown();
@@ -554,8 +587,19 @@
       input.focus();
     });
 
+    var heroPreloaded = false;
+    function preloadHero() {
+      if (heroPreloaded) return;
+      heroPreloaded = true;
+      for (var i = 1; i < heroImages.length; i++) new Image().src = heroImages[i];
+    }
+
     if (hero) {
       hero.addEventListener('click', function () {
+        if (heroImages.length > 1) {
+          heroIndex = (heroIndex + 1) % heroImages.length;
+          heroImg.src = heroImages[heroIndex];
+        }
         hero.classList.remove('slw-wave');
         void hero.offsetWidth; // restart the animation
         hero.classList.add('slw-wave');

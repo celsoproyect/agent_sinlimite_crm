@@ -94,7 +94,7 @@ export function WidgetAppearance({ widgetKey, canEdit }: Props) {
     toast.success(t('saved'));
   }
 
-  async function uploadImage(file: File, kind: 'avatar' | 'hero'): Promise<string | null> {
+  async function uploadImage(file: File, kind: 'avatar' | 'hero' | 'launcher'): Promise<string | null> {
     if (!user) return null;
     if (file.size > MAX_IMAGE_BYTES) {
       toast.error(t('imageTooBig'));
@@ -192,6 +192,37 @@ export function WidgetAppearance({ widgetKey, canEdit }: Props) {
             onRemove={() => patch({ heroImageUrl: null })}
           />
         </div>
+
+        <HeroGallery
+          label={t('heroImages')}
+          hint={t('heroImagesHint')}
+          urls={cfg.heroImages}
+          max={WIDGET_LIMITS.heroImages}
+          disabled={disabled}
+          addLabel={t('addImage')}
+          removeLabel={t('remove')}
+          onAdd={async (file) => {
+            const url = await uploadImage(file, 'hero');
+            if (url) setCfg((prev) => ({ ...prev, heroImages: [...prev.heroImages, url] }));
+          }}
+          onRemove={(url) =>
+            setCfg((prev) => ({ ...prev, heroImages: prev.heroImages.filter((u) => u !== url) }))
+          }
+        />
+
+        <ImageField
+          label={t('launcherImage')}
+          hint={t('launcherHint', { name })}
+          url={cfg.launcherImageUrl}
+          disabled={disabled}
+          uploadLabel={t('upload')}
+          removeLabel={t('remove')}
+          onUpload={async (file) => {
+            const url = await uploadImage(file, 'launcher');
+            if (url) patch({ launcherImageUrl: url });
+          }}
+          onRemove={() => patch({ launcherImageUrl: null })}
+        />
 
         <Field label={t('welcomeTitle')}>
           <Input
@@ -393,6 +424,86 @@ function ImageField({
         />
       </div>
       {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+    </div>
+  );
+}
+
+function HeroGallery({
+  label,
+  hint,
+  urls,
+  max,
+  disabled,
+  addLabel,
+  removeLabel,
+  onAdd,
+  onRemove,
+}: {
+  label: string;
+  hint: string;
+  urls: string[];
+  max: number;
+  disabled: boolean;
+  addLabel: string;
+  removeLabel: string;
+  onAdd: (file: File) => Promise<void>;
+  onRemove: (url: string) => void;
+}) {
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+
+  return (
+    <div className="min-w-0 space-y-1.5">
+      <Label className="text-foreground">{label}</Label>
+      <div className="flex flex-wrap items-center gap-3">
+        {urls.map((url) => (
+          <div
+            key={url}
+            className="relative flex size-16 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-muted"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element -- user-uploaded, any host */}
+            <img src={url} alt="" className="size-full object-contain" />
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => onRemove(url)}
+              aria-label={removeLabel}
+              title={removeLabel}
+              className="absolute top-0.5 right-0.5 flex size-6 items-center justify-center rounded-full bg-background/90 text-muted-foreground shadow-sm hover:text-destructive disabled:opacity-50"
+            >
+              <Trash2 className="size-3.5" />
+            </button>
+          </div>
+        ))}
+        {urls.length < max && (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={disabled || busy}
+            onClick={() => inputRef.current?.click()}
+          >
+            {busy ? <Loader2 className="size-4 animate-spin" /> : <Plus className="size-4" />}
+            {addLabel}
+          </Button>
+        )}
+        <input
+          ref={inputRef}
+          type="file"
+          accept={IMAGE_TYPES}
+          multiple
+          className="hidden"
+          onChange={async (e) => {
+            const files = Array.from(e.target.files ?? []).slice(0, max - urls.length);
+            e.target.value = '';
+            if (!files.length) return;
+            setBusy(true);
+            for (const file of files) await onAdd(file);
+            setBusy(false);
+          }}
+        />
+      </div>
+      <p className="text-xs text-muted-foreground">{hint}</p>
     </div>
   );
 }

@@ -35,6 +35,17 @@ describe('normalizeWidgetConfig', () => {
     expect(cfg.primaryColor).toBe(DEFAULT_WIDGET_CONFIG.primaryColor)
   })
 
+  it('keeps the extra banner images (http only, no repeats, capped) and the launcher image', () => {
+    const many = Array.from({ length: 12 }, (_, i) => `https://cdn.example.com/ali-${i}.svg`)
+    const cfg = normalizeWidgetConfig({
+      heroImages: ['javascript:x', many[0], many[0], 3, ...many],
+      launcherImageUrl: 'https://cdn.example.com/ali.svg',
+    })
+    expect(cfg.heroImages).toHaveLength(WIDGET_LIMITS.heroImages)
+    expect(cfg.heroImages.slice(0, 2)).toEqual([many[0], many[1]])
+    expect(cfg.launcherImageUrl).toBe('https://cdn.example.com/ali.svg')
+  })
+
   it('drops empty questions, defaults the icon and caps the list', () => {
     const many = Array.from({ length: 10 }, (_, i) => ({ text: `Pregunta ${i}` }))
     const cfg = normalizeWidgetConfig({
