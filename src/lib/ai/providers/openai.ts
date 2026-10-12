@@ -364,6 +364,7 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
   }
 
   let round = 0
+  let retriedEmpty = false
   for (;;) {
     const allowTools = round < MAX_TOOL_ROUNDS
     const data = await callOpenAi(allowTools)
@@ -408,6 +409,18 @@ export async function generateOpenAi(args: ProviderArgs): Promise<ProviderResult
 
     const text = message?.content
     if (!text || typeof text !== 'string' || !text.trim()) {
+      // Reasoning models spend part of max_completion_tokens thinking and
+      // now and then run out before writing anything. One more call
+      // without tools and with a nudge almost always yields the reply.
+      if (!retriedEmpty) {
+        retriedEmpty = true
+        round = MAX_TOOL_ROUNDS
+        conversation.push({
+          role: 'system',
+          content: 'Your previous reply came out empty. Write your reply to the customer now, as plain text, without calling tools.',
+        })
+        continue
+      }
       throw new AiError('OpenAI returned an empty response.', {
         code: 'empty_response',
       })

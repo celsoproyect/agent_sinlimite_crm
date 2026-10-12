@@ -242,6 +242,9 @@ async function seedRestaurant(ctx: Ctx): Promise<Record<string, number | boolean
         date: today,
         preferred_time: '20:00',
         notes: 'Si se libera algo entre 19:30 y 21:00',
+        // A multi-row insert sends NULL, not the column default, for a key
+        // only some rows carry, so every row names its status.
+        status: 'waiting',
         is_sample: true,
       },
       {

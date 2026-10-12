@@ -300,7 +300,17 @@ export function buildSystemPrompt(args: {
         (customerWhatsappPhone
           ? `This customer is writing from the WhatsApp number ${customerWhatsappPhone}; you may ask whether that's the number to use for the appointment instead of asking them to type it. `
           : '') +
-        'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time — laid out with the structured confirmation format described under Formatting — and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment.',
+        'When book_appointment answers confirmed:true it also returns a reference code (like CITA-3F9A2C): always give it to the customer in your confirmation together with the service, the date and the time — laid out with the structured confirmation format described under Formatting — and tell them to keep it, along with the phone number they gave, in case they want to change or cancel the appointment. ' +
+        // With the venue modules on but no tables/halls set up, the model
+        // used to file a hall or table reservation as an appointment
+        // (CITA-…), which then never showed up under Eventos/Restaurante.
+        'book_appointment is only for appointments. Never use it to reserve a restaurant table or a hall/venue for an event (birthday, wedding, party…). ' +
+        (restaurantRoster ? 'Tables go through check_table_availability/book_table (RES-…). ' : '') +
+        (eventRoster ? 'Events go through check_event_availability/request_event (EVT-…). ' : '') +
+        (!restaurantRoster || !eventRoster
+          ? `You have no tool for ${[!restaurantRoster ? 'table reservations' : '', !eventRoster ? 'event or hall reservations' : ''].filter(Boolean).join(' or ')}: never say one is booked; tell the customer the team will confirm it` +
+            (noteCaptureAvailable ? ' and call add_note with what they asked for.' : '.')
+          : ''),
     )
     if (clinicRoster) {
       parts.push(
