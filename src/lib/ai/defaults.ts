@@ -108,6 +108,14 @@ export function buildSystemPrompt(args: {
   eventRoster?: string | null
   /** True when `join_waitlist` is wired up. */
   waitlistAvailable?: boolean
+  /** Real estate module (077): the inventory summary
+   *  (`formatPropertyRoster`). Adds the property search rules. */
+  propertyRoster?: string | null
+  /** True when `send_property_photos` is wired up (WhatsApp only). */
+  propertyPhotosAvailable?: boolean
+  /** Who `clinicRoster` lists: doctors (clinic module) or real estate
+   *  advisors (properties module with the clinic off). */
+  clinicStaff?: 'doctors' | 'advisors'
   /** The phone WhatsApp gave for this customer, if any — offered to the
    *  customer as the default phone for an appointment. Empty for
    *  username-only WhatsApp users. */
@@ -152,6 +160,9 @@ export function buildSystemPrompt(args: {
     restaurantRoster,
     eventRoster,
     waitlistAvailable,
+    propertyRoster,
+    propertyPhotosAvailable,
+    clinicStaff = 'doctors',
     customerWhatsappPhone,
     needsCustomerName,
     handoffOnMissingInfo,
@@ -312,7 +323,15 @@ export function buildSystemPrompt(args: {
             (noteCaptureAvailable ? ' and call add_note with what they asked for.' : '.')
           : ''),
     )
-    if (clinicRoster) {
+    if (clinicRoster && clinicStaff === 'advisors') {
+      parts.push(
+        'This business is a real estate agency. Appointments here are property visits, each with one specific advisor; each advisor has their own agenda. The tools call them "doctors"/"professionals" — read that as advisor and never say "doctor" to the customer. The advisors (only these exist — never invent one):\n' +
+          clinicRoster +
+          '\nFor a visit to a listing, call check_availability with the professional_id given as advisor_professional_id in that listing\'s search result (when the listing has no advisor, any advisor will do: call it without professional_id). ' +
+          'Every slot says which advisor it is with: name the advisor with the day and time when you offer slots and when you confirm. ' +
+          'Call book_appointment with the professional_id of the exact slot the customer chose, property_id of the listing, and service "Visita: <listing title or code>".',
+      )
+    } else if (clinicRoster) {
       parts.push(
         'This business is a clinic with several doctors, and every appointment is with one specific doctor; each doctor has their own agenda. The doctors (only these exist — never invent a doctor or a specialty):\n' +
           clinicRoster +
@@ -386,6 +405,25 @@ export function buildSystemPrompt(args: {
         '\nFor an event, ask for the kind of event, the date, the start time, how many hours and how many guests, and whether they want one of the packages. Call check_event_availability, then tell the customer which halls are free, with the quote and the deposit when the result has them (quote null means the team sends the price). ' +
         "Once they pick a hall and agree, ask for their full name and phone and call request_event. Tell them exactly what its result says: if the status is requested, the team must approve it and will contact them — do not say it is confirmed; if it is quoted, give the deposit amount and how to pay it, and say it is confirmed once the deposit is received; if it is confirmed, confirm it. Always give the reference code (like EVT-3F9A2C). " +
         'Never invent prices, packages or halls that are not listed.',
+    )
+  }
+
+  if (propertyRoster) {
+    parts.push(
+      'This business sells and rents real estate. Its listings are searched with the search_properties tool — never describe, price or promise a property that the tool did not return, and never invent listings, prices or amenities. What the inventory has right now:\n' +
+        propertyRoster +
+        '\nWhen a customer is looking for a property, find out (one or two questions at a time, without interrogating them) whether they want to buy or rent, the type, the zone, their budget and how many bedrooms, plus any amenities that matter to them (pool, gym, elevator, parking, 24h security, backup power, pets allowed, furnished…). You can search as soon as you have one or two criteria and refine afterwards. ' +
+        'IMPORTANT: always pass search_properties every criterion the customer has given so far in the conversation, and in amenities EVERY amenity they asked for — each one, in their own words — never drop one. ' +
+        'Present up to 3 results in the structured format (title, zone, price, bedrooms/bathrooms, m² and the amenities the customer cares about), each with its code when it has one. ' +
+        'Be honest about amenities: when a result lacks_requested something, say which requested amenities it lacks; never claim a property has an amenity it does not list. If nothing has everything, say so and offer the closest ones. If nothing matches at all, offer to widen the search or to have an advisor look for more options. ' +
+        (propertyPhotosAvailable
+          ? 'When the customer wants to see a property or shows interest in one, call send_property_photos with its property_id (the photos arrive before your text; never paste links). '
+          : 'You cannot send photos in this chat: offer a visit, or say an advisor can send them. ') +
+        (bookingAvailable && clinicRoster
+          ? 'When they want to see it in person, offer a visit and book it as described for the advisors (book_appointment with property_id). '
+          : 'When they want to visit a property, take their preferred day and time, ' +
+            (noteCaptureAvailable ? 'add_note it with the property code, ' : '') +
+            'and tell them an advisor will contact them to confirm — never say the visit is booked. '),
     )
   }
 

@@ -22,8 +22,8 @@ import { DEFAULT_EVENT_SETTINGS } from '@/lib/events/settings'
 //    rows flagged `is_sample`.
 // ============================================================
 
-export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'reminders'
-export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'reminders']
+export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'properties' | 'reminders'
+export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'properties', 'reminders']
 
 export class SampleError extends Error {
   constructor(
@@ -61,7 +61,7 @@ function plusMinutes(iso: string, minutes: number): string {
 
 /** Example customers. Phones in 809-000-xxxx: an exchange no real line has. */
 async function sampleContacts(ctx: Ctx, module: SampleModule, names: string[]): Promise<{ id: string; name: string; phone: string }[]> {
-  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4 }[module]
+  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4, properties: 5 }[module]
   const rows = names.map((name, i) => ({
     account_id: ctx.accountId,
     user_id: ctx.userId,
@@ -494,6 +494,132 @@ async function seedClinic(ctx: Ctx): Promise<Record<string, number | boolean>> {
   return { specialties: created.length, doctors: doctors.length, services, bookings }
 }
 
+// ---------- real estate ----------
+
+// Stock photos (Unsplash, free to use) so the listings look real and the
+// AI's send_property_photos has something to send.
+const photo = (id: string) => `https://images.unsplash.com/photo-${id}?w=1200&q=80&fm=jpg&fit=crop`
+
+async function seedProperties(ctx: Ctx): Promise<Record<string, number | boolean>> {
+  // Advisors are clinic `professionals`: each gets their own visit agenda.
+  const advisors = await insertRows<{ id: string; name: string }>(ctx, 'professionals', [
+    { account_id: ctx.accountId, name: 'Laura Gómez', bio: 'Asesora inmobiliaria: Santo Domingo y Santiago, ventas y alquileres.', hours: null, slot_minutes: 60, sort_order: 1, kind: 'advisor', is_sample: true },
+    { account_id: ctx.accountId, name: 'Carlos Rivas', bio: 'Asesor inmobiliario: Punta Cana, Cap Cana y Bávaro, propiedades de playa.', hours: null, slot_minutes: 90, sort_order: 2, kind: 'advisor', is_sample: true },
+  ])
+  const [laura, carlos] = advisors
+  const base = { account_id: ctx.accountId, status: 'available', is_sample: true }
+  const props = await insertRows<{ id: string; title: string }>(
+    ctx,
+    'properties',
+    [
+      {
+        ...base,
+        code: 'EJ-101',
+        title: 'Apartamento moderno en Piantini',
+        operation: 'sale',
+        property_type: 'apartment',
+        zone: 'Piantini',
+        city: 'Santo Domingo',
+        address: 'Calle Gustavo Mejía Ricart, Torre Mirador, piso 9',
+        price: 265000,
+        currency: 'USD',
+        bedrooms: 3,
+        bathrooms: 3.5,
+        parking: 2,
+        area_m2: 185,
+        amenities: ['pool', 'gym', 'elevator', 'security', 'power_plant', 'lobby', 'social_area', 'balcony', 'common_gas', 'cistern', 'service_room'],
+        description:
+          'Piso 9 con balcón y vista a la ciudad. Cocina abierta con isla, línea blanca de acero, cuarto de servicio con baño. Torre con piscina en la azotea, gimnasio, lobby y planta eléctrica full. A pasos de Blue Mall y Ágora.',
+        photos: [
+          photo('1545324418-cc1a3fa10c00'),
+          photo('1560448204-e02f11c3d0e2'),
+          photo('1507089947368-19c1da9775ae'),
+          photo('1522708323590-d24dbb6b0267'),
+          photo('1584622650111-993a426fbf0a'),
+        ],
+        advisor_id: laura.id,
+        sort_order: 1,
+      },
+      {
+        ...base,
+        code: 'EJ-201',
+        title: 'Villa con piscina privada en Cap Cana',
+        operation: 'sale',
+        property_type: 'villa',
+        zone: 'Cap Cana',
+        city: 'Punta Cana',
+        address: 'Residencial Las Iguanas, Cap Cana, La Altagracia',
+        price: 685000,
+        currency: 'USD',
+        bedrooms: 4,
+        bathrooms: 4.5,
+        parking: 3,
+        area_m2: 420,
+        amenities: ['pool', 'jacuzzi', 'gated', 'security', 'furnished', 'terrace', 'garden', 'bbq', 'air_conditioning', 'solar_panels', 'power_plant'],
+        description:
+          'Villa de dos niveles, se entrega amueblada y equipada. Piscina privada con jacuzzi, terraza con área de BBQ, jardín y paneles solares. Residencial cerrado con seguridad 24 horas, a 5 minutos de la playa Juanillo y del campo de golf.',
+        photos: [
+          photo('1613977257363-707ba9348227'),
+          photo('1613490493576-7fde63acd811'),
+          photo('1582268611958-ebfd161ef9cf'),
+          photo('1600607687939-ce8a6c25118c'),
+          photo('1540518614846-7eded433c457'),
+          photo('1600573472550-8090b5e0745e'),
+        ],
+        advisor_id: carlos.id,
+        sort_order: 2,
+      },
+      {
+        ...base,
+        code: 'EJ-301',
+        title: 'Casa familiar en Los Cerros de Gurabo',
+        operation: 'rent',
+        property_type: 'house',
+        zone: 'Los Cerros de Gurabo',
+        city: 'Santiago',
+        address: 'Calle 5, Los Cerros de Gurabo, Santiago de los Caballeros',
+        price: 1800,
+        currency: 'USD',
+        bedrooms: 4,
+        bathrooms: 3,
+        parking: 2,
+        area_m2: 300,
+        amenities: ['garden', 'terrace', 'pets', 'study', 'walk_in_closet', 'appliances', 'cistern', 'air_conditioning', 'gated', 'playground'],
+        description:
+          'Casa de dos niveles en alquiler, sin amueblar con línea blanca incluida. Jardín amplio, terraza, estudio y walk-in closet en la principal. Acepta mascotas. Residencial cerrado con área de juegos, cerca de colegios y de la avenida 27 de Febrero.',
+        photos: [
+          photo('1600047509807-ba8f99d2cdde'),
+          photo('1600585154340-be6161a56a0c'),
+          photo('1600210492486-724fe5c67fb0'),
+          photo('1505691938895-1758d7feb511'),
+        ],
+        advisor_id: laura.id,
+        sort_order: 3,
+      },
+    ],
+    'id, title',
+  )
+  const [contact] = await sampleContacts(ctx, 'properties', ['Patricia Núñez'])
+  const start = at(2, '10:00')
+  const { error } = await ctx.db.from('bookings').insert({
+    account_id: ctx.accountId,
+    contact_id: contact.id,
+    kind: 'appointment',
+    service: 'Visita: EJ-101 · Laura Gómez',
+    starts_at: start,
+    ends_at: plusMinutes(start, 60),
+    status: 'confirmed',
+    professional_id: laura.id,
+    property_id: props[0].id,
+    customer_name: contact.name,
+    customer_phone: contact.phone,
+    created_by: ctx.userId,
+    is_sample: true,
+  })
+  if (error) fail(error, 'bookings')
+  return { advisors: advisors.length, properties: props.length, bookings: 1 }
+}
+
 // ---------- reminders and follow-ups ----------
 
 interface RuleSpec {
@@ -591,6 +717,15 @@ export async function removeSamples(ctx: Ctx, module: SampleModule, scope: Remin
     await del(ctx, 'booking_reminder_rules', scope && scope !== 'all' ? (q) => q.eq('applies_to', scope) : undefined)
     return
   }
+  if (module === 'properties') {
+    // Example visits, listings, then the advisors those listings named.
+    const advisorIds = await sampleAdvisorIds(ctx)
+    await del(ctx, 'bookings', (q) => q.not('property_id', 'is', null))
+    await del(ctx, 'properties')
+    if (advisorIds.length) await del(ctx, 'professionals', (q) => q.in('id', advisorIds))
+    await removeOrphanSampleContacts(ctx)
+    return
+  }
   const kind = module === 'restaurant' ? 'table' : module === 'events' ? 'event' : 'appointment'
   await del(ctx, 'bookings', (q) => q.eq('kind', kind))
   if (module === 'restaurant') {
@@ -602,10 +737,20 @@ export async function removeSamples(ctx: Ctx, module: SampleModule, scope: Remin
     await del(ctx, 'event_halls')
   } else {
     await del(ctx, 'clinic_services')
-    await del(ctx, 'professionals')
+    // The real estate example advisors are professionals too; they go
+    // with the property examples, not with the clinic's.
+    const advisorIds = await sampleAdvisorIds(ctx)
+    await del(ctx, 'professionals', advisorIds.length ? (q) => q.not('id', 'in', `(${advisorIds.join(',')})`) : undefined)
     await del(ctx, 'specialties')
   }
   await removeOrphanSampleContacts(ctx)
+}
+
+/** The advisors named by example listings ([] before migration 077). */
+async function sampleAdvisorIds(ctx: Ctx): Promise<string[]> {
+  const { data, error } = await ctx.db.from('properties').select('advisor_id').eq('account_id', ctx.accountId).eq('is_sample', true)
+  if (error) return []
+  return [...new Set(((data ?? []) as { advisor_id: string | null }[]).map((p) => p.advisor_id).filter((id): id is string => !!id))]
 }
 
 /** Example contacts no example booking or waitlist entry points at any more. */
@@ -633,6 +778,8 @@ export async function loadSamples(ctx: Ctx, module: SampleModule, scope: Reminde
       return seedEvents(ctx)
     case 'clinic':
       return seedClinic(ctx)
+    case 'properties':
+      return seedProperties(ctx)
     case 'reminders':
       return seedReminders(ctx, scope)
   }
@@ -646,11 +793,12 @@ export async function countSamples(ctx: Ctx): Promise<Record<SampleModule, numbe
     const { count: n, error } = await q
     return error ? 0 : (n ?? 0)
   }
-  const [restaurant, events, clinic, reminders] = await Promise.all([
+  const [restaurant, events, clinic, properties, reminders] = await Promise.all([
     count('restaurant_tables'),
     count('event_halls'),
     count('professionals'),
+    count('properties'),
     count('booking_reminder_rules'),
   ])
-  return { restaurant, events, clinic, reminders }
+  return { restaurant, events, clinic, properties, reminders }
 }

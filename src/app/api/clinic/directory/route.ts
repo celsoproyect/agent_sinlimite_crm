@@ -57,7 +57,11 @@ export async function GET() {
     return NextResponse.json({
       enabled: true,
       migrated: true,
-      professionals: ((professionalsRes.data ?? []) as unknown as ProfessionalRow[]).map(toProfessional),
+      // Real estate advisors (kind 'advisor', migration 077) live in the
+      // same table; the clinic never lists them.
+      professionals: ((professionalsRes.data ?? []) as unknown as (ProfessionalRow & { kind?: string })[])
+        .filter((p) => p.kind !== 'advisor')
+        .map(toProfessional),
       specialties: specialtiesRes.data ?? [],
       ...extendedPart(servicesRes, timeOffRes, settingsRes),
     })

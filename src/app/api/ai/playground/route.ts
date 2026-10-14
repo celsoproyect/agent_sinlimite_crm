@@ -95,6 +95,7 @@ export async function POST(request: Request) {
       attachmentNames: attachmentRoster.map((a) => a.name),
       bookingAvailable,
       clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+      clinicStaff: clinic?.staff,
       ...venuePromptOptions(venue),
     })
 

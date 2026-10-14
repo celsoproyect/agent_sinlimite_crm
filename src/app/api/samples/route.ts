@@ -9,10 +9,11 @@ import { countSamples, loadSamples, removeSamples, SampleError, SAMPLE_MODULES, 
 // POST {module, scope?} → replace that module's examples with a fresh set.
 // DELETE {module, scope?} → remove them. Only rows flagged is_sample.
 
-const MODULE_SWITCH: Record<SampleModule, 'restaurant' | 'events' | 'clinic' | null> = {
+const MODULE_SWITCH: Record<SampleModule, 'restaurant' | 'events' | 'clinic' | 'properties' | null> = {
   restaurant: 'restaurant',
   events: 'events',
   clinic: 'clinic',
+  properties: 'properties',
   reminders: null,
 }
 

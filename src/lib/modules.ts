@@ -34,6 +34,10 @@
 // sequence or least busy) when the AI passes a customer to a person,
 // moves them on when nobody answers in time, and keeps one person per
 // chat (migration 076, Configuración → Miembros del equipo).
+// `properties` (/properties) is the real estate module (migration 077):
+// the property inventory the AI searches by zone, budget, rooms and
+// amenities, and visits booked with each property's advisor (the
+// professionals, managed on that page). Starts OFF.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -55,6 +59,7 @@ export const MODULE_KEYS = [
   "clinic",
   "restaurant",
   "events",
+  "properties",
   "waitlist",
   "automations",
   "flows",
@@ -76,6 +81,7 @@ export type EnabledModules = Partial<Record<ModuleKey, boolean>>;
 export const DEFAULT_OFF_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "restaurant",
   "events",
+  "properties",
 ]);
 
 /** Missing key = enabled, except for DEFAULT_OFF_MODULES, which need an

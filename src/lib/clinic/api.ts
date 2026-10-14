@@ -20,7 +20,9 @@ export function clinicDbError(error: { code?: string; message: string }) {
   return NextResponse.json({ error: error.message }, { status: 500 })
 }
 
-/** Admin + the clinic module on, or the error response to return. */
+/** Admin + the clinic module on (or the real estate module, which
+ *  manages the same professionals as its advisors), or the error
+ *  response to return. */
 export async function clinicAdmin(): Promise<{ ctx: AccountContext } | { response: Response }> {
   let ctx: AccountContext
   try {
@@ -28,7 +30,10 @@ export async function clinicAdmin(): Promise<{ ctx: AccountContext } | { respons
   } catch (err) {
     return { response: toErrorResponse(err) }
   }
-  if (!(await accountModuleEnabled(ctx.supabase, ctx.accountId, 'clinic'))) {
+  if (
+    !(await accountModuleEnabled(ctx.supabase, ctx.accountId, 'clinic')) &&
+    !(await accountModuleEnabled(ctx.supabase, ctx.accountId, 'properties'))
+  ) {
     return { response: NextResponse.json({ error: 'module_disabled' }, { status: 403 }) }
   }
   return { ctx }

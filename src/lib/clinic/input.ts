@@ -18,6 +18,8 @@ export interface ProfessionalInput {
   slot_minutes?: number | null
   sort_order?: number
   specialty_ids?: string[]
+  /** 'doctor' (clinic) or 'advisor' (real estate, migration 077). */
+  kind?: 'doctor' | 'advisor'
 }
 
 /**
@@ -90,6 +92,10 @@ export function parseProfessionalInput(
     const n = Number(b.sort_order)
     if (!Number.isInteger(n)) return { error: 'invalid_sort_order' }
     input.sort_order = n
+  }
+  if (b.kind !== undefined) {
+    if (b.kind !== 'doctor' && b.kind !== 'advisor') return { error: 'invalid_kind' }
+    input.kind = b.kind
   }
   if (b.specialty_ids !== undefined) {
     if (!Array.isArray(b.specialty_ids) || b.specialty_ids.some((id) => typeof id !== 'string' || !id)) {

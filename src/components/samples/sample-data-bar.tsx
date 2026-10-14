@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SampleDataBarProps {
-  module: "restaurant" | "events" | "clinic";
+  module: "restaurant" | "events" | "clinic" | "properties";
   /** Whether example rows already exist (shows "Quitar ejemplos"). */
   hasSamples: boolean;
   onChanged: () => Promise<void> | void;

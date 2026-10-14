@@ -8,6 +8,7 @@ import type {
   WaitlistInput,
 } from '@/lib/restaurant/engine'
 import type { EventAvailability, EventAvailabilityArgs, EventRequestInput, EventRequestResult } from '@/lib/events/engine'
+import { propertyToolDefinitions, runPropertyTool, type RealEstateToolExec } from './property-tools'
 
 // ============================================================
 // Restaurant and events tools (migration 068), shared by both adapters
@@ -47,6 +48,8 @@ export interface EventToolExec {
 export interface VenueTools {
   restaurant?: RestaurantToolExec
   events?: EventToolExec
+  /** Real estate module (077): property search and photos. */
+  realEstate?: RealEstateToolExec
 }
 
 interface ToolDef {
@@ -191,6 +194,7 @@ export function venueToolDefinitions(venue: VenueTools): ToolDef[] {
       },
     })
   }
+  if (venue.realEstate) defs.push(...propertyToolDefinitions(venue.realEstate))
   return defs
 }
 
@@ -261,6 +265,10 @@ export async function runVenueTool(venue: VenueTools, name: string, rawArgs: unk
   const r = venue.restaurant
   const e = venue.events
   try {
+    if (venue.realEstate) {
+      const property = await runPropertyTool(venue.realEstate, name, rawArgs)
+      if (property !== null) return property
+    }
     if (r && name === CHECK_TABLE_AVAILABILITY_TOOL_NAME) {
       const date = str(args, 'date')
       const partySize = int(args, 'party_size')

@@ -728,6 +728,15 @@ export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefi
   const clinic = !!tool.clinic
   const services = !!tool.clinic?.services
   const insurance = !!tool.clinic?.insurance
+  // Real estate module: a visit records which property it is for.
+  const property = tool.venue?.realEstate
+    ? {
+        property_id: {
+          type: 'string',
+          description: 'Optional. For a property visit: the property_id from search_properties.',
+        },
+      }
+    : {}
   const availability: BookingToolDefinition = {
     name: CHECK_AVAILABILITY_TOOL_NAME,
     description: clinic
@@ -767,6 +776,7 @@ export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefi
           properties: {
             ...(BOOK_APPOINTMENT_PARAMETERS.properties as Record<string, unknown>),
             professional_id: PROFESSIONAL_ID_PARAM,
+            ...property,
             ...(services ? { service_id: SERVICE_ID_PARAM } : {}),
             ...(insurance ? { insurance: INSURANCE_PARAM } : {}),
           },
@@ -776,7 +786,10 @@ export function bookingToolDefinitions(tool: BookingSearchTool): BookingToolDefi
             ...(insurance ? ['insurance'] : []),
           ],
         }
-      : BOOK_APPOINTMENT_PARAMETERS,
+      : {
+          ...BOOK_APPOINTMENT_PARAMETERS,
+          properties: { ...(BOOK_APPOINTMENT_PARAMETERS.properties as Record<string, unknown>), ...property },
+        },
   }
   const defs = tool.execute ? [availability, book] : []
   const tables = !!tool.venue?.restaurant
@@ -988,6 +1001,8 @@ export function parseBookAppointment(
   const serviceId = typeof args.service_id === 'string' && args.service_id.trim() ? args.service_id.trim() : undefined
   const insurance =
     typeof args.insurance === 'string' && args.insurance.trim() ? args.insurance.trim().slice(0, 200) : undefined
+  const propertyId =
+    typeof args.property_id === 'string' && args.property_id.trim() ? args.property_id.trim() : undefined
 
   // A timestamp the model wrote without a zone means business-local
   // time — that's the only clock it was ever shown — so anchor it to the
@@ -1027,6 +1042,7 @@ export function parseBookAppointment(
       ...(professionalId ? { professionalId } : {}),
       ...(serviceId ? { serviceId } : {}),
       ...(insurance ? { insurance } : {}),
+      ...(propertyId ? { propertyId } : {}),
     },
   }
 }

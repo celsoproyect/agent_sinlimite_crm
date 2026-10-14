@@ -29,6 +29,7 @@ import {
 } from '@/lib/flows/meta-send'
 import type { InteractiveButton } from '@/lib/whatsapp/meta-api'
 import type { ProductCardMetadata } from '@/types'
+import type { ResolvedAttachment } from './types'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import { HANDOFF_FAREWELL, notifyTeamOfHandoff, summarizeHandoff, withHandoffReason } from './handoff-notify'
 import { assignChatWithoutAi, autoAssignConversation } from '@/lib/assignment/server'
@@ -259,7 +260,9 @@ export async function dispatchInboundToAiReply(
       businessHoursSummary,
       bookingManageAvailable: bookingAvailable || venueOn,
       clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+      clinicStaff: clinic?.staff,
       ...venuePromptOptions(venue),
+      propertyPhotosAvailable: !!venue.realEstate,
       customerWhatsappPhone: contactRow?.phone || null,
       needsCustomerName,
       handoffOnMissingInfo: config.handoffOnMissingInfo,
@@ -270,6 +273,8 @@ export async function dispatchInboundToAiReply(
       qualification: qualificationSetup?.options ?? null,
     })
 
+    // Property photos send_property_photos picked, sent before the text.
+    const propertyPhotos: ResolvedAttachment[] = []
     const {
       text,
       handoff,
@@ -308,7 +313,7 @@ export async function dispatchInboundToAiReply(
           ? (appointment) =>
               confirmAiBooking(db, { accountId, contactId, conversationId, appointment, directory: clinic })
           : undefined,
-        venueTools: venueTools(db, venue, { accountId, contactId, conversationId, write: true }),
+        venueTools: venueTools(db, venue, { accountId, contactId, conversationId, write: true, photoSink: propertyPhotos }),
         manageAppointments:
           bookingAvailable || venueOn
           ? {
@@ -550,7 +555,7 @@ export async function dispatchInboundToAiReply(
     // never blocks the text. A catalog entry with a price goes as a
     // product card: a short caption (bold name and price) plus structured
     // metadata so the inbox thread renders the enriched card.
-    for (const attachment of attachments ?? []) {
+    for (const attachment of [...propertyPhotos, ...(attachments ?? [])]) {
       try {
         const isProduct = attachment.price != null
         const caption = isProduct

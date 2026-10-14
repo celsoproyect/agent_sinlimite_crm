@@ -105,7 +105,7 @@ export async function generateReply(args: GenerateArgs): Promise<GenerateResult>
   const attachments: AttachmentSearchTool | undefined = searchAttachments
     ? { execute: searchAttachments }
     : undefined
-  const hasVenue = !!(venueTools?.restaurant || venueTools?.events)
+  const hasVenue = !!(venueTools?.restaurant || venueTools?.events || venueTools?.realEstate)
   const booking: BookingSearchTool | undefined =
     checkAvailability || hasVenue
       ? {

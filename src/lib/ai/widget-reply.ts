@@ -121,8 +121,9 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     getCustomFieldRoster(db, accountId),
     config.leadPipelineId ? getLeadPipelineStages(db, config.leadPipelineId) : Promise.resolve([]),
     getClinicDirectory(db, accountId),
-    // Tables and halls are booked from the widget under the same switch.
-    widgetBooking ? loadVenue(db, accountId) : Promise.resolve({ restaurant: null, events: null }),
+    // Tables and halls are booked from the widget under the same switch;
+    // the property search (read-only) always runs.
+    loadVenue(db, accountId).then((v) => (widgetBooking ? v : { restaurant: null, events: null, realEstate: v.realEstate })),
     // Catalog names only (no send_attachment here), so "what do you
     // offer?" lists the full catalog in the widget too.
     getAttachmentRoster(db, accountId),
@@ -144,6 +145,7 @@ export async function generateWidgetReply(args: WidgetReplyArgs): Promise<Widget
     bookingManageAvailable: bookingAvailable || venueOn,
     bookingSlotButtons: false,
     clinicRoster: clinic ? formatClinicRoster(clinic) : null,
+    clinicStaff: clinic?.staff,
     ...venuePromptOptions(venue),
     needsCustomerName,
     handoffOnMissingInfo: config.handoffOnMissingInfo,

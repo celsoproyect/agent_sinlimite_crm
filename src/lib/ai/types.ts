@@ -142,6 +142,8 @@ export interface BookingAppointment {
   /** Clinic module: the customer's health insurance (ARS) and affiliate
    *  number as they gave it, or "privado". */
   insurance?: string
+  /** Real estate module (migration 077): the property a visit is for. */
+  propertyId?: string
 }
 
 /** An existing appointment as `find_appointments` shows it to the model. */

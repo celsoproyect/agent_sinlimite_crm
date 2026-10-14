@@ -51,6 +51,9 @@ export interface ClinicDirectory {
   specialties: string[]
   services?: ClinicService[]
   insurance?: ClinicInsurance
+  /** 'advisors' when only the real estate module (077) uses the
+   *  professionals, as the agents who show the properties. */
+  staff?: 'doctors' | 'advisors'
 }
 
 interface ProfessionalRow {
@@ -63,6 +66,8 @@ interface ProfessionalRow {
   sort_order: number | null
   professional_specialties?: { specialty: { name: string } | null }[] | null
   is_sample?: boolean
+  /** Migration 077; missing = doctor. */
+  kind?: 'doctor' | 'advisor'
 }
 
 interface TimeOffRow {
@@ -95,6 +100,9 @@ function missingSchema(code: string | undefined): boolean {
   return code === '42P01' || code === '42703' || code === 'PGRST200' || code === 'PGRST205'
 }
 
+/** How an advisor shows in the roster when the clinic is on too. */
+const ADVISOR_SPECIALTY = 'Asesor inmobiliario (visitas a inmuebles)'
+
 function hasOpenDay(hours: WeeklyHours | null | undefined): boolean {
   return !!hours && Object.values(hours).some((h) => !!h)
 }
@@ -110,7 +118,13 @@ export async function getClinicDirectory(
   accountId: string,
 ): Promise<ClinicDirectory | null> {
   try {
-    if (!(await accountModuleEnabled(db, accountId, 'clinic'))) return null
+    // The real estate module reuses the professionals as its advisors,
+    // each with their own agenda for visits.
+    const [clinicOn, propertiesOn] = await Promise.all([
+      accountModuleEnabled(db, accountId, 'clinic'),
+      accountModuleEnabled(db, accountId, 'properties'),
+    ])
+    if (!clinicOn && !propertiesOn) return null
     const today = businessToday()
     const [{ data, error }, specialtiesRes, timeOffRes, servicesRes, settingsRes] = await Promise.all([
       db
@@ -148,16 +162,25 @@ export async function getClinicDirectory(
       list.push({ from: row.starts_on, to: row.ends_on })
       timeOff.set(row.professional_id, list)
     }
-    const professionals = preferReal((data ?? []) as unknown as ProfessionalRow[]).map((p) => ({
+    // Doctors for the clinic, advisors for real estate (each module only
+    // its own people, samples dropped per group once real ones exist).
+    const rows = (data ?? []) as unknown as ProfessionalRow[]
+    const doctors = clinicOn ? preferReal(rows.filter((p) => p.kind !== 'advisor')) : []
+    const advisors = propertiesOn ? preferReal(rows.filter((p) => p.kind === 'advisor')) : []
+    const professionals = [...doctors, ...advisors].map((p) => ({
       id: p.id,
       name: p.name,
       bio: p.bio,
       hours: hasOpenDay(p.hours) ? p.hours : null,
       slotMinutes: p.slot_minutes && p.slot_minutes > 0 ? p.slot_minutes : null,
-      specialties: (p.professional_specialties ?? [])
-        .map((ps) => ps.specialty?.name)
-        .filter((n): n is string => !!n)
-        .sort((a, b) => a.localeCompare(b)),
+      // With both modules on, the roster tells the model who is who.
+      specialties:
+        p.kind === 'advisor' && clinicOn
+          ? [ADVISOR_SPECIALTY]
+          : (p.professional_specialties ?? [])
+              .map((ps) => ps.specialty?.name)
+              .filter((n): n is string => !!n)
+              .sort((a, b) => a.localeCompare(b)),
       timeOff: timeOff.get(p.id) ?? [],
     }))
     if (professionals.length === 0) return null
@@ -173,7 +196,8 @@ export async function getClinicDirectory(
     const insurance = normalizeClinicSettings(
       settingsRes.error ? null : (settingsRes.data as { clinic_settings?: unknown } | null)?.clinic_settings,
     )
-    return { professionals, specialties, services, insurance }
+    if (doctors.length === 0) return { professionals, specialties: [], services: [], staff: 'advisors' }
+    return { professionals, specialties, services, insurance, staff: 'doctors' }
   } catch (err) {
     console.error('[clinic] directory load threw:', err)
     return null

@@ -820,11 +820,22 @@ export async function confirmAiBooking(
       customer_phone: appointment.customerPhone ?? null,
     }
     const clinicColumns = service || insurance ? { clinic_service_id: service?.id ?? null, insurance } : null
+    // Real estate module (migration 077): the property the visit is for.
+    const propertyColumn = appointment.propertyId ? { property_id: appointment.propertyId } : null
     let { data: inserted, error: bookingErr } = await db
       .from('bookings')
-      .insert({ ...row, ...customer, ...(clinicColumns ?? {}) })
+      .insert({ ...row, ...customer, ...(clinicColumns ?? {}), ...(propertyColumn ?? {}) })
       .select('id')
       .single()
+    if (propertyColumn && (bookingErr?.code === '42703' || bookingErr?.code === '23503' || bookingErr?.code === '22P02')) {
+      // Migration 077 not applied, or an id the model made up: keep the
+      // visit, without the link.
+      ;({ data: inserted, error: bookingErr } = await db
+        .from('bookings')
+        .insert({ ...row, ...customer, ...(clinicColumns ?? {}) })
+        .select('id')
+        .single())
+    }
     if (bookingErr?.code === '42703' && clinicColumns) {
       // Migration 067 not applied yet: keep the insurance in the notes.
       const notes = [insurance ? `Seguro: ${insurance}` : null, appointment.notes].filter(Boolean).join(' — ') || null
