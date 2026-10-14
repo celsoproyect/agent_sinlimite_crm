@@ -26,8 +26,11 @@ export function SettingsRail({
   active,
   onSelect,
   hints,
+  sections = SETTINGS_SECTIONS,
 }: {
   active: SettingsSection;
+  /** The sections this member may open (admins see all of them). */
+  sections?: readonly SettingsSection[];
   onSelect: (section: SettingsSection) => void;
   hints?: Partial<Record<SettingsSection, ReactNode>>;
 }) {
@@ -56,9 +59,10 @@ export function SettingsRail({
       )}
     >
       {RAIL_GROUPS.map(({ label, group }) => {
-        const items = SETTINGS_SECTIONS.filter(
+        const items = sections.filter(
           (s) => SECTION_META[s].group === group,
         );
+        if (items.length === 0) return null;
         return (
           <div
             key={group}

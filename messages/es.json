@@ -1135,7 +1135,8 @@
   "Channels": {
     "page": {
       "title": "Canales",
-      "description": "Conecta fuentes externas — un widget web, un formulario de captación de leads y notificaciones al propietario — a este CRM."
+      "description": "Conecta fuentes externas — un widget web, un formulario de captación de leads y notificaciones al propietario — a este CRM.",
+      "adminOnly": "Solo los propietarios y administradores de la cuenta pueden configurar los canales."
     },
     "widget": {
       "title": "Widget web",
@@ -3411,7 +3412,8 @@
       "title": "Agentes de IA",
       "description": "Tu agente de IA con tu propia clave. Configúralo y pruébalo en la zona de pruebas antes de que responda a tus clientes en Mensajes.",
       "playgroundTab": "Zona de pruebas",
-      "usageTab": "Consumo"
+      "usageTab": "Consumo",
+      "adminOnly": "Solo los dueños y administradores pueden ver el agente de IA."
     },
     "playground": {
       "title": "Zona de pruebas",
@@ -3449,7 +3451,8 @@
     "page": {
       "title": "Eventos",
       "newRequest": "Nueva solicitud",
-      "reminders": "Recordatorios"
+      "reminders": "Recordatorios",
+      "boardView": "Tablero"
     },
     "tabs": {
       "requests": "Solicitudes",
@@ -3513,7 +3516,10 @@
         "confirmed": "Evento confirmado",
         "completed": "Evento marcado como realizado",
         "cancelled": "Evento cancelado"
-      }
+      },
+      "editEvent": "Editar evento",
+      "rescheduled": "Evento movido",
+      "rescheduleHelp": "Al mover la fecha u hora se revisa que el salón esté libre y se reenvían los recordatorios."
     },
     "form": {
       "title": "Nueva solicitud de evento",
@@ -3811,7 +3817,11 @@
       "invalid_values": "Algunos valores no son válidos.",
       "forbidden": "No tienes permiso para hacer eso.",
       "generic": "Algo salió mal. Inténtalo de nuevo."
-    }
+    },
+    "editReservation": "Editar reservación",
+    "statusLabel": "Estado",
+    "editMoveHint": "Al cambiar la fecha, la hora o las personas se vuelven a asignar las mesas.",
+    "reservationUpdated": "Reservación actualizada"
   },
   "AuthPages": {
     "backToSignIn": "Volver a iniciar sesión",
@@ -4077,7 +4087,7 @@
     "confirmDeleteAdvisor": "¿Eliminar a {name}?",
     "advisorListings": "{count, plural, =0 {Sin inmuebles} one {# inmueble} other {# inmuebles}}",
     "visitMinutes": "visitas de {m} min",
-    "visitsHint": "Visitas agendadas desde ayer. También aparecen en la Agenda, donde se editan. Para agendar, la IA necesita el módulo Agenda activo y el horario guardado.",
+    "visitsHint": "Haz clic en una visita para cambiarla de fecha, de asesor o de estado. También aparecen en la Agenda. Para que la IA agende, el módulo Agenda debe estar activo y con el horario guardado.",
     "noVisits": "No hay visitas próximas.",
     "visitWhen": "Fecha",
     "visitProperty": "Inmueble",
@@ -4104,6 +4114,25 @@
       "not_found": "No se encontró.",
       "forbidden": "No tienes permiso para esto.",
       "generic": "Algo salió mal. Inténtalo de nuevo."
-    }
+    },
+    "newVisit": "Nueva visita",
+    "editVisit": "Editar visita",
+    "selectProperty": "Selecciona un inmueble",
+    "visitLengthShort": "Minutos",
+    "visitRequired": "El cliente, el inmueble, la fecha y la hora son obligatorios",
+    "visitInvalidLength": "La duración debe ser de al menos 5 minutos",
+    "visitService": "Visita: {property}",
+    "advisorBusy": "Ese asesor ya tiene una visita en ese horario",
+    "visitCreated": "Visita agendada",
+    "visitUpdated": "Visita actualizada",
+    "visitDeleted": "Visita eliminada",
+    "confirmDeleteVisit": "¿Eliminar esta visita?"
+  },
+  "Schedule": {
+    "list": "Lista",
+    "calendar": "Calendario",
+    "prevWeek": "Semana anterior",
+    "nextWeek": "Semana siguiente",
+    "thisWeek": "Esta semana"
   }
 }

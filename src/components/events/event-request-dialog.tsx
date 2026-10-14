@@ -22,6 +22,9 @@ interface Props {
   halls: EventHall[];
   packages: EventPackage[];
   settings: EventSettings;
+  /** Preselected day and time (a click on the calendar). */
+  defaultDate?: string;
+  defaultTime?: string;
   onCreated: () => Promise<void> | void;
 }
 
@@ -49,6 +52,8 @@ function RequestForm({
   halls,
   packages,
   settings,
+  defaultDate,
+  defaultTime,
   onCreated,
   onClose,
 }: Omit<Props, "open" | "onOpenChange"> & { onClose: () => void }) {
@@ -60,8 +65,8 @@ function RequestForm({
   const [contactId, setContactId] = useState("");
   const [hallId, setHallId] = useState(activeHalls[0]?.id ?? "");
   const [packageId, setPackageId] = useState("");
-  const [date, setDate] = useState(() => addDaysISO(businessToday(), Math.max(settings.min_notice_days, 1)));
-  const [time, setTime] = useState("18:00");
+  const [date, setDate] = useState(() => defaultDate ?? addDaysISO(businessToday(), Math.max(settings.min_notice_days, 1)));
+  const [time, setTime] = useState(defaultTime ?? "18:00");
   const [hours, setHours] = useState("");
   const [guests, setGuests] = useState("50");
   const [eventType, setEventType] = useState("");

@@ -2,29 +2,36 @@
 
 import { useRouter } from 'next/navigation';
 import { useTranslations } from 'next-intl';
-import { Bot, Loader2, Sparkles, BarChart3 } from 'lucide-react';
+import { Bot, Loader2, Lock, Sparkles, BarChart3 } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { AiPlayground } from '@/components/agents/ai-playground';
 import { AiUsageCard } from '@/components/agents/ai-usage';
 import { useAuth } from '@/hooks/use-auth';
-import { canEditSettings } from '@/lib/auth/roles';
 import { useModuleGate } from '@/hooks/use-module-gate';
 
 // The agent itself is set up in Configuración → Agente de IA by the
 // account's owner/admin; the provider key belongs to the platform
 // (Super admin → IA de la plataforma, migration 072). This page is the
-// Playground (+ Usage for admin+).
+// Playground and the usage, for owners and admins only.
 export default function AgentsPage() {
   const router = useRouter();
   const t = useTranslations('Agents.page');
-  const { accountRole } = useAuth();
-  const canViewUsage = accountRole ? canEditSettings(accountRole) : false;
+  const { canEditSettings, profileLoading } = useAuth();
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate("agents");
 
-  if (moduleGateLoading || !moduleReady) {
+  if (moduleGateLoading || !moduleReady || profileLoading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
+
+  if (!canEditSettings) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+        <Lock className="h-5 w-5" />
+        <p className="text-sm">{t('adminOnly')}</p>
       </div>
     );
   }
@@ -46,28 +53,18 @@ export default function AgentsPage() {
           <TabsTrigger value="playground">
             <Sparkles className="mr-1.5 h-4 w-4" /> {t('playgroundTab')}
           </TabsTrigger>
-          {canViewUsage && (
-            <TabsTrigger value="usage">
-              <BarChart3 className="mr-1.5 h-4 w-4" /> {t('usageTab')}
-            </TabsTrigger>
-          )}
+          <TabsTrigger value="usage">
+            <BarChart3 className="mr-1.5 h-4 w-4" /> {t('usageTab')}
+          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="playground" className="mt-4">
-          <AiPlayground
-            onGoToSetup={
-              canViewUsage
-                ? () => router.push('/settings?tab=ai-agent')
-                : undefined
-            }
-          />
+          <AiPlayground onGoToSetup={() => router.push('/settings?tab=ai-agent')} />
         </TabsContent>
 
-        {canViewUsage && (
-          <TabsContent value="usage" className="mt-4">
-            <AiUsageCard />
-          </TabsContent>
-        )}
+        <TabsContent value="usage" className="mt-4">
+          <AiUsageCard />
+        </TabsContent>
       </Tabs>
     </div>
   );

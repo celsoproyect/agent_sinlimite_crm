@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, PlugZap } from 'lucide-react';
+import { Loader2, Lock, PlugZap } from 'lucide-react';
 import { useTranslations } from 'next-intl';
 
 import { useModuleGate } from '@/hooks/use-module-gate';
@@ -12,14 +12,25 @@ import { isModuleEnabled } from '@/lib/modules';
 
 export default function ChannelsPage() {
   const t = useTranslations('Channels.page');
-  const { account } = useAuth();
+  const { account, canEditSettings, profileLoading } = useAuth();
   const telegramModule = isModuleEnabled(account?.enabled_modules, 'telegram');
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate('channels');
 
-  if (moduleGateLoading || !moduleReady) {
+  if (moduleGateLoading || !moduleReady || profileLoading) {
     return (
       <div className="flex items-center justify-center py-16 text-muted-foreground">
         <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+      </div>
+    );
+  }
+
+  // Channel setup (widget, forms, Telegram) is account-wide: owners and
+  // admins only.
+  if (!canEditSettings) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-2 py-16 text-center text-muted-foreground">
+        <Lock className="h-5 w-5" />
+        <p className="text-sm">{t('adminOnly')}</p>
       </div>
     );
   }

@@ -1,13 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { AlertTriangle, BellRing, Loader2, PartyPopper, Plus } from "lucide-react";
 import type { Booking, EventHall, EventPackage, EventSettings } from "@/types";
 import { useModuleGate } from "@/hooks/use-module-gate";
 import { useCan } from "@/hooks/use-can";
 import { businessLocalToInstant, businessToday } from "@/lib/business-timezone";
-import { addDaysISO } from "@/lib/bookings/ranges";
+import { addDaysISO, bookingDisplayName, mondayOf } from "@/lib/bookings/ranges";
+import { AgendaCalendar } from "@/components/agenda/agenda-calendar";
+import { ViewToggle, WeekNav, hourTime, useScheduleView } from "@/components/bookings/schedule-view";
+import { EventEditDialog } from "@/components/events/event-edit-dialog";
 import { Button } from "@/components/ui/button";
 import { SampleDataBar } from "@/components/samples/sample-data-bar";
 import { ReminderRulesSettings } from "@/components/agenda/reminder-rules-settings";
@@ -40,7 +43,12 @@ export default function EventsPage() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loadFailed, setLoadFailed] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
+  const [requestAt, setRequestAt] = useState<{ date: string; time: string } | null>(null);
+  const [editing, setEditing] = useState<Booking | null>(null);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [view, setView] = useScheduleView("events");
+  const [weekStart, setWeekStart] = useState(() => mondayOf(businessToday()));
+  const hallName = useMemo(() => new Map((data?.halls ?? []).map((h) => [h.id, h.name])), [data?.halls]);
 
   const load = useCallback(async () => {
     const from = businessLocalToInstant(addDaysISO(businessToday(), -PAST_DAYS), "00:00").toISOString();
@@ -108,7 +116,14 @@ export default function EventsPage() {
               </Button>
             )}
             {canCreate && (
-              <Button size="sm" onClick={() => setRequestOpen(true)} className="bg-primary text-primary-foreground hover:bg-primary/90">
+              <Button
+                size="sm"
+                onClick={() => {
+                  setRequestAt(null);
+                  setRequestOpen(true);
+                }}
+                className="bg-primary text-primary-foreground hover:bg-primary/90"
+              >
                 <Plus className="mr-1 h-4 w-4" />
                 {t("page.newRequest")}
               </Button>
@@ -143,12 +158,40 @@ export default function EventsPage() {
             ))}
           </div>
 
+          {tab === "requests" && (
+            <div className="flex flex-wrap items-center gap-3">
+              <ViewToggle value={view} onChange={setView} listLabel={t("page.boardView")} />
+              {view === "calendar" && <WeekNav weekStart={weekStart} onChange={setWeekStart} />}
+            </div>
+          )}
           {tab === "requests" &&
+            view === "list" &&
             (bookings.length === 0 ? (
               <p className="rounded-lg border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{t("board.empty")}</p>
             ) : (
               <EventRequestsBoard bookings={bookings} halls={data.halls} settings={data.settings} canEdit={canCreate} onChanged={load} />
             ))}
+          {tab === "requests" && view === "calendar" && (
+            <AgendaCalendar
+              weekStart={weekStart}
+              bookings={bookings}
+              onBookingClick={(b) => canCreate && setEditing(b)}
+              onSlotClick={
+                canCreate
+                  ? (date, hour) => {
+                      setRequestAt({ date, time: hourTime(hour) });
+                      setRequestOpen(true);
+                    }
+                  : undefined
+              }
+              describe={(b) => ({
+                title: bookingDisplayName(b) || t("board.noName"),
+                detail: [b.event_type, hallName.get(b.event_hall_id ?? ""), t(`status.${b.status === "cancelled" ? "cancelled" : (b.event_status ?? "requested")}`)]
+                  .filter(Boolean)
+                  .join(" · "),
+              })}
+            />
+          )}
           {tab === "halls" && <EventHallsPanel halls={data.halls} settings={data.settings} canEdit={canEdit} onChanged={load} />}
           {tab === "packages" && (
             <EventPackagesPanel packages={data.packages} halls={data.halls} settings={data.settings} canEdit={canEdit} onChanged={load} />
@@ -166,7 +209,17 @@ export default function EventsPage() {
         halls={data.halls}
         packages={data.packages}
         settings={data.settings}
+        defaultDate={requestAt?.date}
+        defaultTime={requestAt?.time}
         onCreated={load}
+      />
+      <EventEditDialog
+        booking={editing}
+        moveTo={null}
+        halls={data.halls}
+        settings={data.settings}
+        onClose={() => setEditing(null)}
+        onSaved={load}
       />
       {canEdit && <ReminderRulesSettings open={remindersOpen} onOpenChange={setRemindersOpen} scope="event" />}
     </div>

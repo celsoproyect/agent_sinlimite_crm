@@ -5,6 +5,8 @@ import { parsePropertyInput, propertiesDbError, propertiesGuard } from '@/lib/re
 // Real estate module: the listings and the advisors who show them.
 // GET for any member, POST for admins.
 
+const VISITS_PAST_DAYS = 60
+
 export async function GET() {
   const guard = await propertiesGuard('viewer')
   if ('response' in guard) return guard.response
@@ -26,16 +28,17 @@ export async function GET() {
     }
     return propertiesDbError(props.error)
   }
-  // Upcoming visits (from the start of today, business-local enough with
-  // a 24h margin), newest last. Best-effort.
+  // Visits from VISITS_PAST_DAYS days back (so the calendar can look at
+  // recent weeks) onwards, oldest first, with their contact for the edit
+  // form. Best-effort.
   const { data: visits } = await ctx.supabase
     .from('bookings')
-    .select('id, property_id, professional_id, service, starts_at, ends_at, status, customer_name, customer_phone, is_sample')
+    .select('*, contact:contacts(*)')
     .eq('account_id', ctx.accountId)
     .not('property_id', 'is', null)
-    .gte('starts_at', new Date(Date.now() - 24 * 3600_000).toISOString())
+    .gte('starts_at', new Date(Date.now() - VISITS_PAST_DAYS * 24 * 3600_000).toISOString())
     .order('starts_at', { ascending: true })
-    .limit(200)
+    .limit(1000)
   return NextResponse.json({
     migrated: true,
     properties: (props.data ?? []).map((r) => toProperty(r as Record<string, unknown>)),

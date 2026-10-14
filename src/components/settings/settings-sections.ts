@@ -73,6 +73,23 @@ export const RAIL_GROUPS: { label: string | null; group: SectionMeta['group'] }[
   { label: 'Workspace', group: 'workspace' },
 ];
 
+/**
+ * Sections every member sees. The rest is account-wide setup (WhatsApp,
+ * AI agent, members, plan, API keys…) for owners and admins only; the
+ * APIs behind them enforce the same rule.
+ */
+export const MEMBER_SECTIONS: readonly SettingsSection[] = [
+  'profile',
+  'security',
+  'appearance',
+  'quick-replies',
+];
+
+/** The sections a member with (or without) admin rights can open. */
+export function sectionsFor(isAdmin: boolean): readonly SettingsSection[] {
+  return isAdmin ? SETTINGS_SECTIONS : MEMBER_SECTIONS;
+}
+
 function isSection(value: string | null): value is SettingsSection {
   return !!value && (SETTINGS_SECTIONS as readonly string[]).includes(value);
 }
@@ -81,10 +98,12 @@ function isSection(value: string | null): value is SettingsSection {
  * Resolve a raw `?tab=` value to a section. Legacy tabs from the old
  * flat layout collapse onto their new home (Tags + Custom fields → the
  * merged "Fields & tags" section). Anything unknown falls back to the
- * Overview landing.
+ * Overview landing. Non-admins land on their profile and can never
+ * open an admin section, even by URL.
  */
-export function resolveSection(raw: string | null): SettingsSection {
-  if (raw === 'tags' || raw === 'custom-fields') return 'fields';
-  if (isSection(raw)) return raw;
-  return DEFAULT_SECTION;
+export function resolveSection(raw: string | null, isAdmin = true): SettingsSection {
+  const section: SettingsSection =
+    raw === 'tags' || raw === 'custom-fields' ? 'fields' : isSection(raw) ? raw : DEFAULT_SECTION;
+  if (!isAdmin && !MEMBER_SECTIONS.includes(section)) return 'profile';
+  return section;
 }

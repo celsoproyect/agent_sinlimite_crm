@@ -3,8 +3,8 @@
 import { useState, useEffect, useCallback, useMemo } from "react";
 import type { Booking, BookingSettings } from "@/types";
 import { createClient } from "@/lib/supabase/client";
-import { addDaysISO, rangeToParams } from "@/lib/bookings/ranges";
-import { businessToday, businessWeekday } from "@/lib/business-timezone";
+import { addDaysISO, mondayOf, rangeToParams, weekLabel } from "@/lib/bookings/ranges";
+import { businessToday } from "@/lib/business-timezone";
 import { AgendaCalendar } from "@/components/agenda/agenda-calendar";
 import { TodayPanel } from "@/components/agenda/today-panel";
 import { BookingStats } from "@/components/agenda/booking-stats";
@@ -29,19 +29,6 @@ import { isModuleEnabled } from "@/lib/modules";
 
 /** Doctor filter value for appointments with no doctor. */
 const NO_DOCTOR = "__none__";
-
-/** Monday of the Santo Domingo week containing `dateISO`. */
-function mondayOf(dateISO: string): string {
-  return addDaysISO(dateISO, -((businessWeekday(dateISO) + 6) % 7));
-}
-
-/** "5 oct – 11 oct 2026" for business-local dates, whatever the
- *  browser's timezone. */
-function weekLabel(from: string, to: string, locale: string): string {
-  const fmt = (iso: string, opts: Intl.DateTimeFormatOptions) =>
-    new Intl.DateTimeFormat(locale, { ...opts, timeZone: "UTC" }).format(new Date(`${iso}T12:00:00Z`));
-  return `${fmt(from, { month: "short", day: "numeric" })} – ${fmt(to, { month: "short", day: "numeric", year: "numeric" })}`;
-}
 
 export default function AgendaPage() {
   const t = useTranslations("Agenda.page");

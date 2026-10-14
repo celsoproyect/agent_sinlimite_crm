@@ -75,6 +75,8 @@ export async function POST(request: Request) {
   const clinicServiceId =
     typeof body.clinic_service_id === 'string' && body.clinic_service_id ? body.clinic_service_id : null
   const insurance = typeof body.insurance === 'string' && body.insurance.trim() ? body.insurance.trim().slice(0, 200) : null
+  // Real estate module, migration 077: a visit to this property.
+  const propertyId = typeof body.property_id === 'string' && body.property_id ? body.property_id : null
 
   if (!contactId || !startsAt || !endsAt) {
     return NextResponse.json(
@@ -111,6 +113,7 @@ export async function POST(request: Request) {
       ...(professionalId ? { professional_id: professionalId } : {}),
       ...(clinicServiceId ? { clinic_service_id: clinicServiceId } : {}),
       ...(insurance ? { insurance } : {}),
+      ...(propertyId ? { property_id: propertyId } : {}),
     })
     .select('*, contact:contacts(*)')
     .single()

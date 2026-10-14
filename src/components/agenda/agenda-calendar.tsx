@@ -15,7 +15,9 @@ interface AgendaCalendarProps {
   /** Monday of the week shown, as a business-local "YYYY-MM-DD". */
   weekStart: string;
   bookings: Booking[];
-  onSlotClick: (dateISO: string, hour: number) => void;
+  /** An empty hour was clicked (creates a booking there). Omitted =
+   *  empty hours do nothing. */
+  onSlotClick?: (dateISO: string, hour: number) => void;
   onBookingClick: (booking: Booking) => void;
   /** Clinic module: doctor id -> name, shown on each appointment. */
   doctorNames?: Map<string, string>;
@@ -23,6 +25,10 @@ interface AgendaCalendarProps {
   holidays?: Map<string, string>;
   /** Clinic module: dates the doctor being filtered on is away. */
   awayDates?: Set<string>;
+  /** What each booking shows after its time (default: the customer, or
+   *  the service) and on a second line. Restaurant, events and visits
+   *  pass their own. */
+  describe?: (booking: Booking) => { title: string; detail?: string };
 }
 
 /** Day label for a business-local date, independent of the browser's
@@ -41,6 +47,7 @@ export function AgendaCalendar({
   doctorNames,
   holidays,
   awayDates,
+  describe,
 }: AgendaCalendarProps) {
   const t = useTranslations("Agenda.page");
   const locale = useLocale();
@@ -128,7 +135,7 @@ export function AgendaCalendar({
                   type="button"
                   onClick={() =>
                     dayBookings.length === 0
-                      ? onSlotClick(day, hour)
+                      ? onSlotClick?.(day, hour)
                       : undefined
                   }
                   className={cn(
@@ -139,7 +146,9 @@ export function AgendaCalendar({
                   )}
                 >
                   {dayBookings.map((b) => {
-                    const doctor = b.professional_id ? doctorNames?.get(b.professional_id) : undefined;
+                    const custom = describe?.(b);
+                    const title = custom ? custom.title : b.contact?.name || b.contact?.phone || b.service;
+                    const detail = custom ? custom.detail : b.professional_id ? doctorNames?.get(b.professional_id) : undefined;
                     return (
                     <div
                       key={b.id}
@@ -149,16 +158,25 @@ export function AgendaCalendar({
                         e.stopPropagation();
                         onBookingClick(b);
                       }}
+                      onKeyDown={(e) => {
+                        if (e.key !== "Enter" && e.key !== " ") return;
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onBookingClick(b);
+                      }}
+                      title={[businessTime(b.starts_at) + "–" + businessTime(b.ends_at), title, detail].filter(Boolean).join(" · ")}
                       className={cn(
                         "mb-1 truncate rounded-md px-1.5 py-1 text-[0.6875rem] font-medium",
-                        b.status === "cancelled"
+                        b.status === "cancelled" || b.status === "no_show"
                           ? "bg-muted text-muted-foreground line-through"
-                          : "bg-primary/15 text-primary",
+                          : b.status === "completed"
+                            ? "bg-muted text-foreground"
+                            : "bg-primary/15 text-primary",
                       )}
                     >
                       {businessTime(b.starts_at)}{" "}
-                      {b.contact?.name || b.contact?.phone || b.service}
-                      {doctor && <span className="block truncate font-normal opacity-80">{doctor}</span>}
+                      {title}
+                      {detail && <span className="block truncate font-normal opacity-80">{detail}</span>}
                     </div>
                     );
                   })}

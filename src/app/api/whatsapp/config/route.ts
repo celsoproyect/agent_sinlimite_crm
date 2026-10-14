@@ -31,6 +31,21 @@ async function resolveAccountId(
   return data.account_id as string
 }
 
+/** Owners and admins only may change the account's WhatsApp number. */
+async function isAccountAdmin(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+): Promise<boolean> {
+  const { data } = await supabase
+    .from('profiles')
+    .select('account_role')
+    .eq('user_id', userId)
+    .maybeSingle()
+  return data?.account_role === 'owner' || data?.account_role === 'admin'
+}
+
+const ADMIN_ONLY = { error: 'Only account owners and admins can change the WhatsApp connection.' }
+
 // Lazy-initialised service-role client. We need it to detect a
 // phone_number_id already claimed by a *different* user — under RLS,
 // the user's own session can't see other users' rows, so the conflict
@@ -174,6 +189,10 @@ export async function POST(request: Request) {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!(await isAccountAdmin(supabase, user.id))) {
+      return NextResponse.json(ADMIN_ONLY, { status: 403 })
     }
 
     const accountId = await resolveAccountId(supabase, user.id)
@@ -449,6 +468,10 @@ export async function DELETE() {
 
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    if (!(await isAccountAdmin(supabase, user.id))) {
+      return NextResponse.json(ADMIN_ONLY, { status: 403 })
     }
 
     const accountId = await resolveAccountId(supabase, user.id)

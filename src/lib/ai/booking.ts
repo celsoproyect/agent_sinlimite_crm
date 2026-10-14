@@ -254,8 +254,10 @@ async function loadBookedRows(
       .not('status', 'in', '(cancelled,no_show)')
       .gte('starts_at', new Date(from - 86_400_000).toISOString())
       .lt('starts_at', new Date(to).toISOString())
-    // Example bookings ("Cargar ejemplos") never take a real slot.
-    if (byKind) q = q.eq('kind', 'appointment').eq('is_sample', false)
+    // Example bookings count too: they sit on the calendar and the
+    // per-doctor exclusion constraint refuses them like any other, so
+    // offering their time only to fail on "already taken" loops.
+    if (byKind) q = q.eq('kind', 'appointment')
     return q
   }
   let { data, error } = await query(true)

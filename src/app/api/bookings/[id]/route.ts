@@ -39,6 +39,10 @@ export async function PATCH(
   if (typeof body.insurance === 'string' || body.insurance === null) {
     update.insurance = typeof body.insurance === 'string' && body.insurance.trim() ? body.insurance.trim().slice(0, 200) : null
   }
+  // Real estate module, migration 077: only sent by the visit form.
+  if (typeof body.property_id === 'string' || body.property_id === null) {
+    update.property_id = body.property_id || null
+  }
   if (
     body.status === 'confirmed' ||
     body.status === 'cancelled' ||

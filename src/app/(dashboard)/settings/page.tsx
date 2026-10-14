@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useTranslations } from 'next-intl';
 
 import { useAuth } from '@/hooks/use-auth';
+import { useCan } from '@/hooks/use-can';
 import { useTheme } from '@/hooks/use-theme';
 import { SettingsRail } from '@/components/settings/settings-rail';
 import { SettingsOverview } from '@/components/settings/settings-overview';
@@ -23,6 +24,7 @@ import { ApiKeysSettings } from '@/components/settings/api-keys-settings';
 import { PlanPanel } from '@/components/settings/plan-panel';
 import {
   resolveSection,
+  sectionsFor,
   type SettingsSection,
 } from '@/components/settings/settings-sections';
 
@@ -45,7 +47,10 @@ export default function SettingsPage() {
 function SettingsPageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { defaultCurrency } = useAuth();
+  const { defaultCurrency, profileLoading } = useAuth();
+  // Agents and viewers only get their own settings (profile, security,
+  // appearance, quick replies); the account-wide setup is admin-only.
+  const isAdmin = useCan('edit-settings');
   const { mode } = useTheme();
   const t = useTranslations('Settings');
 
@@ -53,7 +58,7 @@ function SettingsPageInner() {
   // section — deep-linkable, and it keeps the existing links in the
   // app sidebar/header working. Legacy tab values (tags, custom-fields)
   // resolve onto their new home; unknown/empty → the Overview landing.
-  const section = resolveSection(searchParams.get('tab'));
+  const section = resolveSection(searchParams.get('tab'), isAdmin);
 
   const go = (next: SettingsSection) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -105,8 +110,14 @@ function SettingsPageInner() {
       </div>
 
       <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 sm:mt-6 sm:gap-6 lg:grid-cols-[264px_minmax(0,1fr)] lg:items-start">
-        <SettingsRail active={section} onSelect={go} hints={hints} />
-        <div className="min-w-0">{panel[section]}</div>
+        {/* Nothing until the role is known, so an admin section never
+            flashes for an agent. */}
+        {profileLoading ? null : (
+          <>
+            <SettingsRail active={section} onSelect={go} hints={hints} sections={sectionsFor(isAdmin)} />
+            <div className="min-w-0">{panel[section]}</div>
+          </>
+        )}
       </div>
     </div>
   );

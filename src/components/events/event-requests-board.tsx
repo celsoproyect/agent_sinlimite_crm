@@ -6,15 +6,12 @@ import { toast } from "sonner";
 import { CalendarDays, Pencil, Users } from "lucide-react";
 import type { Booking, EventHall, EventSettings, EventStatus } from "@/types";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { bookingReference } from "@/lib/bookings/reference";
 import { bookingDisplayName, bookingDisplayPhone } from "@/lib/bookings/ranges";
 import { businessDate, businessTime } from "@/lib/business-timezone";
 import { effectivePolicy, nextEventStatuses } from "@/lib/events/settings";
 import { EVENT_COLUMNS, EVENT_STATUS_TONE, formatMoney, KNOWN_ERRORS, sendJson } from "./event-utils";
+import { EventEditDialog } from "./event-edit-dialog";
 
 interface Props {
   bookings: Booking[];
@@ -31,13 +28,10 @@ export function eventColumn(b: Booking): EventStatus {
   return b.event_status ?? "requested";
 }
 
-interface QuoteDraft {
+interface EditTarget {
   booking: Booking;
   /** Status to move to on save (approving + quoting in one step), if any. */
   moveTo: EventStatus | null;
-  quote: string;
-  deposit: string;
-  notes: string;
 }
 
 /** Event requests as a pipeline: requested → quoted → deposit paid →
@@ -46,8 +40,7 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
   const t = useTranslations("Events");
   const locale = useLocale();
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [quote, setQuote] = useState<QuoteDraft | null>(null);
-  const [saving, setSaving] = useState(false);
+  const [editing, setEditing] = useState<EditTarget | null>(null);
   const hallById = useMemo(() => new Map(halls.map((h) => [h.id, h])), [halls]);
 
   const grouped = useMemo(() => {
@@ -75,13 +68,7 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
   }
 
   function openQuote(b: Booking, moveTo: EventStatus | null) {
-    setQuote({
-      booking: b,
-      moveTo,
-      quote: b.quote_amount == null ? "" : String(b.quote_amount),
-      deposit: b.deposit_amount == null ? "" : String(b.deposit_amount),
-      notes: b.notes ?? "",
-    });
+    setEditing({ booking: b, moveTo });
   }
 
   async function move(b: Booking, to: EventStatus) {
@@ -90,28 +77,9 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
     if (await patch(b, { event_status: to })) toast.success(t(`board.moved.${to}`));
   }
 
-  async function saveQuote() {
-    if (!quote) return;
-    const body: Record<string, unknown> = { notes: quote.notes };
-    if (quote.moveTo) body.event_status = quote.moveTo;
-    if (quote.quote.trim() !== "") body.quote_amount = quote.quote;
-    // Blank deposit with a quote: the server works it out from the policy.
-    if (quote.deposit.trim() !== "") body.deposit_amount = quote.deposit;
-    setSaving(true);
-    const ok = await patch(quote.booking, body);
-    setSaving(false);
-    if (ok) {
-      toast.success(quote.moveTo ? t(`board.moved.${quote.moveTo}`) : t("common.saved"));
-      setQuote(null);
-    }
-  }
-
   async function markNoShow(b: Booking) {
     if (await patch(b, { status: "no_show" })) toast.success(t("board.noShowDone"));
   }
-
-  const quoteHall = quote ? hallById.get(quote.booking.event_hall_id ?? "") : undefined;
-  const quotePolicy = quote ? effectivePolicy(settings, quoteHall) : null;
 
   return (
     <>
@@ -144,7 +112,10 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
                     return (
                       <div key={b.id} className={`space-y-1.5 rounded-lg border bg-card p-2.5 text-xs ${b.is_sample ? "border-dashed border-primary/50" : "border-border"}`}>
                         <div className="flex items-start justify-between gap-2">
-                          <div className="min-w-0">
+                          <div
+                            className={`min-w-0 ${canEdit && b.status !== "cancelled" ? "cursor-pointer" : ""}`}
+                            onClick={canEdit && b.status !== "cancelled" ? () => openQuote(b, null) : undefined}
+                          >
                             <p className="break-words text-sm font-medium text-foreground">{bookingDisplayName(b) || t("board.noName")}</p>
                             <p className="text-muted-foreground">
                               {bookingReference(b.id, "event")}
@@ -152,7 +123,7 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
                             </p>
                           </div>
                           {canEdit && b.status !== "cancelled" && (
-                            <button type="button" onClick={() => openQuote(b, null)} className="shrink-0 inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("board.editQuote")}>
+                            <button type="button" onClick={() => openQuote(b, null)} className="shrink-0 inline-flex size-10 items-center justify-center rounded sm:size-8 text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={t("board.editEvent")}>
                               <Pencil className="h-3.5 w-3.5" />
                             </button>
                           )}
@@ -213,52 +184,14 @@ export function EventRequestsBoard({ bookings, halls, settings, canEdit, onChang
         </div>
       </div>
 
-      <Dialog open={!!quote} onOpenChange={(open) => !open && setQuote(null)}>
-        <DialogContent className="border-border bg-popover sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-popover-foreground">
-              {quote?.moveTo === "quoted" ? t("board.approveTitle") : t("board.editQuote")}
-            </DialogTitle>
-          </DialogHeader>
-          {quote && (
-            <div className="space-y-3 py-1">
-              <p className="text-sm text-muted-foreground">
-                {bookingDisplayName(quote.booking)} · {bookingReference(quote.booking.id, "event")}
-              </p>
-              <div className="grid grid-cols-2 gap-3">
-                <div className="grid gap-1.5">
-                  <Label className="text-muted-foreground">{t("board.quoteLabel", { currency: quote.booking.currency || settings.currency })}</Label>
-                  <Input type="number" min={0} value={quote.quote} onChange={(e) => setQuote({ ...quote, quote: e.target.value })} className="border-border bg-background" />
-                </div>
-                <div className="grid gap-1.5">
-                  <Label className="text-muted-foreground">{t("board.depositLabel")}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    value={quote.deposit}
-                    onChange={(e) => setQuote({ ...quote, deposit: e.target.value })}
-                    placeholder={quotePolicy?.depositRequired ? t("board.depositAuto", { pct: quotePolicy.depositPercent }) : t("board.depositNone")}
-                    className="border-border bg-background"
-                  />
-                </div>
-              </div>
-              <p className="text-xs text-muted-foreground">{t("board.quoteHelp")}</p>
-              <div className="grid gap-1.5">
-                <Label className="text-muted-foreground">{t("form.notes")}</Label>
-                <Textarea rows={3} value={quote.notes} onChange={(e) => setQuote({ ...quote, notes: e.target.value })} className="border-border bg-background" />
-              </div>
-            </div>
-          )}
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setQuote(null)} className="border-border">
-              {t("common.cancel")}
-            </Button>
-            <Button onClick={saveQuote} disabled={saving} className="bg-primary text-primary-foreground hover:bg-primary/90">
-              {saving ? t("common.saving") : quote?.moveTo === "quoted" ? t("board.approveSave") : t("common.save")}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <EventEditDialog
+        booking={editing?.booking ?? null}
+        moveTo={editing?.moveTo ?? null}
+        halls={halls}
+        settings={settings}
+        onClose={() => setEditing(null)}
+        onSaved={onChanged}
+      />
     </>
   );
 }

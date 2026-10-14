@@ -99,6 +99,8 @@ interface NavItem {
    * Purely informational — doesn't affect routing or access.
    */
   beta?: boolean;
+  /** Account-wide setup: owners and admins only. */
+  adminOnly?: boolean;
 }
 
 interface NavSection {
@@ -133,9 +135,9 @@ const navSections: NavSection[] = [
     items: [
       { href: "/automations", labelKey: "automations", icon: Zap },
       { href: "/flows", labelKey: "flows", icon: Workflow, beta: true },
-      { href: "/agents", labelKey: "aiAgents", icon: Bot },
+      { href: "/agents", labelKey: "aiAgents", icon: Bot, adminOnly: true },
       { href: "/catalog", labelKey: "catalog", icon: ImageIcon },
-      { href: "/channels", labelKey: "channels", icon: PlugZap },
+      { href: "/channels", labelKey: "channels", icon: PlugZap, adminOnly: true },
     ],
   },
 ];
@@ -161,7 +163,7 @@ import { useTranslations } from "next-intl";
 export function Sidebar({ open = false, onClose }: SidebarProps) {
   const t = useTranslations("Sidebar");
   const pathname = usePathname();
-  const { profile, profileLoading, account, accountRole, isSuperAdmin, signOut } =
+  const { profile, profileLoading, account, accountRole, isSuperAdmin, canEditSettings, signOut } =
     useAuth();
   const { companyName, logoUrl, logoLightUrl } = useBranding();
   const totalUnread = useTotalUnread();
@@ -188,6 +190,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
     .map((section) => ({
       ...section,
       items: section.items.filter((item) => {
+        if (item.adminOnly && !canEditSettings) return false;
         const key = item.href.slice(1);
         if (!isModuleKey(key)) return true;
         return isModuleEnabled(account?.enabled_modules, key);
@@ -459,7 +462,7 @@ export function Sidebar({ open = false, onClose }: SidebarProps) {
               <DropdownMenuItem
                 render={
                   <Link
-                    href="/settings?tab=whatsapp"
+                    href={canEditSettings ? "/settings?tab=whatsapp" : "/settings"}
                     onClick={onClose}
                     className="text-popover-foreground focus:bg-accent focus:text-accent-foreground"
                   />

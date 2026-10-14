@@ -23,6 +23,7 @@ export default function PropertiesPage() {
   const t = useTranslations("Properties");
   const { ready, loading: gateLoading } = useModuleGate("properties");
   const isAdmin = useCan("edit-settings");
+  const canBook = useCan("send-messages");
 
   const [tab, setTab] = useState<Tab>("properties");
   const [data, setData] = useState<PropertiesData | null>(null);
@@ -120,7 +121,15 @@ export default function PropertiesPage() {
           onChanged={() => void load()}
         />
       )}
-      {tab === "visits" && <VisitsList visits={data.visits ?? []} properties={data.properties} advisors={data.advisors} />}
+      {tab === "visits" && (
+        <VisitsList
+          visits={data.visits ?? []}
+          properties={data.properties}
+          advisors={data.advisors}
+          canEdit={canBook && data.migrated}
+          onChanged={() => void load()}
+        />
+      )}
       {tab === "advisors" && (
         <AdvisorsPanel
           advisors={data.advisors}

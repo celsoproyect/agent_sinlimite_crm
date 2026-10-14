@@ -1135,7 +1135,8 @@
   "Channels": {
     "page": {
       "title": "Channels",
-      "description": "Connect external sources — a web widget, a lead-capture form, and owner notifications — to this CRM."
+      "description": "Connect external sources — a web widget, a lead-capture form, and owner notifications — to this CRM.",
+      "adminOnly": "Only account owners and admins can set up channels."
     },
     "widget": {
       "title": "Web widget",
@@ -3411,7 +3412,8 @@
       "title": "AI Agents",
       "description": "Your bring-your-own-key AI agent. Set it up, then test it in the playground before it replies to customers in the inbox.",
       "playgroundTab": "Playground",
-      "usageTab": "Usage"
+      "usageTab": "Usage",
+      "adminOnly": "Only owners and admins can see the AI agent."
     },
     "playground": {
       "title": "Playground",
@@ -3449,7 +3451,8 @@
     "page": {
       "title": "Events",
       "newRequest": "New request",
-      "reminders": "Reminders"
+      "reminders": "Reminders",
+      "boardView": "Board"
     },
     "tabs": {
       "requests": "Requests",
@@ -3513,7 +3516,10 @@
         "confirmed": "Event confirmed",
         "completed": "Event marked as held",
         "cancelled": "Event cancelled"
-      }
+      },
+      "editEvent": "Edit event",
+      "rescheduled": "Event moved",
+      "rescheduleHelp": "Moving the date or time checks the hall is free and sends the reminders again."
     },
     "form": {
       "title": "New event request",
@@ -3811,7 +3817,11 @@
       "invalid_values": "Some values aren't valid.",
       "forbidden": "You don't have permission to do that.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "editReservation": "Edit reservation",
+    "statusLabel": "Status",
+    "editMoveHint": "Changing the date, time or party size assigns the tables again.",
+    "reservationUpdated": "Reservation updated"
   },
   "AuthPages": {
     "backToSignIn": "Back to sign in",
@@ -4077,7 +4087,7 @@
     "confirmDeleteAdvisor": "Delete {name}?",
     "advisorListings": "{count, plural, =0 {No properties} one {# property} other {# properties}}",
     "visitMinutes": "{m}-min visits",
-    "visitsHint": "Visits booked from yesterday on. They also show in the Agenda, where they are edited. To book, the AI needs the Agenda module on and business hours saved.",
+    "visitsHint": "Click a visit to change its date, advisor or status. Visits also show in the Agenda. For the AI to book them, the Agenda module must be on with its hours saved.",
     "noVisits": "No upcoming visits.",
     "visitWhen": "Date",
     "visitProperty": "Property",
@@ -4104,6 +4114,25 @@
       "not_found": "Not found.",
       "forbidden": "You don't have permission for this.",
       "generic": "Something went wrong. Try again."
-    }
+    },
+    "newVisit": "New visit",
+    "editVisit": "Edit visit",
+    "selectProperty": "Select a property",
+    "visitLengthShort": "Minutes",
+    "visitRequired": "Customer, property, date and time are required",
+    "visitInvalidLength": "The length must be at least 5 minutes",
+    "visitService": "Visit: {property}",
+    "advisorBusy": "That advisor already has a visit at that time",
+    "visitCreated": "Visit scheduled",
+    "visitUpdated": "Visit updated",
+    "visitDeleted": "Visit deleted",
+    "confirmDeleteVisit": "Delete this visit?"
+  },
+  "Schedule": {
+    "list": "List",
+    "calendar": "Calendar",
+    "prevWeek": "Previous week",
+    "nextWeek": "Next week",
+    "thisWeek": "This week"
   }
 }

@@ -7,12 +7,14 @@ import { useModuleGate } from "@/hooks/use-module-gate";
 import { useCan } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
 import { isModuleEnabled } from "@/lib/modules";
-import { businessLocalToInstant, businessToday } from "@/lib/business-timezone";
-import { addDaysISO } from "@/lib/bookings/ranges";
+import { businessDate, businessLocalToInstant, businessToday } from "@/lib/business-timezone";
+import { addDaysISO, bookingDisplayName, mondayOf } from "@/lib/bookings/ranges";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { SampleDataBar } from "@/components/samples/sample-data-bar";
 import { ReminderRulesSettings } from "@/components/agenda/reminder-rules-settings";
+import { AgendaCalendar } from "@/components/agenda/agenda-calendar";
+import { ViewToggle, WeekNav, hourTime, useScheduleView } from "@/components/bookings/schedule-view";
 import { ReservationList } from "@/components/restaurant/reservation-list";
 import { ReservationFormDialog } from "@/components/restaurant/reservation-form-dialog";
 import { OccupancyView } from "@/components/restaurant/occupancy-view";
@@ -39,16 +41,22 @@ export default function RestaurantPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
   const [formOpen, setFormOpen] = useState(false);
+  const [formTime, setFormTime] = useState<string | undefined>(undefined);
+  const [editing, setEditing] = useState<Reservation | null>(null);
   const [remindersOpen, setRemindersOpen] = useState(false);
+  const [view, setView] = useScheduleView("restaurant");
+  const weekStart = mondayOf(day);
 
   const loadFloor = useCallback(async () => {
     const res = await fetch("/api/restaurant");
     if (res.ok) setData((await res.json()) as RestaurantData);
   }, []);
 
+  // The whole week of the chosen day: the list shows the day, the
+  // calendar the week.
   const loadReservations = useCallback(async () => {
-    const from = businessLocalToInstant(day, "00:00").toISOString();
-    const to = businessLocalToInstant(addDaysISO(day, 1), "00:00").toISOString();
+    const from = businessLocalToInstant(weekStart, "00:00").toISOString();
+    const to = businessLocalToInstant(addDaysISO(weekStart, 7), "00:00").toISOString();
     const res = await fetch(`/api/restaurant/reservations?from=${encodeURIComponent(from)}&to=${encodeURIComponent(to)}`);
     if (res.ok) {
       const json = (await res.json()) as { reservations?: Reservation[] };
@@ -58,7 +66,7 @@ export default function RestaurantPage() {
     } else {
       setReservations([]);
     }
-  }, [day]);
+  }, [weekStart]);
 
   useEffect(() => {
     if (!ready) return;
@@ -70,6 +78,12 @@ export default function RestaurantPage() {
     void loadFloor();
     void loadReservations();
   }, [loadFloor, loadReservations]);
+
+  const dayReservations = useMemo(
+    () => reservations.filter((r) => businessDate(r.starts_at) === day),
+    [reservations, day],
+  );
+  const tableName = useMemo(() => new Map((data?.tables ?? []).map((tb) => [tb.id, tb.name])), [data?.tables]);
 
   const hasSamples = useMemo(
     () =>
@@ -104,7 +118,8 @@ export default function RestaurantPage() {
     "floor",
     ...(isAdmin ? (["settings"] as const) : []),
   ];
-  const dayPicker = tab === "reservations" || tab === "occupancy" || tab === "waitlist";
+  const calendarView = tab === "reservations" && view === "calendar";
+  const dayPicker = !calendarView && (tab === "reservations" || tab === "occupancy" || tab === "waitlist");
 
   return (
     <div className="space-y-6">
@@ -121,7 +136,13 @@ export default function RestaurantPage() {
             </Button>
           )}
           {canEdit && data.migrated && (
-            <Button size="sm" onClick={() => setFormOpen(true)}>
+            <Button
+              size="sm"
+              onClick={() => {
+                setFormTime(undefined);
+                setFormOpen(true);
+              }}
+            >
               <Plus className="mr-1 h-4 w-4" />
               {t("newReservation")}
             </Button>
@@ -155,6 +176,9 @@ export default function RestaurantPage() {
             </button>
           ))}
         </div>
+
+        {tab === "reservations" && <ViewToggle value={view} onChange={setView} />}
+        {calendarView && <WeekNav weekStart={weekStart} onChange={setDay} />}
 
         {dayPicker && (
           <div className="flex max-w-full items-center gap-1 rounded-lg border border-border bg-card p-1">
@@ -191,19 +215,43 @@ export default function RestaurantPage() {
         )}
       </div>
 
-      {tab === "reservations" && (
+      {tab === "reservations" && !calendarView && (
         <ReservationList
-          reservations={reservations}
+          reservations={dayReservations}
           tables={data.tables}
           canEdit={canEdit}
-          defaultDuration={data.settings.default_duration_minutes}
+          onOpen={setEditing}
           onChanged={reload}
+        />
+      )}
+      {calendarView && (
+        <AgendaCalendar
+          weekStart={weekStart}
+          bookings={reservations}
+          onBookingClick={(b) => canEdit && setEditing(b as Reservation)}
+          onSlotClick={
+            canEdit && data.migrated
+              ? (date, hour) => {
+                  setDay(date);
+                  setFormTime(hourTime(hour));
+                  setFormOpen(true);
+                }
+              : undefined
+          }
+          describe={(b) => {
+            const r = b as Reservation;
+            const names = (r.table_ids ?? []).map((id) => tableName.get(id) ?? "?");
+            return {
+              title: bookingDisplayName(r) || "—",
+              detail: [t("peopleCount", { count: r.party_size ?? 0 }), names.join(", ")].filter(Boolean).join(" · "),
+            };
+          }}
         />
       )}
       {tab === "occupancy" && (
         <OccupancyView
           date={day}
-          reservations={reservations}
+          reservations={dayReservations}
           tables={data.tables}
           areas={data.areas}
           settings={data.settings}
@@ -225,6 +273,17 @@ export default function RestaurantPage() {
       <ReservationFormDialog
         open={formOpen}
         onOpenChange={setFormOpen}
+        defaultDate={day}
+        defaultTime={formTime}
+        settings={data.settings}
+        tables={data.tables}
+        areas={data.areas}
+        onSaved={reload}
+      />
+      <ReservationFormDialog
+        open={!!editing}
+        onOpenChange={(o) => !o && setEditing(null)}
+        reservation={editing}
         defaultDate={day}
         settings={data.settings}
         tables={data.tables}

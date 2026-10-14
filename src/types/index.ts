@@ -492,6 +492,8 @@ export interface Booking {
   professional_id?: string | null;
   /** Clinic module (migration 067): the service it is for. */
   clinic_service_id?: string | null;
+  /** Real estate (migration 077): the listing a visit is for. */
+  property_id?: string | null;
   /** Clinic module (migration 067): health insurance (ARS) + affiliate
    *  number as the customer gave it, or "privado". */
   insurance?: string | null;

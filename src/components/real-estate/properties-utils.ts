@@ -1,4 +1,5 @@
 import type { useTranslations } from "next-intl";
+import type { Booking } from "@/types";
 import type { Property } from "@/lib/real-estate/search";
 
 // Shared bits of the /properties page (real estate module, migration 077).
@@ -15,17 +16,12 @@ export interface Advisor {
   is_sample?: boolean;
 }
 
-export interface Visit {
-  id: string;
-  property_id: string | null;
-  professional_id: string | null;
-  service: string | null;
-  starts_at: string;
-  ends_at: string;
-  status: string;
-  customer_name: string | null;
-  customer_phone: string | null;
-  is_sample?: boolean;
+/** A visit: an appointment booking with a property_id. */
+export type Visit = Booking;
+
+/** "CODE · Title", or the title alone. */
+export function propertyLabel(p: Pick<Property, "code" | "title">): string {
+  return `${p.code ? `${p.code} · ` : ""}${p.title}`;
 }
 
 /** GET /api/properties. */

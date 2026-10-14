@@ -3,23 +3,22 @@
 import { useMemo, useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Ban, Check, Clock, UserX, Users } from "lucide-react";
+import { Ban, Check, Clock, Pencil, UserX, Users } from "lucide-react";
 import type { RestaurantTable } from "@/types";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { businessTime } from "@/lib/business-timezone";
 import { bookingReference } from "@/lib/bookings/reference";
 import { bookingDisplayName, bookingDisplayPhone } from "@/lib/bookings/ranges";
 import { cn } from "@/lib/utils";
-import { DURATION_PRESETS, apiErrorText, durationOf, formatMinutes, type Reservation } from "./restaurant-utils";
+import { apiErrorText, durationOf, formatMinutes, type Reservation } from "./restaurant-utils";
 
 interface ReservationListProps {
   reservations: Reservation[];
   tables: RestaurantTable[];
   canEdit: boolean;
-  defaultDuration: number;
+  /** Opens the reservation in the edit dialog (date, time, people…). */
+  onOpen: (reservation: Reservation) => void;
   onChanged: () => void;
 }
 
@@ -30,11 +29,10 @@ const STATUS_CLASS: Record<string, string> = {
   no_show: "bg-destructive/10 text-destructive",
 };
 
-export function ReservationList({ reservations, tables, canEdit, defaultDuration, onChanged }: ReservationListProps) {
+export function ReservationList({ reservations, tables, canEdit, onOpen, onChanged }: ReservationListProps) {
   const t = useTranslations("Restaurant");
   const tableName = useMemo(() => new Map(tables.map((tb) => [tb.id, tb.name])), [tables]);
   const [busyId, setBusyId] = useState<string | null>(null);
-  const [editing, setEditing] = useState<Reservation | null>(null);
 
   async function patch(id: string, body: Record<string, unknown>, okText: string): Promise<boolean> {
     setBusyId(id);
@@ -77,7 +75,22 @@ export function ReservationList({ reservations, tables, canEdit, defaultDuration
           return (
             <li key={r.id} className="rounded-xl border border-border bg-card p-3 shadow-sm">
               <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                <div className="min-w-0 space-y-1">
+                <div
+                  role={canEdit ? "button" : undefined}
+                  tabIndex={canEdit ? 0 : undefined}
+                  onClick={canEdit ? () => onOpen(r) : undefined}
+                  onKeyDown={
+                    canEdit
+                      ? (e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            onOpen(r);
+                          }
+                        }
+                      : undefined
+                  }
+                  className={cn("min-w-0 flex-1 space-y-1", canEdit && "cursor-pointer rounded-md hover:bg-muted/40")}
+                >
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="font-semibold text-foreground">
                       {businessTime(r.starts_at)}–{businessTime(r.ends_at)}
@@ -117,11 +130,19 @@ export function ReservationList({ reservations, tables, canEdit, defaultDuration
                   {r.notes && <p className="text-xs text-muted-foreground">{r.notes}</p>}
                 </div>
 
+                {canEdit && !live && (
+                  <div className="flex flex-wrap gap-1.5 sm:justify-end">
+                    <Button size="sm" variant="outline" onClick={() => onOpen(r)}>
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      {t("edit")}
+                    </Button>
+                  </div>
+                )}
                 {canEdit && live && (
                   <div className="flex flex-wrap gap-1.5 sm:justify-end">
-                    <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => setEditing(r)}>
-                      <Clock className="mr-1 h-3.5 w-3.5" />
-                      {t("duration")}
+                    <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => onOpen(r)}>
+                      <Pencil className="mr-1 h-3.5 w-3.5" />
+                      {t("edit")}
                     </Button>
                     <Button size="sm" variant="outline" disabled={busyId === r.id} onClick={() => setStatus(r, "completed")}>
                       <Check className="mr-1 h-3.5 w-3.5" />
@@ -148,120 +169,6 @@ export function ReservationList({ reservations, tables, canEdit, defaultDuration
           );
         })}
       </ul>
-
-      <DurationDialog
-        reservation={editing}
-        defaultDuration={defaultDuration}
-        onClose={() => setEditing(null)}
-        onSave={async (r, minutes) => {
-          const ok = await patch(r.id, { duration_minutes: minutes }, t("durationSaved"));
-          if (ok) setEditing(null);
-        }}
-      />
-    </>
-  );
-}
-
-function DurationDialog({
-  reservation,
-  defaultDuration,
-  onClose,
-  onSave,
-}: {
-  reservation: Reservation | null;
-  defaultDuration: number;
-  onClose: () => void;
-  onSave: (r: Reservation, minutes: number) => Promise<void>;
-}) {
-  const t = useTranslations("Restaurant");
-  return (
-    <Dialog open={!!reservation} onOpenChange={(o) => !o && onClose()}>
-      <DialogContent className="border-border bg-popover sm:max-w-sm">
-        <DialogHeader>
-          <DialogTitle className="text-popover-foreground">{t("editDuration")}</DialogTitle>
-        </DialogHeader>
-        {/* Keyed by reservation so the field starts at its current length. */}
-        {reservation && (
-          <DurationForm
-            key={reservation.id}
-            reservation={reservation}
-            defaultDuration={defaultDuration}
-            onClose={onClose}
-            onSave={onSave}
-          />
-        )}
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-function DurationForm({
-  reservation,
-  defaultDuration,
-  onClose,
-  onSave,
-}: {
-  reservation: Reservation;
-  defaultDuration: number;
-  onClose: () => void;
-  onSave: (r: Reservation, minutes: number) => Promise<void>;
-}) {
-  const t = useTranslations("Restaurant");
-  const [value, setValue] = useState(String(durationOf(reservation)));
-  const [saving, setSaving] = useState(false);
-  const presets = [...new Set([defaultDuration, ...DURATION_PRESETS])].sort((a, b) => a - b);
-  const minutes = Number(value);
-
-  return (
-    <>
-      <div className="space-y-3 py-2">
-        <p className="text-xs text-muted-foreground">
-          {t("editDurationHint", { start: businessTime(reservation.starts_at) })}
-        </p>
-        <div className="flex flex-wrap gap-2">
-          {presets.map((m) => (
-            <button
-              key={m}
-              type="button"
-              onClick={() => setValue(String(m))}
-              className={cn(
-                "rounded-md border px-2 py-1 text-xs",
-                minutes === m
-                  ? "border-primary bg-primary text-primary-foreground"
-                  : "border-border text-muted-foreground hover:text-foreground",
-              )}
-            >
-              {formatMinutes(t, m)}
-            </button>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          <Input
-            type="number"
-            min={15}
-            step={15}
-            value={value}
-            onChange={(e) => setValue(e.target.value)}
-            className="w-28 border-border bg-muted"
-          />
-          <span className="text-sm text-muted-foreground">{t("minutes")}</span>
-        </div>
-      </div>
-      <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
-        <Button variant="outline" onClick={onClose}>
-          {t("cancel")}
-        </Button>
-        <Button
-          disabled={saving || !Number.isFinite(minutes) || minutes < 15}
-          onClick={async () => {
-            setSaving(true);
-            await onSave(reservation, Math.round(minutes));
-            setSaving(false);
-          }}
-        >
-          {saving ? t("saving") : t("save")}
-        </Button>
-      </DialogFooter>
     </>
   );
 }

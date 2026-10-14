@@ -75,3 +75,16 @@ export function bookingDisplayName(b: Booking): string {
 export function bookingDisplayPhone(b: Booking): string {
   return b.customer_phone || b.contact?.phone || ''
 }
+
+/** Monday of the Santo Domingo week containing `dateISO`. */
+export function mondayOf(dateISO: string): string {
+  return addDaysISO(dateISO, -((businessWeekday(dateISO) + 6) % 7))
+}
+
+/** "5 oct – 11 oct 2026" for business-local dates, whatever the
+ *  browser's timezone. */
+export function weekLabel(from: string, to: string, locale: string): string {
+  const fmt = (iso: string, opts: Intl.DateTimeFormatOptions) =>
+    new Intl.DateTimeFormat(locale, { ...opts, timeZone: 'UTC' }).format(new Date(`${iso}T12:00:00Z`))
+  return `${fmt(from, { month: 'short', day: 'numeric' })} – ${fmt(to, { month: 'short', day: 'numeric', year: 'numeric' })}`
+}

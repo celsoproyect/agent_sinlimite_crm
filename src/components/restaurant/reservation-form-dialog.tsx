@@ -5,19 +5,35 @@ import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { createClient } from "@/lib/supabase/client";
 import type { Contact, RestaurantArea, RestaurantSettings, RestaurantTable } from "@/types";
+import { businessDate, businessTime } from "@/lib/business-timezone";
+import { bookingReference } from "@/lib/bookings/reference";
+import { bookingDisplayName, bookingDisplayPhone } from "@/lib/bookings/ranges";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
-import { DURATION_PRESETS, SELECT_CLASS, apiErrorText, bookableTables, formatMinutes } from "./restaurant-utils";
+import {
+  DURATION_PRESETS,
+  SELECT_CLASS,
+  apiErrorText,
+  bookableTables,
+  durationOf,
+  formatMinutes,
+  type Reservation,
+} from "./restaurant-utils";
 
 interface ReservationFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   /** Business-local day preselected (YYYY-MM-DD). */
   defaultDate: string;
+  /** "HH:mm" preselected (a click on the calendar). */
+  defaultTime?: string;
+  /** Set = edit this reservation (move it, change its people, length,
+   *  status or notes) instead of creating one. */
+  reservation?: Reservation | null;
   settings: RestaurantSettings;
   tables: RestaurantTable[];
   areas: RestaurantArea[];
@@ -26,44 +42,64 @@ interface ReservationFormDialogProps {
 
 /** "Nueva reserva": a table reservation taken by the team. Tables are picked
  *  automatically unless some are chosen here; the length defaults to the
- *  restaurant's (90 min unless changed). */
+ *  restaurant's (90 min unless changed). With `reservation` it edits that
+ *  one: a new date, time, length or party re-picks its tables. */
 export function ReservationFormDialog(props: ReservationFormDialogProps) {
   const t = useTranslations("Restaurant");
   return (
     <Dialog open={props.open} onOpenChange={props.onOpenChange}>
       <DialogContent className="border-border bg-popover max-h-[90dvh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle className="text-popover-foreground">{t("newReservation")}</DialogTitle>
+          <DialogTitle className="text-popover-foreground">
+            {props.reservation ? t("editReservation") : t("newReservation")}
+          </DialogTitle>
         </DialogHeader>
-        {/* Mounted only while open, so every opening starts blank. */}
-        {props.open && <ReservationForm {...props} />}
+        {/* Mounted only while open, so every opening starts from the
+            reservation (or blank). */}
+        {props.open && <ReservationForm key={props.reservation?.id ?? "new"} {...props} />}
       </DialogContent>
     </Dialog>
   );
 }
 
-function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, onSaved }: ReservationFormDialogProps) {
+function ReservationForm({
+  onOpenChange,
+  defaultDate,
+  defaultTime,
+  reservation,
+  settings,
+  tables,
+  areas,
+  onSaved,
+}: ReservationFormDialogProps) {
   const t = useTranslations("Restaurant");
+  const editing = reservation ?? null;
   const [contacts, setContacts] = useState<Contact[]>([]);
   const [contactId, setContactId] = useState("");
-  const [date, setDate] = useState(defaultDate);
-  const [time, setTime] = useState("19:00");
-  const [party, setParty] = useState("2");
-  const [duration, setDuration] = useState(String(settings.default_duration_minutes));
+  const initialDate = editing ? businessDate(editing.starts_at) : defaultDate;
+  const initialTime = editing ? businessTime(editing.starts_at) : (defaultTime ?? "19:00");
+  const initialParty = String(editing?.party_size ?? 2);
+  const initialDuration = String(editing ? durationOf(editing) : settings.default_duration_minutes);
+  const [date, setDate] = useState(initialDate);
+  const [time, setTime] = useState(initialTime);
+  const [party, setParty] = useState(initialParty);
+  const [duration, setDuration] = useState(initialDuration);
   const [tableIds, setTableIds] = useState<string[]>([]);
   const [seating, setSeating] = useState<"joined" | "separate">("joined");
-  const [occasion, setOccasion] = useState("");
-  const [notes, setNotes] = useState("");
+  const [occasion, setOccasion] = useState(editing?.occasion ?? "");
+  const [notes, setNotes] = useState(editing?.notes ?? "");
+  const [status, setStatus] = useState<string>(editing?.status ?? "confirmed");
   const [force, setForce] = useState(false);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
+    if (editing) return;
     createClient()
       .from("contacts")
       .select("*")
       .order("name")
       .then(({ data }) => setContacts((data ?? []) as Contact[]));
-  }, []);
+  }, [editing]);
 
   const choosable = useMemo(() => bookableTables(tables), [tables]);
   const areaName = useMemo(() => new Map(areas.map((a) => [a.id, a.name])), [areas]);
@@ -76,7 +112,45 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
     setTableIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   }
 
+  async function saveEdit(r: Reservation) {
+    if (!date || !time || !Number(party)) {
+      toast.error(t("errors.required_fields"));
+      return;
+    }
+    const body: Record<string, unknown> = {};
+    // A new date, time, length or party size re-checks and re-picks the
+    // tables on the server (rescheduleTableReservation).
+    if (date !== initialDate || time !== initialTime || party !== initialParty || duration !== initialDuration) {
+      body.date = date;
+      body.time = time;
+      body.party_size = Number(party);
+      body.duration_minutes = duration ? Number(duration) : undefined;
+    }
+    if (occasion !== (r.occasion ?? "")) body.occasion = occasion || null;
+    if (notes !== (r.notes ?? "")) body.notes = notes || null;
+    if (status !== r.status) body.status = status;
+    if (Object.keys(body).length === 0) {
+      onOpenChange(false);
+      return;
+    }
+    setSaving(true);
+    const res = await fetch(`/api/restaurant/reservations/${r.id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    setSaving(false);
+    if (!res.ok) {
+      toast.error(await apiErrorText(res, t));
+      return;
+    }
+    toast.success(t("reservationUpdated"));
+    onOpenChange(false);
+    onSaved();
+  }
+
   async function save() {
+    if (editing) return saveEdit(editing);
     if (!contactId || !date || !time || !Number(party)) {
       toast.error(t("errors.required_fields"));
       return;
@@ -114,17 +188,27 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
   return (
     <>
       <div className="space-y-4 py-2">
-        <div className="grid gap-2">
-          <Label className="text-muted-foreground">{t("contact")}</Label>
-          <select value={contactId} onChange={(e) => setContactId(e.target.value)} className={SELECT_CLASS}>
-            <option value="">{t("selectContact")}</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name || c.phone}
-              </option>
-            ))}
-          </select>
-        </div>
+        {editing ? (
+          <div className="rounded-lg bg-muted/50 px-3 py-2 text-sm">
+            <p className="font-medium text-foreground">{bookingDisplayName(editing) || "—"}</p>
+            <p className="text-xs text-muted-foreground">
+              {bookingReference(editing.id, "table")}
+              {bookingDisplayPhone(editing) ? ` · ${bookingDisplayPhone(editing)}` : ""}
+            </p>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground">{t("contact")}</Label>
+            <select value={contactId} onChange={(e) => setContactId(e.target.value)} className={SELECT_CLASS}>
+              <option value="">{t("selectContact")}</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name || c.phone}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
           <div className="grid gap-2">
@@ -189,6 +273,21 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
           </p>
         </div>
 
+        {editing && (
+          <div className="grid gap-2">
+            <Label className="text-muted-foreground">{t("statusLabel")}</Label>
+            <select value={status} onChange={(e) => setStatus(e.target.value)} className={SELECT_CLASS}>
+              {(["confirmed", "completed", "no_show", "cancelled"] as const).map((s) => (
+                <option key={s} value={s}>
+                  {t(`status.${s}`)}
+                </option>
+              ))}
+            </select>
+            <p className="text-muted-foreground text-xs">{t("editMoveHint")}</p>
+          </div>
+        )}
+
+        {!editing && (
         <div className="grid gap-2">
           <Label className="text-muted-foreground">{t("tablesOptional")}</Label>
           {choosable.length === 0 ? (
@@ -219,8 +318,9 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
           )}
           <p className="text-muted-foreground text-xs">{t("tablesAutoHint")}</p>
         </div>
+        )}
 
-        {tableIds.length > 1 && (
+        {!editing && tableIds.length > 1 && (
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("seating")}</Label>
             <select
@@ -255,6 +355,7 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
           />
         </div>
 
+        {!editing && (
         <label className="text-foreground flex items-start gap-2 text-sm">
           <input
             type="checkbox"
@@ -267,6 +368,7 @@ function ReservationForm({ onOpenChange, defaultDate, settings, tables, areas, o
             <span className="text-muted-foreground block text-xs">{t("forceHint")}</span>
           </span>
         </label>
+        )}
       </div>
 
       <DialogFooter className="flex-col-reverse gap-2 sm:flex-row sm:justify-end">
