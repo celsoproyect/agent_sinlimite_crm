@@ -3816,12 +3816,16 @@
       "name_required": "The name is required.",
       "invalid_values": "Some values aren't valid.",
       "forbidden": "You don't have permission to do that.",
-      "generic": "Something went wrong. Try again."
+      "generic": "Something went wrong. Try again.",
+      "tables_taken": "Already reserved at that time: {tables}."
     },
     "editReservation": "Edit reservation",
     "statusLabel": "Status",
     "editMoveHint": "Changing the date, time or party size assigns the tables again.",
-    "reservationUpdated": "Reservation updated"
+    "reservationUpdated": "Reservation updated",
+    "tablesAssigned": "Assigned tables",
+    "tablesManualHint": "Tap tables to assign them by hand (also on reservations the AI made). They are held for this date and time. If you change the date or time without touching the tables, they are assigned automatically.",
+    "noTableAssigned": "No table: open it to assign one"
   },
   "AuthPages": {
     "backToSignIn": "Back to sign in",

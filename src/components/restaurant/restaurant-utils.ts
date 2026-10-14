@@ -88,8 +88,15 @@ const KNOWN_ERRORS = new Set([
 /** A failed API response as text for a toast. "unavailable" carries the
  *  engine's own explanation when it gave one. */
 export async function apiErrorText(res: Response, t: RestaurantT): Promise<string> {
-  const json = (await res.json().catch(() => null)) as { error?: string; message?: string | null } | null;
+  const json = (await res.json().catch(() => null)) as {
+    error?: string;
+    message?: string | null;
+    tables?: string[];
+  } | null;
   const code = json?.error ?? "";
+  if (code === "unavailable" && json?.message === "that table is already taken at that time" && json.tables?.length) {
+    return t("errors.tables_taken", { tables: json.tables.join(", ") });
+  }
   // The engine's reason is written for the AI (English): shown as detail.
   if (code === "unavailable" && json?.message) return `${t("errors.unavailable")} (${json.message})`;
   if (KNOWN_ERRORS.has(code)) return t(`errors.${code}`);

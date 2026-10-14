@@ -43,7 +43,9 @@ interface ReservationFormDialogProps {
 /** "Nueva reserva": a table reservation taken by the team. Tables are picked
  *  automatically unless some are chosen here; the length defaults to the
  *  restaurant's (90 min unless changed). With `reservation` it edits that
- *  one: a new date, time, length or party re-picks its tables. */
+ *  one: a new date, time, length or party re-picks its tables, and the
+ *  team can pick them by hand (also on the AI's reservations), which holds
+ *  them for that date and time. */
 export function ReservationFormDialog(props: ReservationFormDialogProps) {
   const t = useTranslations("Restaurant");
   return (
@@ -84,8 +86,10 @@ function ReservationForm({
   const [time, setTime] = useState(initialTime);
   const [party, setParty] = useState(initialParty);
   const [duration, setDuration] = useState(initialDuration);
-  const [tableIds, setTableIds] = useState<string[]>([]);
-  const [seating, setSeating] = useState<"joined" | "separate">("joined");
+  const initialTables = useMemo(() => [...(editing?.table_ids ?? [])].sort(), [editing]);
+  const [tableIds, setTableIds] = useState<string[]>(initialTables);
+  const initialSeating: "joined" | "separate" = editing?.seating === "separate" ? "separate" : "joined";
+  const [seating, setSeating] = useState<"joined" | "separate">(initialSeating);
   const [occasion, setOccasion] = useState(editing?.occasion ?? "");
   const [notes, setNotes] = useState(editing?.notes ?? "");
   const [status, setStatus] = useState<string>(editing?.status ?? "confirmed");
@@ -123,6 +127,15 @@ function ReservationForm({
     if (date !== initialDate || time !== initialTime || party !== initialParty || duration !== initialDuration) {
       body.date = date;
       body.time = time;
+      body.party_size = Number(party);
+      body.duration_minutes = duration ? Number(duration) : undefined;
+    }
+    // Tables chosen by hand: held for the (new) date and time; a table
+    // taken then answers 409 with its name.
+    const tablesChanged = [...tableIds].sort().join(",") !== initialTables.join(",");
+    if (tableIds.length > 0 && (tablesChanged || (tableIds.length > 1 && seating !== initialSeating))) {
+      body.table_ids = tableIds;
+      body.seating = seating;
       body.party_size = Number(party);
       body.duration_minutes = duration ? Number(duration) : undefined;
     }
@@ -287,9 +300,9 @@ function ReservationForm({
           </div>
         )}
 
-        {!editing && (
+        {(!editing || status === "confirmed" || status === "completed") && (
         <div className="grid gap-2">
-          <Label className="text-muted-foreground">{t("tablesOptional")}</Label>
+          <Label className="text-muted-foreground">{editing ? t("tablesAssigned") : t("tablesOptional")}</Label>
           {choosable.length === 0 ? (
             <p className="text-muted-foreground text-xs">{t("noTablesYet")}</p>
           ) : (
@@ -316,11 +329,13 @@ function ReservationForm({
               })}
             </div>
           )}
-          <p className="text-muted-foreground text-xs">{t("tablesAutoHint")}</p>
+          <p className="text-muted-foreground text-xs">
+            {editing ? t("tablesManualHint") : t("tablesAutoHint")}
+          </p>
         </div>
         )}
 
-        {!editing && tableIds.length > 1 && (
+        {tableIds.length > 1 && (!editing || status === "confirmed" || status === "completed") && (
           <div className="grid gap-2">
             <Label className="text-muted-foreground">{t("seating")}</Label>
             <select

@@ -3816,12 +3816,16 @@
       "name_required": "El nombre es obligatorio.",
       "invalid_values": "Algunos valores no son válidos.",
       "forbidden": "No tienes permiso para hacer eso.",
-      "generic": "Algo salió mal. Inténtalo de nuevo."
+      "generic": "Algo salió mal. Inténtalo de nuevo.",
+      "tables_taken": "Ya está reservada a esa hora: {tables}."
     },
     "editReservation": "Editar reservación",
     "statusLabel": "Estado",
     "editMoveHint": "Al cambiar la fecha, la hora o las personas se vuelven a asignar las mesas.",
-    "reservationUpdated": "Reservación actualizada"
+    "reservationUpdated": "Reservación actualizada",
+    "tablesAssigned": "Mesas asignadas",
+    "tablesManualHint": "Toca las mesas para asignarlas a mano (también en las reservas que hizo la IA). Quedan bloqueadas para esta fecha y hora. Si cambias la fecha o la hora sin tocar las mesas, se asignan solas.",
+    "noTableAssigned": "Sin mesa: ábrela para asignar"
   },
   "AuthPages": {
     "backToSignIn": "Volver a iniciar sesión",

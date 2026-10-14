@@ -111,6 +111,11 @@ export function ReservationList({ reservations, tables, canEdit, onOpen, onChang
                       {formatMinutes(t, minutes)}
                     </span>
                     {names.length > 0 && <span>{t("tablesList", { tables: names.join(", ") })}</span>}
+                    {names.length === 0 && live && (
+                      <Badge variant="outline" className="border-amber-500/50 text-amber-600">
+                        {t("noTableAssigned")}
+                      </Badge>
+                    )}
                     {names.length > 1 && (
                       <Badge variant="secondary">
                         {r.seating === "separate" ? t("seatingSeparateShort") : t("seatingJoinedShort")}

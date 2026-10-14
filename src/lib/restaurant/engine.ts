@@ -534,28 +534,58 @@ export async function rescheduleTableReservation(
     durationMinutes: number
     customerAgreed?: boolean
     seating?: TableSeating | null
+    /** Tables chosen by the team (also on reservations the AI made);
+     *  default: picked here. Each must be free for this time window. */
+    tableIds?: string[]
+    /** Team edits: skip the past-time and seating-hours checks, so tables
+     *  can be assigned to a reservation already in progress. */
+    force?: boolean
   },
 ): Promise<{ rescheduled: boolean; error?: string; endsAt?: string; tables?: string[] }> {
   const { accountId, dir, bookingId } = args
   const start = new Date(args.startsAt).getTime()
-  if (Number.isNaN(start) || start < Date.now()) return { rescheduled: false, error: 'pick one of the offered times' }
-  const window = seatingWindow(dir, businessDate(args.startsAt))
-  if (!window || start < window.first || start > window.last) {
-    return { rescheduled: false, error: 'the restaurant does not take reservations at that time' }
+  if (Number.isNaN(start) || (!args.force && start < Date.now())) {
+    return { rescheduled: false, error: 'pick one of the offered times' }
+  }
+  if (!args.force) {
+    const window = seatingWindow(dir, businessDate(args.startsAt))
+    if (!window || start < window.first || start > window.last) {
+      return { rescheduled: false, error: 'the restaurant does not take reservations at that time' }
+    }
   }
   const durationMs = args.durationMinutes * 60_000
   const held = await loadHeld(db, accountId, start - 86_400_000, start + durationMs + 86_400_000)
   if (!held) return { rescheduled: false, error: 'the reservation could not be changed' }
-  const pick = pickAt(dir, held, start, durationMs, args.partySize, undefined, bookingId)
-  if (!pick) return { rescheduled: false, error: 'no table is free for that party at that time' }
-  if (pick.combined && !args.customerAgreed) {
-    return {
-      rescheduled: false,
-      error: 'needs_consent: at that time the party needs several tables; ask whether they mind (joined or separate) and try again',
-      tables: pick.tables.map((t) => t.name),
+  let pick: { tables: FloorTable[]; combined: boolean }
+  if (args.tableIds?.length) {
+    const wanted = [...new Set(args.tableIds)]
+    const tables = dir.tables.filter((t) => wanted.includes(t.id))
+    if (tables.length !== wanted.length) return { rescheduled: false, error: 'unknown table' }
+    const free = freeTableIds(dir.tables, held, start, start + durationMs, dir.settings.buffer_minutes * 60_000, bookingId)
+    const taken = tables.filter((t) => !free.has(t.id))
+    if (taken.length) {
+      return {
+        rescheduled: false,
+        error: 'that table is already taken at that time',
+        tables: taken.map((t) => t.name),
+      }
     }
+    pick = { tables, combined: tables.length > 1 }
+  } else {
+    const auto = pickAt(dir, held, start, durationMs, args.partySize, undefined, bookingId)
+    if (!auto) return { rescheduled: false, error: 'no table is free for that party at that time' }
+    if (auto.combined && !args.customerAgreed) {
+      return {
+        rescheduled: false,
+        error: 'needs_consent: at that time the party needs several tables; ask whether they mind (joined or separate) and try again',
+        tables: auto.tables.map((t) => t.name),
+      }
+    }
+    pick = auto
   }
   const startsAt = new Date(start).toISOString()
+  const { data: before } = await db.from('bookings').select('starts_at').eq('id', bookingId).maybeSingle()
+  const timeChanged = !before || new Date((before as { starts_at: string }).starts_at).getTime() !== start
   const endsAt = new Date(start + durationMs).toISOString()
   // Free the old tables first, then hold the new ones; on a race put the
   // old ones back.
@@ -589,7 +619,8 @@ export async function rescheduleTableReservation(
     console.error('[restaurant] reschedule update failed:', error)
     return { rescheduled: false, error: 'the reservation could not be changed' }
   }
-  await db.from('booking_reminder_sends').delete().eq('booking_id', bookingId)
+  // Only a new time re-sends the reminders; a table change alone doesn't.
+  if (timeChanged) await db.from('booking_reminder_sends').delete().eq('booking_id', bookingId)
   return { rescheduled: true, endsAt, tables: tableNames }
 }
 

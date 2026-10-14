@@ -7,6 +7,10 @@ import type { TableSeating } from '@/types'
 
 // Restaurant module: change a table reservation.
 // - date + time: moves it (same row), re-picking free tables.
+// - table_ids (+ seating): the team assigns the tables by hand, also on
+//   reservations the AI made. They are held for the reservation's window
+//   (the new one when moving too); a table taken then answers 409
+//   unavailable with the clashing names in `tables`.
 // - duration_minutes: a longer or shorter stay. The tables follow through
 //   the bookings_sync_tables trigger, and a clash with the next
 //   reservation at that table answers 409 table_busy.
@@ -55,24 +59,40 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
   const date = typeof body.date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(body.date) ? body.date : null
   const time = typeof body.time === 'string' && /^\d{2}:\d{2}$/.test(body.time) ? body.time : null
   const moving = !!(date && time)
-  if (moving) {
+  const tableIds = Array.isArray(body.table_ids)
+    ? body.table_ids.filter((x): x is string => typeof x === 'string' && x.length > 0)
+    : null
+  if (tableIds && tableIds.length === 0) return NextResponse.json({ error: 'invalid_values' }, { status: 400 })
+  const seating: TableSeating =
+    body.seating === 'separate' || body.seating === 'joined'
+      ? body.seating
+      : current.seating === 'separate'
+        ? 'separate'
+        : 'joined'
+  if (moving || tableIds) {
     const dir = await getRestaurantDirectory(ctx.supabase, ctx.accountId)
     if (!dir) return NextResponse.json({ error: 'no_tables' }, { status: 409 })
     const moved = await rescheduleTableReservation(ctx.supabase, {
       accountId: ctx.accountId,
       dir,
       bookingId: id,
-      startsAt: businessLocalToInstant(date, time).toISOString(),
+      startsAt: moving ? businessLocalToInstant(date, time).toISOString() : current.starts_at,
       partySize,
       durationMinutes: duration,
       customerAgreed: true,
-      seating: current.seating === 'separate' ? 'separate' : 'joined',
+      seating,
+      tableIds: tableIds ?? undefined,
+      // Only assigning tables keeps the reservation's own time, even if it
+      // already started or falls outside today's seating hours.
+      force: !moving,
     })
-    if (!moved.rescheduled) return NextResponse.json({ error: 'unavailable', message: moved.error ?? null }, { status: 409 })
+    if (!moved.rescheduled) {
+      return NextResponse.json({ error: 'unavailable', message: moved.error ?? null, tables: moved.tables ?? [] }, { status: 409 })
+    }
   }
 
   const update: Record<string, unknown> = {}
-  if (hasDuration && !moving) {
+  if (hasDuration && !moving && !tableIds) {
     update.ends_at = new Date(new Date(current.starts_at).getTime() + duration * 60_000).toISOString()
   }
   if (typeof body.status === 'string') {
