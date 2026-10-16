@@ -51,6 +51,8 @@ export const MODULE_KEYS = [
   "reports",
   "ai_messages",
   "telegram",
+  "telegram_voice",
+  "telegram_agenda",
   "widget_booking",
   "google_calendar",
   "web_push",

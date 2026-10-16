@@ -15,7 +15,7 @@
 // ============================================================
 
 import { supabaseAdmin } from '@/lib/automations/admin-client'
-import { BUSINESS_TIME_ZONE, businessLocalToInstant } from '@/lib/business-timezone'
+import { BUSINESS_TIME_ZONE, businessDate, businessLocalToInstant, businessTime } from '@/lib/business-timezone'
 import { bookingReference } from '@/lib/bookings/reference'
 import { decrypt } from '@/lib/whatsapp/encryption'
 import { accountModuleEnabled } from '@/lib/modules-server'
@@ -109,6 +109,7 @@ async function gcal(
 
 interface GoogleEvent {
   id: string
+  summary?: string
   status?: string
   transparency?: string
   start?: { dateTime?: string; date?: string }
@@ -139,11 +140,11 @@ export function eventsToBusy(events: GoogleEvent[]): { start: number; end: numbe
   return out
 }
 
-/** Busy intervals in the connected calendar between two instants; [] when
- *  not connected or on any error. */
-export async function googleBusy(accountId: string, fromMs: number, toMs: number): Promise<{ start: number; end: number }[]> {
+/** Events in the connected calendar between two instants; null when not
+ *  connected or on any error. */
+async function fetchEvents(accountId: string, fromMs: number, toMs: number): Promise<GoogleEvent[] | null> {
   const conn = await loadGoogleConnection(accountId)
-  if (!conn) return []
+  if (!conn) return null
   try {
     const events: GoogleEvent[] = []
     let pageToken: string | undefined
@@ -154,24 +155,78 @@ export async function googleBusy(accountId: string, fromMs: number, toMs: number
           timeMax: new Date(toMs).toISOString(),
           singleEvents: 'true',
           maxResults: '250',
-          fields: 'items(id,status,transparency,start,end,extendedProperties),nextPageToken',
+          fields: 'items(id,summary,status,transparency,start,end,extendedProperties),nextPageToken',
           ...(pageToken ? { pageToken } : {}),
         },
       })
       if (!res.ok) {
         console.error('[gcal] events.list failed:', res.status, await res.text().catch(() => ''))
-        return []
+        return null
       }
       const json = (await res.json()) as { items?: GoogleEvent[]; nextPageToken?: string }
       events.push(...(json.items ?? []))
       pageToken = json.nextPageToken
       if (!pageToken) break
     }
-    return eventsToBusy(events)
+    return events
   } catch (err) {
-    console.error('[gcal] busy lookup failed:', err)
-    return []
+    console.error('[gcal] events lookup failed:', err)
+    return null
   }
+}
+
+/** Busy intervals in the connected calendar between two instants; [] when
+ *  not connected or on any error. */
+export async function googleBusy(accountId: string, fromMs: number, toMs: number): Promise<{ start: number; end: number }[]> {
+  const events = await fetchEvents(accountId, fromMs, toMs)
+  return events ? eventsToBusy(events) : []
+}
+
+export interface GoogleAgendaEvent {
+  title: string
+  date: string
+  /** Business-local HH:mm; absent on all-day events. */
+  time?: string
+  endsAt?: string
+  allDay?: true
+}
+
+/** The owner's own Google events (not the CRM's mirrored bookings) for
+ *  reading out, in business-local time, sorted by start. */
+export function eventsToAgenda(events: GoogleEvent[]): GoogleAgendaEvent[] {
+  const out: (GoogleAgendaEvent & { sort: number })[] = []
+  for (const e of events) {
+    if (e.status === 'cancelled') continue
+    if (e.extendedProperties?.private?.wacrmBookingId) continue
+    const title = e.summary?.trim() || '(sin título)'
+    if (e.start?.dateTime) {
+      const start = Date.parse(e.start.dateTime)
+      if (!Number.isFinite(start)) continue
+      const end = e.end?.dateTime ? Date.parse(e.end.dateTime) : NaN
+      out.push({
+        title,
+        date: businessDate(new Date(start)),
+        time: businessTime(new Date(start)),
+        ...(Number.isFinite(end) ? { endsAt: businessTime(new Date(end)) } : {}),
+        sort: start,
+      })
+    } else if (e.start?.date) {
+      out.push({ title, date: e.start.date, allDay: true, sort: businessLocalToInstant(e.start.date, '00:00').getTime() })
+    }
+  }
+  out.sort((a, b) => a.sort - b.sort)
+  return out.map((e) => {
+    const { sort, ...rest } = e
+    void sort
+    return rest
+  })
+}
+
+/** The connected calendar's own events between two instants, for the
+ *  owner's Telegram assistant; [] when not connected or on any error. */
+export async function listGoogleEvents(accountId: string, fromMs: number, toMs: number): Promise<GoogleAgendaEvent[]> {
+  const events = await fetchEvents(accountId, fromMs, toMs)
+  return events ? eventsToAgenda(events) : []
 }
 
 // ------------------------------------------------------------------

@@ -169,7 +169,7 @@ export async function dispatchInboundToAiReply(
 
     const messages = await buildConversationContext(db, conversationId, {
       accountId,
-      embeddingsApiKey: config.embeddingsApiKey,
+      embeddingsApiKey: config.transcriptionApiKey ?? config.embeddingsApiKey,
     })
     if (messages.length === 0) {
       return

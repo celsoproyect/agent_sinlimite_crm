@@ -55,7 +55,16 @@ const { generateOpsReply } = vi.hoisted(() => ({ generateOpsReply: vi.fn() }))
 vi.mock('@/lib/ai/ops-assistant', () => ({ generateOpsReply }))
 
 const { sendTelegramMessage } = vi.hoisted(() => ({ sendTelegramMessage: vi.fn(async () => undefined) }))
-vi.mock('@/lib/telegram/send', () => ({ sendTelegramMessage }))
+vi.mock('@/lib/telegram/send', () => ({ sendTelegramMessage, sendTelegramChatAction: vi.fn(async () => undefined) }))
+
+const { downloadTelegramVoice } = vi.hoisted(() => ({ downloadTelegramVoice: vi.fn() }))
+vi.mock('@/lib/telegram/files', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/telegram/files')>()),
+  downloadTelegramVoice,
+}))
+
+const { transcribeAudio } = vi.hoisted(() => ({ transcribeAudio: vi.fn() }))
+vi.mock('@/lib/ai/audio', () => ({ transcribeAudio }))
 
 import { POST } from './route'
 
@@ -76,6 +85,7 @@ function post(
 }
 
 const UPDATE = { message: { chat: { id: 999 }, text: '¿cuántas citas hubo esta semana?' } }
+const VOICE_UPDATE = { message: { chat: { id: 999 }, voice: { file_id: 'f1', duration: 4, mime_type: 'audio/ogg' } } }
 
 describe('POST /api/telegram/webhook/[accountId]', () => {
   beforeEach(() => {
@@ -87,6 +97,8 @@ describe('POST /api/telegram/webhook/[accountId]', () => {
     loadAiConfig.mockReset().mockResolvedValue({ provider: 'openai', model: 'gpt-test', apiKey: 'sk-test' })
     generateOpsReply.mockReset().mockResolvedValue({ text: 'Tuviste 4 citas esta semana.', usage: null })
     sendTelegramMessage.mockClear()
+    downloadTelegramVoice.mockReset().mockResolvedValue({ buffer: Buffer.from('ogg'), contentType: 'audio/ogg' })
+    transcribeAudio.mockReset().mockResolvedValue('agéndame una reunión mañana a las 3')
   })
 
   afterEach(() => {
@@ -228,5 +240,54 @@ describe('POST /api/telegram/webhook/[accountId]', () => {
       chatId: '999',
       text: 'Tuviste 4 citas esta semana.',
     })
+  })
+
+  it('passes the agenda switch from the telegram_agenda module', async () => {
+    await post(UPDATE)
+    expect(generateOpsReply).toHaveBeenCalledWith(expect.objectContaining({ agenda: true }))
+    generateOpsReply.mockClear()
+    account = { ...ACCOUNT_BASE, enabled_modules: { telegram_agenda: false } }
+    await post(UPDATE)
+    expect(generateOpsReply).toHaveBeenCalledWith(expect.objectContaining({ agenda: false }))
+  })
+
+  it('transcribes a voice note, answers it and quotes what it understood', async () => {
+    loadAiConfig.mockResolvedValue({ provider: 'openai', model: 'gpt-test', apiKey: 'sk-test', embeddingsApiKey: 'sk-emb' })
+    await post(VOICE_UPDATE)
+    expect(downloadTelegramVoice).toHaveBeenCalledWith('bot-token', expect.objectContaining({ file_id: 'f1' }))
+    expect(transcribeAudio).toHaveBeenCalledWith('sk-emb', expect.objectContaining({ contentType: 'audio/ogg' }))
+    expect(generateOpsReply).toHaveBeenCalledWith(expect.objectContaining({ userMessage: 'agéndame una reunión mañana a las 3' }))
+    expect(insertedTurns[0]).toEqual({ account_id: ACCOUNT_ID, role: 'user', content: 'agéndame una reunión mañana a las 3' })
+    expect(sendTelegramMessage).toHaveBeenCalledWith({
+      botToken: 'bot-token',
+      chatId: '999',
+      text: '🎤 «agéndame una reunión mañana a las 3»\n\nTuviste 4 citas esta semana.',
+    })
+  })
+
+  it('transcribes with the OpenAI chat key when there is no embeddings key', async () => {
+    loadAiConfig.mockResolvedValue({ provider: 'openai', model: 'gpt-test', apiKey: 'sk-test', transcriptionApiKey: 'sk-test' })
+    await post(VOICE_UPDATE)
+    expect(transcribeAudio).toHaveBeenCalledWith('sk-test', expect.anything())
+  })
+
+  it('explains when a voice note cannot be transcribed', async () => {
+    await post(VOICE_UPDATE)
+    expect(transcribeAudio).not.toHaveBeenCalled()
+    expect(sendTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/clave de OpenAI/) }))
+
+    sendTelegramMessage.mockClear()
+    loadAiConfig.mockResolvedValue({ provider: 'openai', model: 'gpt-test', apiKey: 'sk-test', embeddingsApiKey: 'sk-emb' })
+    transcribeAudio.mockRejectedValue(new Error('whisper down'))
+    await post(VOICE_UPDATE)
+    expect(generateOpsReply).not.toHaveBeenCalled()
+    expect(sendTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/no pude escuchar/i) }))
+  })
+
+  it('refuses voice notes while the telegram_voice module is off', async () => {
+    account = { ...ACCOUNT_BASE, enabled_modules: { telegram_voice: false } }
+    await post(VOICE_UPDATE)
+    expect(downloadTelegramVoice).not.toHaveBeenCalled()
+    expect(sendTelegramMessage).toHaveBeenCalledWith(expect.objectContaining({ text: expect.stringMatching(/no están activadas/) }))
   })
 })

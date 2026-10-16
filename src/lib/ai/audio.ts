@@ -13,6 +13,16 @@ import { providerHttpError, toNetworkError } from './providers/shared'
 const OPENAI_TRANSCRIPTIONS_URL = 'https://api.openai.com/v1/audio/transcriptions'
 const TRANSCRIPTION_MODEL = 'whisper-1'
 
+/** Whisper detects the format from the file name, so it must match. */
+function audioExtension(contentType: string): string {
+  const t = contentType.toLowerCase()
+  if (t.includes('mpeg') || t.includes('mp3')) return 'mp3'
+  if (t.includes('mp4') || t.includes('m4a') || t.includes('aac')) return 'm4a'
+  if (t.includes('wav')) return 'wav'
+  if (t.includes('webm')) return 'webm'
+  return 'ogg'
+}
+
 interface TranscriptionResponse {
   text?: string
 }
@@ -33,7 +43,7 @@ export async function transcribeAudio(
   form.append(
     'file',
     new Blob([new Uint8Array(audio.buffer)], { type: audio.contentType }),
-    'voice-note.ogg',
+    `voice-note.${audioExtension(audio.contentType)}`,
   )
 
   let res: Response

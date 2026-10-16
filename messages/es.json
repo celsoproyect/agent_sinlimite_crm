@@ -177,7 +177,9 @@
     "webPushModule": "Notificaciones push en el celular (avisos de traspaso)",
     "aiQualificationModule": "Precalificación de clientes por la IA (nombre primero, venta guiada)",
     "autoAssignModule": "Asignación automática de chats al equipo",
-    "primaryNav": "Navegación principal"
+    "primaryNav": "Navegación principal",
+    "telegramVoiceModule": "Notas de voz al asistente de Telegram",
+    "telegramAgendaModule": "Agendar citas desde Telegram"
   },
   "Push": {
     "title": "Notificaciones en este dispositivo",

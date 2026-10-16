@@ -177,7 +177,9 @@
     "webPushModule": "Push notifications on phones (handoff alerts)",
     "aiQualificationModule": "AI lead prequalification (name first, guided selling)",
     "autoAssignModule": "Automatic chat assignment to the team",
-    "primaryNav": "Primary navigation"
+    "primaryNav": "Primary navigation",
+    "telegramVoiceModule": "Voice notes to the Telegram assistant",
+    "telegramAgendaModule": "Book appointments from Telegram"
   },
   "Push": {
     "title": "Notifications on this device",

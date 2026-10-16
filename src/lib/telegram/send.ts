@@ -31,6 +31,25 @@ async function throwTelegramError(response: Response, fallback: string): Promise
   throw new Error(message)
 }
 
+/** Telegram's hard limit per message. */
+export const TELEGRAM_MAX_TEXT = 4096
+
+/** Split a long text into Telegram-sized parts, at line breaks when
+ *  possible, else at spaces, else hard. */
+export function splitTelegramText(text: string, max = TELEGRAM_MAX_TEXT): string[] {
+  const parts: string[] = []
+  let rest = text
+  while (rest.length > max) {
+    let cut = rest.lastIndexOf('\n', max)
+    if (cut < max / 2) cut = rest.lastIndexOf(' ', max)
+    if (cut < max / 2) cut = max
+    parts.push(rest.slice(0, cut).trimEnd())
+    rest = rest.slice(cut).replace(/^\s+/, '')
+  }
+  if (rest.length || parts.length === 0) parts.push(rest)
+  return parts
+}
+
 export interface SendTelegramMessageArgs {
   botToken: string
   chatId: string
@@ -41,18 +60,35 @@ export interface SendTelegramMessageArgs {
  * Send a plain-text Telegram message. Unlike WhatsApp, Telegram has
  * no 24-hour re-engagement window: once `chatId` has messaged the
  * bot at least once (see `getLatestTelegramChat`), the bot can
- * message that chat at any time.
+ * message that chat at any time. Texts over Telegram's 4096-character
+ * limit go out as several messages.
  */
 export async function sendTelegramMessage(args: SendTelegramMessageArgs): Promise<void> {
   const { botToken, chatId, text } = args
   const url = `${TELEGRAM_API_BASE}/bot${botToken}/sendMessage`
-  const response = await fetch(url, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ chat_id: chatId, text }),
-  })
-  if (!response.ok) {
-    await throwTelegramError(response, `Telegram API error: ${response.status}`)
+  for (const part of splitTelegramText(text)) {
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: chatId, text: part }),
+    })
+    if (!response.ok) {
+      await throwTelegramError(response, `Telegram API error: ${response.status}`)
+    }
+  }
+}
+
+/** "typing…" in the chat while a reply is being prepared. Best-effort:
+ *  never throws. */
+export async function sendTelegramChatAction(args: { botToken: string; chatId: string; action: 'typing' }): Promise<void> {
+  try {
+    await fetch(`${TELEGRAM_API_BASE}/bot${args.botToken}/sendChatAction`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chat_id: args.chatId, action: args.action }),
+    })
+  } catch {
+    // cosmetic only
   }
 }
 

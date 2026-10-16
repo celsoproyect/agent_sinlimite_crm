@@ -126,6 +126,11 @@ export async function loadAiConfig(
     leadPipelineId: row.lead_pipeline_id,
     embeddingsApiKey,
     embeddingsModel,
+    // Whisper runs on any OpenAI key the system already has.
+    transcriptionApiKey:
+      embeddingsApiKey ??
+      (provider === 'openai' ? apiKey : null) ??
+      (platform?.provider === 'openai' ? platform.apiKey : null),
   }
 }
 

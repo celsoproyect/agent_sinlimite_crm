@@ -53,6 +53,10 @@ export interface AiConfig {
   /** Which OpenAI embeddings model to use (see lib/ai/models.ts) — always
    *  resolves to 1536 dims to match the `vector(1536)` column. */
   embeddingsModel: string
+  /** OpenAI key for voice-note transcription (Whisper): the embeddings
+   *  key, else the chat key when the provider is OpenAI (own or the
+   *  platform's). Null = voice notes can't be transcribed. */
+  transcriptionApiKey?: string | null
 }
 
 /**

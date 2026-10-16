@@ -82,7 +82,7 @@ export async function POST(request: Request) {
 
     const messages = await buildConversationContext(supabase, conversationId, {
       accountId,
-      embeddingsApiKey: config.embeddingsApiKey,
+      embeddingsApiKey: config.transcriptionApiKey ?? config.embeddingsApiKey,
     })
     // Nothing to draft from — a brand-new thread with no customer text
     // would otherwise produce a nonsensical reply-to-nothing.

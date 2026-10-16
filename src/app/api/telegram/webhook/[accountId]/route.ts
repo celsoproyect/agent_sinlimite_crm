@@ -3,7 +3,9 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/ai/admin-client'
 import { loadAiConfig } from '@/lib/ai/config'
 import { generateOpsReply } from '@/lib/ai/ops-assistant'
-import { sendTelegramMessage } from '@/lib/telegram/send'
+import { transcribeAudio } from '@/lib/ai/audio'
+import { sendTelegramChatAction, sendTelegramMessage } from '@/lib/telegram/send'
+import { downloadTelegramVoice, TelegramFileError, type TelegramVoice } from '@/lib/telegram/files'
 import { checkRateLimit, RATE_LIMITS } from '@/lib/rate-limit'
 import type { ChatMessage } from '@/lib/ai/types'
 import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
@@ -26,6 +28,13 @@ import { isModuleEnabled, type EnabledModules } from '@/lib/modules'
 //      or a bot token gets to talk to this assistant.
 //   3. `telegram_admin_chat_enabled` must be on.
 //
+// The owner can write or send a voice note (feature module
+// `telegram_voice`): it is transcribed with Whisper on the system's
+// OpenAI key (`config.transcriptionApiKey`: embeddings key, else the
+// OpenAI chat key, the account's or the platform's) and the
+// reply quotes what was understood. With `telegram_agenda` on, the
+// assistant can also book, move and cancel appointments.
+//
 // Every failure mode above (bad secret, unknown account, disabled,
 // wrong chat) responds 200 with no body and no further action —
 // never 404/403 — so a caller probing this endpoint can't learn which
@@ -39,8 +48,17 @@ interface TelegramUpdate {
   message?: {
     chat?: { id?: number | string }
     text?: string
+    caption?: string
+    voice?: TelegramVoice
+    audio?: TelegramVoice
   }
 }
+
+const VOICE_OFF = 'Las notas de voz no están activadas para esta cuenta. Escríbeme el mensaje, por favor.'
+const VOICE_NO_KEY = 'No puedo escuchar notas de voz porque no hay una clave de OpenAI configurada para transcribirlas. Escríbeme el mensaje, por favor.'
+const VOICE_TOO_LONG = 'La nota de voz es muy larga (máximo 5 minutos). Envíame una más corta o escríbeme.'
+const VOICE_FAILED = 'No pude escuchar esa nota de voz. Inténtalo de nuevo o escríbeme el mensaje.'
+const VOICE_EMPTY = 'No entendí nada en esa nota de voz. ¿Me la repites o me lo escribes?'
 
 function ok(): NextResponse {
   return new NextResponse(null, { status: 200 })
@@ -78,11 +96,19 @@ export async function POST(
     const chatId = update.message?.chat?.id
     if (chatId == null || String(chatId) !== String(account.telegram_chat_id)) return ok()
 
-    const text = typeof update.message?.text === 'string' ? update.message.text.trim() : ''
-    if (!text) return ok()
+    const message = update.message ?? {}
+    const typed = typeof message.text === 'string' ? message.text.trim() : typeof message.caption === 'string' ? message.caption.trim() : ''
+    const voice = !typed ? (message.voice ?? message.audio) : undefined
+    if (!typed && !voice?.file_id) return ok()
 
     const botToken = account.telegram_bot_token
     const chatIdStr = account.telegram_chat_id
+    const modules = account.enabled_modules as EnabledModules | null
+
+    if (voice && !isModuleEnabled(modules, 'telegram_voice')) {
+      await sendTelegramMessage({ botToken, chatId: chatIdStr, text: VOICE_OFF })
+      return ok()
+    }
 
     const limit = checkRateLimit(`telegram-admin:${accountId}`, RATE_LIMITS.telegramAdminChat)
     if (!limit.success) {
@@ -100,6 +126,30 @@ export async function POST(
       return ok()
     }
 
+    await sendTelegramChatAction({ botToken, chatId: chatIdStr, action: 'typing' })
+
+    let text = typed
+    if (voice) {
+      const voiceKey = config.transcriptionApiKey ?? config.embeddingsApiKey
+      if (!voiceKey) {
+        await sendTelegramMessage({ botToken, chatId: chatIdStr, text: VOICE_NO_KEY })
+        return ok()
+      }
+      try {
+        const audio = await downloadTelegramVoice(botToken, voice)
+        text = (await transcribeAudio(voiceKey, audio)).trim()
+      } catch (err) {
+        console.error('[telegram admin webhook] voice note failed:', err)
+        const tooLong = err instanceof TelegramFileError && err.code !== 'download_failed'
+        await sendTelegramMessage({ botToken, chatId: chatIdStr, text: tooLong ? VOICE_TOO_LONG : VOICE_FAILED })
+        return ok()
+      }
+      if (!text) {
+        await sendTelegramMessage({ botToken, chatId: chatIdStr, text: VOICE_EMPTY })
+        return ok()
+      }
+    }
+
     const truncated = text.slice(0, MAX_MESSAGE_LENGTH)
 
     const { data: pastTurns } = await db
@@ -115,7 +165,14 @@ export async function POST(
 
     let replyText: string
     try {
-      const result = await generateOpsReply({ db, accountId, config, history, userMessage: truncated })
+      const result = await generateOpsReply({
+        db,
+        accountId,
+        config,
+        history,
+        userMessage: truncated,
+        agenda: isModuleEnabled(modules, 'telegram_agenda'),
+      })
       replyText = result.text
     } catch (err) {
       console.error('[telegram admin webhook] generateOpsReply failed:', err)
@@ -132,7 +189,10 @@ export async function POST(
       { account_id: accountId, role: 'assistant', content: replyText },
     ])
 
-    await sendTelegramMessage({ botToken, chatId: chatIdStr, text: replyText })
+    // Quote what a voice note was understood as, so a misheard day or
+    // time is easy to spot.
+    const shown = voice ? `🎤 «${truncated}»\n\n${replyText}` : replyText
+    await sendTelegramMessage({ botToken, chatId: chatIdStr, text: shown })
     return ok()
   } catch (err) {
     console.error('[telegram admin webhook] failed:', err)
