@@ -122,7 +122,7 @@ export async function dispatchInboundToAiReply(
 
     const { data: conv, error: convErr } = await db
       .from('conversations')
-      .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count, last_ai_reply_at')
+      .select('assigned_agent_id, ai_autoreply_disabled, ai_reply_count, last_ai_reply_at, channel')
       .eq('id', conversationId)
       .maybeSingle()
     if (convErr || !conv) {
@@ -185,7 +185,11 @@ export async function dispatchInboundToAiReply(
       .select('name, phone')
       .eq('id', contactId)
       .maybeSingle()
-    const hasRealName = !!contactRow?.name && contactRow.name !== contactRow.phone
+    const isInstagram = conv.channel === 'instagram'
+    // Instagram contacts (migration 078) start as "@username" when Meta
+    // gives no profile name: that is a handle, not a name.
+    const hasRealName =
+      !!contactRow?.name && contactRow.name !== contactRow.phone && !(isInstagram && contactRow.name.startsWith('@'))
     // Module ai_qualification: name first (a WhatsApp profile name is
     // confirmed once), prequalification and guided selling.
     const qualificationCtx = contactRow ? await loadQualificationContext(db, accountId, contactId) : null
@@ -422,7 +426,7 @@ export async function dispatchInboundToAiReply(
           captured: capturedQualification,
           nameCaptured: !!customerName,
           contactName,
-          channel: 'WhatsApp',
+          channel: isInstagram ? 'Instagram' : 'WhatsApp',
           handoff: handoff || !text,
         })
       : null

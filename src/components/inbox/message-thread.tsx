@@ -1262,6 +1262,7 @@ export function MessageThread({
         <MessageComposer
           conversationId={conversation.id}
           sessionExpired={sessionInfo.expired}
+          templatesAvailable={conversation.channel !== "instagram"}
           onSend={handleSend}
           onTyping={handleTyping}
           onSendMedia={handleSendMedia}

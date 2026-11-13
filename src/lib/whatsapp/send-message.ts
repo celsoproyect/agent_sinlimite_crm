@@ -44,6 +44,13 @@ import {
 } from '@/lib/whatsapp/phone-utils';
 import type { MessageTemplate } from '@/types';
 import {
+  deliverInstagramMedia,
+  deliverInstagramText,
+  InstagramSendError,
+  loadInstagramRecipient,
+} from '@/lib/instagram/send';
+import { toInstagramText } from '@/lib/instagram/format';
+import {
   resolveTemplateRow,
   templateBodyParams,
   templateContentText,
@@ -231,6 +238,11 @@ export async function sendMessageToConversation(
 
   if (convError || !conversation) {
     throw new SendMessageError('not_found', 'Conversation not found', 404);
+  }
+
+  // Instagram conversations (migration 078) are answered by DM.
+  if (conversation.channel === 'instagram') {
+    return sendInstagramFromConversation(db, accountId, conversation, params);
   }
 
   const contact = conversation.contact;
@@ -557,4 +569,106 @@ export async function sendMessageToConversation(
   }
 
   return { messageId: messageRecord.id, whatsappMessageId: waMessageId };
+}
+
+/**
+ * The inbox's send for an Instagram conversation: text, media (sent
+ * first, then its caption) and buttons as quick replies. Instagram has
+ * no templates, and Meta only lets the business write within 24 hours
+ * of the customer's last message.
+ */
+async function sendInstagramFromConversation(
+  db: SupabaseClient,
+  accountId: string,
+  conversation: { id: string; contact_id: string },
+  params: SendMessageParams
+): Promise<SendMessageResult> {
+  const { messageType, contentText, mediaUrl, interactivePayload } = params;
+  if (messageType === 'template' || messageType === 'location') {
+    throw new SendMessageError(
+      'bad_request',
+      'Instagram no admite plantillas de WhatsApp ni ubicaciones.',
+      400
+    );
+  }
+
+  let mid = '';
+  let persistedText: string | null = null;
+  try {
+    const to = await loadInstagramRecipient(db, accountId, conversation.contact_id);
+    if ((MEDIA_KINDS as readonly string[]).includes(messageType)) {
+      const sent = await deliverInstagramMedia(to, messageType as MediaKind, mediaUrl!, contentText);
+      mid = sent.mediaMid;
+      persistedText = contentText ? toInstagramText(contentText) : null;
+    } else if (messageType === 'interactive') {
+      const p = interactivePayload!;
+      const choices =
+        p.kind === 'buttons'
+          ? p.buttons.map((b) => ({ title: b.title, payload: b.id }))
+          : p.sections.flatMap((sec) => sec.rows.map((r) => ({ title: r.title, payload: r.id })));
+      const mids = await deliverInstagramText(to, p.body, choices);
+      mid = mids[mids.length - 1] ?? '';
+      persistedText = toInstagramText(p.body);
+    } else {
+      const mids = await deliverInstagramText(to, contentText ?? '');
+      mid = mids[0] ?? '';
+      persistedText = toInstagramText(contentText ?? '');
+    }
+  } catch (err) {
+    if (err instanceof InstagramSendError) {
+      const status = err.code === 'window_closed' ? 409 : err.code === 'meta_error' ? 502 : 400;
+      throw new SendMessageError(err.code, err.message, status);
+    }
+    throw err;
+  }
+
+  const { data: messageRecord, error: msgError } = await db
+    .from('messages')
+    .insert({
+      conversation_id: conversation.id,
+      sender_type: 'agent',
+      content_type: messageType,
+      content_text: persistedText,
+      media_url: mediaUrl || null,
+      interactive_payload: messageType === 'interactive' ? interactivePayload : null,
+      message_id: mid || null,
+      status: 'sent',
+      reply_to_message_id: params.replyToMessageId || null,
+    })
+    .select()
+    .single();
+  if (msgError) {
+    throw new SendMessageError(
+      'db_error',
+      `Message sent to Instagram but failed to save to DB: ${msgError.message}`,
+      500
+    );
+  }
+
+  const now = new Date().toISOString();
+  await db
+    .from('conversations')
+    .update({
+      last_message_text:
+        messageType === 'interactive'
+          ? interactivePayloadPreviewText(interactivePayload!)
+          : persistedText || `[${messageType}]`,
+      last_message_at: now,
+      updated_at: now,
+    })
+    .eq('id', conversation.id);
+
+  // Same as WhatsApp: the agent stepping in pauses any active Flow run.
+  try {
+    await supabaseAdmin()
+      .from('flow_runs')
+      .update({ status: 'paused_by_agent', ended_at: now, end_reason: 'agent_replied' })
+      .eq('account_id', accountId)
+      .eq('contact_id', conversation.contact_id)
+      .eq('status', 'active');
+  } catch (err) {
+    console.error('[flows] pause-on-agent-send threw:', err instanceof Error ? err.message : err);
+  }
+
+  return { messageId: messageRecord.id, whatsappMessageId: mid };
 }

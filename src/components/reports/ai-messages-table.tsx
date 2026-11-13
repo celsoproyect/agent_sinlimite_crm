@@ -142,7 +142,7 @@ export function AiMessagesTable({ range, channel }: { range: DayRange; channel: 
                   {businessDate(row.createdAt).split("-").reverse().join("/")} · {businessTime(row.createdAt)}
                 </p>
                 <span className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
-                  {row.channel === "web" ? tr("channels.web") : tr("channels.whatsapp")}
+                  {row.channel === "web" || row.channel === "instagram" ? tr(`channels.${row.channel}`) : tr("channels.whatsapp")}
                 </span>
               </div>
               <div className="min-w-0 space-y-1 text-sm">

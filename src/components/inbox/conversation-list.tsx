@@ -10,7 +10,7 @@ import {
 import { cn } from "@/lib/utils";
 import { ContactAvatar } from "@/components/contacts/contact-avatar";
 import type { Conversation, ConversationStatus, Tag } from "@/types";
-import { Search, ChevronDown, X } from "lucide-react";
+import { Search, ChevronDown, X, Camera } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { useLocale, useTranslations } from "next-intl";
 import { es as esLocale } from "date-fns/locale";
@@ -499,12 +499,23 @@ function ConversationItem({
       )}
     >
       {/* Avatar */}
-      <ContactAvatar
-        name={displayName}
-        avatarUrl={contact?.avatar_url}
-        seed={contact?.id}
-        size="md"
-      />
+      <div className="relative shrink-0">
+        <ContactAvatar
+          name={displayName}
+          avatarUrl={contact?.avatar_url}
+          seed={contact?.id}
+          size="md"
+        />
+        {conversation.channel === "instagram" && (
+          <span
+            className="absolute -bottom-0.5 -right-0.5 flex size-4 items-center justify-center rounded-full bg-gradient-to-tr from-amber-400 via-pink-500 to-purple-600 ring-2 ring-background"
+            title="Instagram"
+            aria-label="Instagram"
+          >
+            <Camera className="size-2.5 text-white" />
+          </span>
+        )}
+      </div>
 
       {/* Content */}
       <div className="min-w-0 flex-1">

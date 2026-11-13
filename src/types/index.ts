@@ -178,6 +178,9 @@ export interface Conversation {
   user_id: string;
   contact_id: string;
   status: ConversationStatus;
+  /** Where the thread lives: WhatsApp (default), the web widget or
+   *  Instagram DMs (migration 078). */
+  channel?: 'whatsapp' | 'web' | 'instagram';
   assigned_agent_id?: string;
   /** When `assigned_agent_id` was last set — "claimed at", for the lock
    *  banner. Null/undefined when unassigned. Migration 046. */

@@ -13,10 +13,10 @@ import { businessDate } from '@/lib/business-timezone'
 import type { DayRange } from '@/lib/bookings/ranges'
 import { rangeDays, rangeInstants } from './range'
 
-export type ReportChannel = 'all' | 'whatsapp' | 'web'
+export type ReportChannel = 'all' | 'whatsapp' | 'web' | 'instagram'
 
 export function parseReportChannel(v: string | null): ReportChannel {
-  return v === 'whatsapp' || v === 'web' ? v : 'all'
+  return v === 'whatsapp' || v === 'web' || v === 'instagram' ? v : 'all'
 }
 
 export type SenderKind = 'customer' | 'ai' | 'human' | 'automation' | 'system'

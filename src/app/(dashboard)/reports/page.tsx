@@ -19,13 +19,15 @@ import type { ReportChannel, ReportOverview as Overview } from "@/lib/reports/ov
 import { ReportOverview } from "@/components/reports/report-overview";
 import { AiMessagesTable } from "@/components/reports/ai-messages-table";
 
-const CHANNELS: ReportChannel[] = ["all", "whatsapp", "web"];
 
 export default function ReportsPage() {
   const t = useTranslations("Reports");
   const { ready, loading: gateLoading } = useModuleGate("reports");
   const { account } = useAuth();
   const aiMessagesModule = isModuleEnabled(account?.enabled_modules, "ai_messages");
+  const channels: ReportChannel[] = isModuleEnabled(account?.enabled_modules, "instagram")
+    ? ["all", "whatsapp", "instagram", "web"]
+    : ["all", "whatsapp", "web"];
 
   const [preset, setPreset] = useState<ReportPreset | "custom">("week");
   const [range, setRange] = useState<DayRange>(() => presetRange("week"));
@@ -134,7 +136,7 @@ export default function ReportsPage() {
           </label>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-1 rounded-lg bg-muted/60 p-1 sm:ml-auto">
-          {CHANNELS.map((c) => (
+          {channels.map((c) => (
             <button
               key={c}
               type="button"

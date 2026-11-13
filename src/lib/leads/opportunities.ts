@@ -12,7 +12,7 @@ import type { Deal, Pipeline, PipelineStage } from '@/types'
 export type LeadStatus = 'open' | 'won' | 'lost'
 /** Where the contact came from: its first conversation's channel, or the
  *  web form when it only has a form submission. */
-export type LeadSource = 'whatsapp' | 'web' | 'form'
+export type LeadSource = 'whatsapp' | 'web' | 'instagram' | 'form'
 
 export interface LeadDeal extends Deal {
   /** status, falling back to the stage kind for old rows. */

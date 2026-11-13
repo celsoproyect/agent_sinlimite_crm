@@ -19,6 +19,13 @@ import {
 } from '@/lib/whatsapp/phone-utils'
 import { supabaseAdmin } from './admin-client'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import {
+  conversationChannel,
+  instagramEngineSendChoices,
+  instagramEngineSendMedia,
+  instagramEngineSendText,
+  instagramMarkRead,
+} from '@/lib/instagram/send'
 
 // ------------------------------------------------------------
 // Flows-side Meta sender (interactive variants).
@@ -125,6 +132,10 @@ export async function engineMarkRead(
   args: { accountId: string; conversationId: string; typing?: boolean },
 ): Promise<void> {
   try {
+    if ((await conversationChannel(db, args.conversationId)) === 'instagram') {
+      await instagramMarkRead(db, args)
+      return
+    }
     const { data: last } = await db
       .from('messages')
       .select('message_id')
@@ -191,6 +202,11 @@ export async function engineSendText(
   args: SendTextEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  // Instagram conversations (migration 078) go out as Instagram DMs.
+  if ((await conversationChannel(db, args.conversationId)) === 'instagram') {
+    return instagramEngineSendText(args)
+  }
 
   const contact = await loadSendableContact(db, args.contactId, args.accountId)
 
@@ -275,6 +291,10 @@ export async function engineSendMedia(
   args: SendMediaEngineArgs,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  if ((await conversationChannel(db, args.conversationId)) === 'instagram') {
+    return instagramEngineSendMedia(args)
+  }
 
   const contact = await loadSendableContact(db, args.contactId, args.accountId)
 
@@ -396,6 +416,26 @@ async function sendInteractiveViaMeta(
   input: SendInput,
 ): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  // Instagram has no buttons or lists: they go as quick replies.
+  if ((await conversationChannel(db, input.conversationId)) === 'instagram') {
+    return instagramEngineSendChoices({
+      ...input,
+      buttons: input.kind === 'buttons' ? input.buttons : undefined,
+      sections: input.kind === 'list' ? input.sections : undefined,
+      payload:
+        input.kind === 'buttons'
+          ? { kind: 'buttons', body: input.bodyText, header: input.headerText, footer: input.footerText, buttons: input.buttons }
+          : {
+              kind: 'list',
+              body: input.bodyText,
+              header: input.headerText,
+              footer: input.footerText,
+              button_label: input.buttonLabel,
+              sections: input.sections,
+            },
+    })
+  }
 
   // Scope the contact + whatsapp_config lookups by account_id —
   // same defense-in-depth rationale as automations/meta-send.ts.

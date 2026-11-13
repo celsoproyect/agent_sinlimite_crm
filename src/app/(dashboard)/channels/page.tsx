@@ -7,6 +7,7 @@ import { useModuleGate } from '@/hooks/use-module-gate';
 import { WidgetSettings } from '@/components/channels/widget-settings';
 import { LeadFormSettings } from '@/components/channels/lead-form-settings';
 import { TelegramSettings } from '@/components/channels/telegram-settings';
+import { InstagramSettings } from '@/components/channels/instagram-settings';
 import { useAuth } from '@/hooks/use-auth';
 import { isModuleEnabled } from '@/lib/modules';
 
@@ -14,6 +15,7 @@ export default function ChannelsPage() {
   const t = useTranslations('Channels.page');
   const { account, canEditSettings, profileLoading } = useAuth();
   const telegramModule = isModuleEnabled(account?.enabled_modules, 'telegram');
+  const instagramModule = isModuleEnabled(account?.enabled_modules, 'instagram');
   const { ready: moduleReady, loading: moduleGateLoading } = useModuleGate('channels');
 
   if (moduleGateLoading || !moduleReady || profileLoading) {
@@ -46,7 +48,10 @@ export default function ChannelsPage() {
       </div>
 
       <div className="space-y-10 divide-y divide-border">
-        <WidgetSettings />
+        {instagramModule && <InstagramSettings />}
+        <div className={instagramModule ? 'pt-8' : undefined}>
+          <WidgetSettings />
+        </div>
         <div className="pt-8">
           <LeadFormSettings />
         </div>

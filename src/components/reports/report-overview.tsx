@@ -44,7 +44,7 @@ export function ReportOverview({ overview, loading }: { overview: Overview | nul
     return t(`units.${unit}`, { n: value });
   };
   const channelLabel = (ch: string) =>
-    ch === "whatsapp" || ch === "web" ? t(`channels.${ch}`) : t("channels.other");
+    ch === "whatsapp" || ch === "web" || ch === "instagram" ? t(`channels.${ch}`) : t("channels.other");
 
   return (
     <div className="space-y-4">

@@ -4,6 +4,7 @@ import { autoLoseStaleDeals } from '@/lib/deals/auto-lose'
 import { sendDueWeeklySummaries } from '@/lib/reports/weekly-summary'
 import { checkPlanAlerts } from '@/lib/plans/alerts'
 import { reassignUnanswered } from '@/lib/assignment/server'
+import { refreshExpiringInstagramTokens } from '@/lib/instagram/connection'
 
 type Timers = Record<string, ReturnType<typeof setInterval> | undefined>
 
@@ -42,7 +43,9 @@ function every(key: string, seconds: number, job: () => Promise<unknown>) {
  * - plan alerts (80%/100% of a limit, expiring, past due, suspended)
  *   are checked every hour, deduped by `plan_alerts`;
  * - automatically assigned chats nobody answered in the owner's minutes
- *   move to the next teammate (module `auto_assign`), every minute.
+ *   move to the next teammate (module `auto_assign`), every minute;
+ * - Instagram tokens (60 days) are extended every 6 hours once they are
+ *   within 15 days of expiring (module `instagram`).
  */
 export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('automations', 60, async () => {
@@ -64,5 +67,9 @@ export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('reassign-unanswered', 60, async () => {
     const moved = await reassignUnanswered(getAdmin())
     if (moved > 0) console.log('[assignment] reassigned', moved)
+  })
+  every('instagram-tokens', 6 * 60 * 60, async () => {
+    const refreshed = await refreshExpiringInstagramTokens(getAdmin())
+    if (refreshed > 0) console.log('[instagram] refreshed tokens', refreshed)
   })
 }

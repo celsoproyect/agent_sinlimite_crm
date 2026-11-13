@@ -39,7 +39,8 @@
       "source": {
         "whatsapp": "WhatsApp",
         "web": "Web chat",
-        "form": "Web form"
+        "form": "Web form",
+        "instagram": "Instagram"
       },
       "dateField": "Date by",
       "dateCreated": "Created",
@@ -179,6 +180,7 @@
     "autoAssignModule": "Automatic chat assignment to the team",
     "primaryNav": "Primary navigation",
     "telegramVoiceModule": "Voice notes to the Telegram assistant",
+    "instagramModule": "Instagram (direct messages)",
     "telegramAgendaModule": "Book appointments from Telegram"
   },
   "Push": {
@@ -458,6 +460,7 @@
     "composer": {
       "draftHint": "Tap the ✨ to draft a reply with AI — you can edit it before sending",
       "sessionExpiredHint": "24-hour session expired. Use a template to re-engage.",
+      "instagramWindowHint": "Instagram's 24-hour window closed. You can reply once the customer writes again.",
       "templates": "Templates",
       "readOnlyPlaceholder": "Read-only — viewers can browse but not reply",
       "sessionExpiredPlaceholder": "Session expired - use a template",
@@ -1256,6 +1259,39 @@
       "weeklySendNow": "Send summary now",
       "weeklySent": "Summary sent to Telegram",
       "weeklySendFailed": "Couldn't send the summary"
+    },
+    "instagram": {
+      "title": "Instagram",
+      "description": "Connect the business's Instagram professional account: direct messages land in the inbox and the AI agent answers them.",
+      "accountTitle": "Instagram account",
+      "accountDesc": "Log in with the professional (business or creator) account you want to handle from here.",
+      "connect": "Connect Instagram",
+      "disconnect": "Disconnect",
+      "disconnectConfirm": "Disconnect Instagram? Conversations are kept, but new messages will stop arriving.",
+      "disconnected": "Instagram disconnected",
+      "connectedHint": "Connected. Direct messages land in the inbox.",
+      "migrationPending": "Migration 078 still has to be applied in Supabase.",
+      "notConfigured": "INSTAGRAM_APP_ID and INSTAGRAM_APP_SECRET are not set on the server.",
+      "aiTitle": "AI agent on Instagram",
+      "aiDesc": "The same agent as on WhatsApp answers direct messages, with its catalog, knowledge base and agenda.",
+      "aiSwitch": "Answer direct messages with AI",
+      "setupTitle": "Meta app settings",
+      "setupDesc": "Paste these addresses in Instagram → API setup with Instagram login.",
+      "webhookUrl": "Webhook URL",
+      "redirectUri": "OAuth redirect URI",
+      "windowNote": "Instagram only allows replies within 24 hours of the customer's last message.",
+      "copy": "Copy",
+      "copied": "Copied",
+      "saveFailed": "Couldn't save. Try again.",
+      "result": {
+        "connected": "Instagram connected",
+        "denied": "You declined the permission on Instagram.",
+        "error": "Couldn't connect Instagram. Try again.",
+        "forbidden": "Only the owner or an admin can connect Instagram.",
+        "not_configured": "Instagram is not configured on the server.",
+        "migration": "Migration 078 still has to be applied in Supabase.",
+        "in_use": "That Instagram account is already connected to another CRM account."
+      }
     }
   },
   "Pipelines": {
@@ -3320,7 +3356,8 @@
       "all": "All",
       "whatsapp": "WhatsApp",
       "web": "Web",
-      "other": "Other"
+      "other": "Other",
+      "instagram": "Instagram"
     },
     "loadFailed": "Couldn't load the report.",
     "units": {

@@ -474,7 +474,7 @@ const OPS_TOOLS: OpsTool[] = [
         if (!sourceByContact.has(c.contact_id)) sourceByContact.set(c.contact_id, c.channel || 'whatsapp')
       }
       const sourceLabel = (channel: string | undefined) =>
-        channel === 'web' ? 'web widget' : channel || 'added manually (no conversation)'
+        channel === 'web' ? 'web widget' : channel === 'instagram' ? 'Instagram' : channel || 'added manually (no conversation)'
 
       return {
         count: count ?? contacts.length,

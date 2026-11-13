@@ -113,7 +113,7 @@ async function loadSources(
     )
     for (const r of rows) {
       if (r.contact_id && !map.has(r.contact_id)) {
-        map.set(r.contact_id, r.channel === 'web' ? 'web' : 'whatsapp')
+        map.set(r.contact_id, r.channel === 'web' || r.channel === 'instagram' ? r.channel : 'whatsapp')
       }
     }
   }

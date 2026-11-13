@@ -39,7 +39,8 @@
       "source": {
         "whatsapp": "WhatsApp",
         "web": "Chat web",
-        "form": "Formulario web"
+        "form": "Formulario web",
+        "instagram": "Instagram"
       },
       "dateField": "Fecha por",
       "dateCreated": "Creación",
@@ -179,6 +180,7 @@
     "autoAssignModule": "Asignación automática de chats al equipo",
     "primaryNav": "Navegación principal",
     "telegramVoiceModule": "Notas de voz al asistente de Telegram",
+    "instagramModule": "Instagram (mensajes directos)",
     "telegramAgendaModule": "Agendar citas desde Telegram"
   },
   "Push": {
@@ -458,6 +460,7 @@
     "composer": {
       "draftHint": "Toca el ✨ para redactar una respuesta con IA — puedes editarla antes de enviarla",
       "sessionExpiredHint": "La sesión de 24 horas expiró. Usa una plantilla para reconectar.",
+      "instagramWindowHint": "La ventana de 24 horas de Instagram se cerró. Podrás responder cuando el cliente vuelva a escribir.",
       "templates": "Plantillas",
       "readOnlyPlaceholder": "Solo lectura — los visores pueden explorar pero no responder",
       "sessionExpiredPlaceholder": "Sesión expirada - usa una plantilla",
@@ -1256,6 +1259,39 @@
       "weeklySendNow": "Enviar resumen ahora",
       "weeklySent": "Resumen enviado a Telegram",
       "weeklySendFailed": "No se pudo enviar el resumen"
+    },
+    "instagram": {
+      "title": "Instagram",
+      "description": "Conecta la cuenta profesional de Instagram del negocio: los mensajes directos llegan a la bandeja de entrada y el agente de IA los responde.",
+      "accountTitle": "Cuenta de Instagram",
+      "accountDesc": "Inicia sesión con la cuenta profesional (empresa o creador) que quieres atender desde aquí.",
+      "connect": "Conectar Instagram",
+      "disconnect": "Desconectar",
+      "disconnectConfirm": "¿Desconectar Instagram? Las conversaciones se conservan, pero dejarán de llegar mensajes nuevos.",
+      "disconnected": "Instagram desconectado",
+      "connectedHint": "Conectada. Los mensajes directos llegan a la bandeja de entrada.",
+      "migrationPending": "Falta aplicar la migración 078 en Supabase.",
+      "notConfigured": "Falta configurar INSTAGRAM_APP_ID e INSTAGRAM_APP_SECRET en el servidor.",
+      "aiTitle": "Agente de IA en Instagram",
+      "aiDesc": "El mismo agente de WhatsApp responde los mensajes directos, con su catálogo, base de conocimiento y agenda.",
+      "aiSwitch": "Responder mensajes directos con IA",
+      "setupTitle": "Datos para la app de Meta",
+      "setupDesc": "Pega estas direcciones en Instagram → Configuración de la API con inicio de sesión de Instagram.",
+      "webhookUrl": "URL del webhook",
+      "redirectUri": "URI de redirección de OAuth",
+      "windowNote": "Instagram solo permite responder dentro de las 24 horas siguientes al último mensaje del cliente.",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "saveFailed": "No se pudo guardar. Intenta de nuevo.",
+      "result": {
+        "connected": "Instagram conectado",
+        "denied": "Cancelaste el permiso en Instagram.",
+        "error": "No se pudo conectar Instagram. Intenta de nuevo.",
+        "forbidden": "Solo el propietario o un administrador puede conectar Instagram.",
+        "not_configured": "Instagram no está configurado en el servidor.",
+        "migration": "Falta aplicar la migración 078 en Supabase.",
+        "in_use": "Esa cuenta de Instagram ya está conectada a otra cuenta del CRM."
+      }
     }
   },
   "Pipelines": {
@@ -3320,7 +3356,8 @@
       "all": "Todos",
       "whatsapp": "WhatsApp",
       "web": "Web",
-      "other": "Otros"
+      "other": "Otros",
+      "instagram": "Instagram"
     },
     "loadFailed": "No se pudo cargar el reporte.",
     "units": {

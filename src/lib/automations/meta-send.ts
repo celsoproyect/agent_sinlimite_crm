@@ -12,6 +12,7 @@ import {
   templateContentText,
 } from '@/lib/whatsapp/template-body'
 import { supabaseAdmin } from './admin-client'
+import { conversationChannel, instagramEngineSendText } from '@/lib/instagram/send'
 
 // ------------------------------------------------------------
 // Automation-side Meta sender.
@@ -107,6 +108,13 @@ type SendInput =
 
 async function sendViaMeta(input: SendInput): Promise<{ whatsapp_message_id: string }> {
   const db = supabaseAdmin()
+
+  // Instagram conversations (migration 078): text goes as a DM; WhatsApp
+  // templates don't exist there.
+  if ((await conversationChannel(db, input.conversationId)) === 'instagram') {
+    if (input.kind === 'template') throw new Error('Instagram conversations cannot receive WhatsApp templates')
+    return instagramEngineSendText(input)
+  }
 
   // Scope the contact + config lookups by account_id, not user_id.
   // The engine uses the service-role client (bypassing RLS); without

@@ -38,6 +38,9 @@
 // the property inventory the AI searches by zone, budget, rooms and
 // amenities, and visits booked with each property's advisor (the
 // professionals, managed on that page). Starts OFF.
+// `instagram` connects an Instagram professional account (migration 078,
+// Canales → Instagram): its DMs land in the inbox and the AI agent,
+// flows and automations answer them. Starts OFF.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -53,6 +56,7 @@ export const MODULE_KEYS = [
   "telegram",
   "telegram_voice",
   "telegram_agenda",
+  "instagram",
   "widget_booking",
   "google_calendar",
   "web_push",
@@ -84,6 +88,7 @@ export const DEFAULT_OFF_MODULES: ReadonlySet<ModuleKey> = new Set<ModuleKey>([
   "restaurant",
   "events",
   "properties",
+  "instagram",
 ]);
 
 /** Missing key = enabled, except for DEFAULT_OFF_MODULES, which need an
