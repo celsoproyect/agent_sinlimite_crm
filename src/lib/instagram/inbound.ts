@@ -1,7 +1,5 @@
-import { createHash } from 'node:crypto'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { supabaseAdmin } from '@/lib/flows/admin-client'
-import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import { reopenClosedConversation } from '@/lib/conversations/reopen'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
@@ -9,17 +7,18 @@ import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
 import { assignChatWithoutAi } from '@/lib/assignment/server'
 import { isAiBookingSlotReply } from '@/lib/ai/providers/shared'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
-import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
 import { accountModuleEnabled } from '@/lib/modules-server'
-import { fetchInstagramUser } from './api'
+import { findOrCreateContact, findOrCreateConversation, mirrorUrl, saveSource } from './contacts'
 import { findInstagramConnectionByIgUser, type InstagramConnection } from './connection'
 import { wasSentByUs } from './send'
+import { deliverPendingRuleContent, processInstagramComments } from './comments'
+import { ruleIdFromPayload } from './keywords'
 import {
   describeInstagramEvent,
+  parseInstagramComments,
   parseInstagramEntry,
   referralSource,
   type InstagramEvent,
-  type InstagramSource,
   type InstagramWebhookBody,
 } from './webhook'
 
@@ -40,9 +39,9 @@ export async function processInstagramWebhook(body: InstagramWebhookBody): Promi
   const db = supabaseAdmin()
   const echoes: Promise<void>[] = []
   for (const entry of body.entry ?? []) {
-    // Comments (entry.changes) arrive here too; phase 2 handles them.
     const events = parseInstagramEntry(entry)
-    if (events.length === 0) continue
+    const hasComments = (entry.changes ?? []).some((c) => c.field === 'comments')
+    if (events.length === 0 && !hasComments) continue
     const conn = await findInstagramConnectionByIgUser(db, entry.id)
     if (!conn) {
       console.warn('[instagram] webhook for an unconnected account:', entry.id)
@@ -55,6 +54,9 @@ export async function processInstagramWebhook(body: InstagramWebhookBody): Promi
       const { data: account } = await db.from('accounts').select('owner_user_id').eq('id', conn.accountId).maybeSingle()
       conn.connectedBy = (account?.owner_user_id as string | undefined) ?? null
     }
+    // Comments on posts and reels: keyword rules (phase 2).
+    const comments = hasComments ? parseInstagramComments(entry, conn.username) : []
+    if (comments.length > 0) await processInstagramComments(db, conn, comments)
     for (const event of events) {
       try {
         if (event.kind === 'echo') echoes.push(handleEcho(db, conn, event))
@@ -67,132 +69,6 @@ export async function processInstagramWebhook(body: InstagramWebhookBody): Promi
     }
   }
   await Promise.all(echoes)
-}
-
-interface ContactRow {
-  id: string
-  name: string | null
-  instagram_username: string | null
-  avatar_url: string | null
-}
-
-async function findOrCreateContact(
-  db: SupabaseClient,
-  conn: InstagramConnection,
-  igsid: string,
-): Promise<{ contact: ContactRow; created: boolean } | null> {
-  const find = async () => {
-    const { data, error } = await db
-      .from('contacts')
-      .select('id, name, instagram_username, avatar_url')
-      .eq('account_id', conn.accountId)
-      .eq('instagram_id', igsid)
-      .maybeSingle()
-    if (error) console.error('[instagram] contact lookup failed:', error)
-    return (data as ContactRow | null) ?? null
-  }
-
-  const existing = await find()
-  if (existing) {
-    // Keep the handle fresh: people rename their Instagram accounts.
-    if (!existing.instagram_username) {
-      const profile = await fetchInstagramUser(conn.accessToken, igsid)
-      if (profile?.username) {
-        await db.from('contacts').update({ instagram_username: profile.username }).eq('id', existing.id)
-      }
-    }
-    return { contact: existing, created: false }
-  }
-
-  const profile = await fetchInstagramUser(conn.accessToken, igsid)
-  const name = profile?.name || (profile?.username ? `@${profile.username}` : 'Cliente de Instagram')
-  const avatar = profile?.profilePic
-    ? await mirrorUrl(conn.accountId, `avatar-${igsid}`, profile.profilePic, null)
-    : null
-  const { data, error } = await db
-    .from('contacts')
-    .insert({
-      account_id: conn.accountId,
-      user_id: conn.connectedBy,
-      phone: '',
-      name,
-      instagram_id: igsid,
-      instagram_username: profile?.username ?? null,
-      avatar_url: avatar,
-    })
-    .select('id, name, instagram_username, avatar_url')
-    .single()
-  if (error) {
-    if (isUniqueViolation(error)) {
-      const raced = await find()
-      if (raced) return { contact: raced, created: false }
-    }
-    console.error('[instagram] creating the contact failed:', error)
-    return null
-  }
-  return { contact: data as ContactRow, created: true }
-}
-
-async function findOrCreateConversation(
-  db: SupabaseClient,
-  conn: InstagramConnection,
-  contactId: string,
-): Promise<{ conversation: { id: string; status: string | null }; created: boolean } | null> {
-  const find = async () => {
-    const { data } = await db
-      .from('conversations')
-      .select('id, status')
-      .eq('account_id', conn.accountId)
-      .eq('contact_id', contactId)
-      .order('created_at', { ascending: true })
-      .limit(1)
-    return data?.[0] ?? null
-  }
-  const existing = await find()
-  if (existing) return { conversation: existing, created: false }
-  const { data, error } = await db
-    .from('conversations')
-    .insert({ account_id: conn.accountId, user_id: conn.connectedBy, contact_id: contactId, channel: 'instagram' })
-    .select('id, status')
-    .single()
-  if (error) {
-    if (isUniqueViolation(error)) {
-      const raced = await find()
-      if (raced) return { conversation: raced, created: false }
-    }
-    console.error('[instagram] creating the conversation failed:', error)
-    return null
-  }
-  return { conversation: data, created: true }
-}
-
-/** Instagram CDN links expire; copy the file into `chat-media`. Falls back to the CDN link. */
-async function mirrorUrl(accountId: string, key: string, url: string, timestamp: number | null): Promise<string> {
-  const mediaId = createHash('sha256').update(key).digest('hex').slice(0, 16)
-  const mirrored = await mirrorInboundMedia({
-    storage: supabaseAdmin().storage,
-    accountId,
-    mediaId,
-    downloadUrl: url,
-    accessToken: '',
-    messageTimestamp: timestamp ? Math.floor(timestamp / 1000) : null,
-    download: async ({ downloadUrl }) => {
-      const res = await fetch(downloadUrl)
-      if (!res.ok) throw new Error(`Instagram media download failed: ${res.status}`)
-      return {
-        buffer: Buffer.from(await res.arrayBuffer()),
-        contentType: res.headers.get('content-type') || 'application/octet-stream',
-      }
-    },
-  })
-  return mirrored ?? url
-}
-
-/** Remembers the latest origin (post, reel, story, ad) on the conversation. */
-async function saveSource(db: SupabaseClient, conversationId: string, source: InstagramSource | null): Promise<void> {
-  if (!source) return
-  const { error } = await db.from('conversations').update({ source }).eq('id', conversationId)
-  if (error && error.code !== '42703') console.error('[instagram] saving the source failed:', error)
 }
 
 async function handleCustomerEvent(
@@ -277,6 +153,32 @@ async function handleCustomerEvent(
   const inboundText = parts.map((p) => p.contentText).filter(Boolean).join('\n')
   const interactiveReplyId = first.interactiveReplyId
   const userId = conn.connectedBy ?? ''
+
+  // The answer to a keyword rule's opening DM (its button, or anything
+  // typed back): the window is open now, so the rule's content goes out
+  // and stands in for the agent's reply to this message.
+  const tappedRuleId = ruleIdFromPayload(interactiveReplyId)
+  const deliveredRule = await deliverPendingRuleContent(db, {
+    accountId: conn.accountId,
+    igsid: event.igsid,
+    contactId: contact.id,
+    conversationId: conversation.id,
+    tappedRuleId,
+  }).catch((err) => {
+    console.error('[instagram] delivering the rule content failed:', err)
+    return false
+  })
+  if (tappedRuleId || deliveredRule) {
+    await dispatchWebhookEvent(db, conn.accountId, 'message.received', {
+      conversation_id: conversation.id,
+      contact_id: contact.id,
+      whatsapp_message_id: first.mid,
+      content_type: first.contentType,
+      text: inboundText || null,
+      channel: 'instagram',
+    })
+    return
+  }
 
   const flowResult = await dispatchInboundToFlows({
     accountId: conn.accountId,

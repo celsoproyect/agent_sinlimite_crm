@@ -283,3 +283,94 @@ export async function sendInstagramSenderAction(
     console.warn(`[instagram] ${action} failed:`, err instanceof Error ? err.message : err)
   }
 }
+
+// ---- Phase 2: posts and comments ----------------------------------
+
+export interface InstagramMedia {
+  id: string
+  caption: string | null
+  mediaType: string | null
+  mediaProductType: string | null
+  permalink: string | null
+  mediaUrl: string | null
+  thumbnailUrl: string | null
+  timestamp: string | null
+}
+
+const MEDIA_FIELDS = 'id,caption,media_type,media_product_type,permalink,media_url,thumbnail_url,timestamp'
+
+function toMedia(raw: Record<string, unknown>): InstagramMedia {
+  return {
+    id: String(raw.id),
+    caption: (raw.caption as string) ?? null,
+    mediaType: (raw.media_type as string) ?? null,
+    mediaProductType: (raw.media_product_type as string) ?? null,
+    permalink: (raw.permalink as string) ?? null,
+    mediaUrl: (raw.media_url as string) ?? null,
+    thumbnailUrl: (raw.thumbnail_url as string) ?? null,
+    timestamp: (raw.timestamp as string) ?? null,
+  }
+}
+
+/** The account's latest posts and reels, newest first (up to `max`). */
+export async function listInstagramMedia(accessToken: string, max = 100): Promise<InstagramMedia[]> {
+  const out: InstagramMedia[] = []
+  let after: string | null = null
+  while (out.length < max) {
+    const query: Record<string, string> = { fields: MEDIA_FIELDS, limit: String(Math.min(50, max - out.length)) }
+    if (after) query.after = after
+    const json = await graph('me/media', accessToken, { query })
+    const data = (json.data as Record<string, unknown>[] | undefined) ?? []
+    out.push(...data.map(toMedia))
+    const paging = json.paging as { cursors?: { after?: string }; next?: string } | undefined
+    after = paging?.next ? (paging.cursors?.after ?? null) : null
+    if (!after || data.length === 0) break
+  }
+  return out
+}
+
+/** One post or reel by id, or null when it can't be read. */
+export async function fetchInstagramMedia(accessToken: string, mediaId: string): Promise<InstagramMedia | null> {
+  try {
+    return toMedia(await graph(mediaId, accessToken, { query: { fields: MEDIA_FIELDS } }))
+  } catch (err) {
+    console.warn('[instagram] media lookup failed:', err instanceof Error ? err.message : err)
+    return null
+  }
+}
+
+/** A public reply under a comment. Returns the new comment's id. */
+export async function replyToInstagramComment(accessToken: string, commentId: string, message: string): Promise<string> {
+  const json = await graph(`${commentId}/replies`, accessToken, { method: 'POST', query: { message } })
+  return String(json.id ?? '')
+}
+
+/**
+ * The one private DM Meta allows per comment (within 7 days of it). The
+ * reply lands in the customer's message requests; once they answer, the
+ * 24h window is open like any DM. Returns the message id and the
+ * customer's IGSID.
+ */
+export async function sendInstagramPrivateReply(
+  accessToken: string,
+  commentId: string,
+  message: Extract<InstagramOutbound, { kind: 'text' }>,
+): Promise<{ mid: string; recipientId: string | null }> {
+  const body = {
+    recipient: { comment_id: commentId },
+    message: {
+      text: message.text,
+      ...(message.quickReplies?.length
+        ? {
+            quick_replies: message.quickReplies.slice(0, 13).map((q) => ({
+              content_type: 'text',
+              title: q.title.slice(0, 20),
+              payload: q.payload,
+            })),
+          }
+        : {}),
+    },
+  }
+  const json = await graph('me/messages', accessToken, { method: 'POST', body })
+  return { mid: String(json.message_id ?? ''), recipientId: (json.recipient_id as string) ?? null }
+}

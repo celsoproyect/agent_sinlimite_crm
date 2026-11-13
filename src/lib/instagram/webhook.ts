@@ -63,7 +63,7 @@ export interface InstagramAttachment {
 
 /** Where the customer came from, kept on `conversations.source` (migration 078). */
 export interface InstagramSource {
-  type: 'story_reply' | 'story_mention' | 'shared_post' | 'shared_reel' | 'ad' | 'link'
+  type: 'story_reply' | 'story_mention' | 'shared_post' | 'shared_reel' | 'ad' | 'link' | 'comment'
   id?: string | null
   url?: string | null
   title?: string | null
@@ -151,6 +151,53 @@ export function parseInstagramEntry(entry: InstagramWebhookEntry): InstagramEven
     } else if (m.read?.mid) {
       out.push({ kind: 'read', igsid: sender, mid: m.read.mid })
     }
+  }
+  return out
+}
+
+/** A comment on one of the account's posts or reels (`changes`, field `comments`). */
+export interface InstagramComment {
+  commentId: string
+  mediaId: string | null
+  mediaProductType: string | null
+  parentId: string | null
+  igsid: string
+  username: string | null
+  text: string
+}
+
+interface RawCommentValue {
+  id?: string
+  text?: string
+  parent_id?: string
+  from?: { id?: string; username?: string; self_ig_scoped_id?: string }
+  media?: { id?: string; media_product_type?: string }
+}
+
+/**
+ * The comments in one entry. The account's own comments (its public
+ * replies come back as webhooks too) are dropped.
+ */
+export function parseInstagramComments(
+  entry: InstagramWebhookEntry,
+  ownUsername?: string | null,
+): InstagramComment[] {
+  const out: InstagramComment[] = []
+  for (const change of entry.changes ?? []) {
+    if (change.field !== 'comments') continue
+    const v = (change.value ?? {}) as RawCommentValue
+    const from = v.from?.id
+    if (!v.id || !from || from === entry.id) continue
+    if (ownUsername && v.from?.username && v.from.username.toLowerCase() === ownUsername.toLowerCase()) continue
+    out.push({
+      commentId: v.id,
+      mediaId: v.media?.id ?? null,
+      mediaProductType: v.media?.media_product_type ?? null,
+      parentId: v.parent_id ?? null,
+      igsid: from,
+      username: v.from?.username ?? null,
+      text: v.text ?? '',
+    })
   }
   return out
 }

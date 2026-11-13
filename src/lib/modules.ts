@@ -41,6 +41,9 @@
 // `instagram` connects an Instagram professional account (migration 078,
 // Canales → Instagram): its DMs land in the inbox and the AI agent,
 // flows and automations answer them. Starts OFF.
+// Its page /instagram holds the posts, keyword rules and comment log.
+// `instagram_comments` (on top of it) answers comments that match a
+// keyword rule with a public reply and a private DM (migration 079).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -57,6 +60,7 @@ export const MODULE_KEYS = [
   "telegram_voice",
   "telegram_agenda",
   "instagram",
+  "instagram_comments",
   "widget_booking",
   "google_calendar",
   "web_push",
