@@ -76,7 +76,6 @@ export function buildInstagramAuthUrl(state: string): string {
     response_type: 'code',
     scope: INSTAGRAM_SCOPES.join(','),
     enable_fb_login: '0',
-    force_reauth: 'true',
     state,
   })
   return `${AUTH_URL}?${params.toString()}`
