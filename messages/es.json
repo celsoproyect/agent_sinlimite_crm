@@ -1261,6 +1261,8 @@
       "weeklySendFailed": "No se pudo enviar el resumen"
     },
     "instagram": {
+      "loadFailed": "No se pudo cargar el estado de Instagram.",
+      "retry": "Reintentar",
       "title": "Instagram",
       "description": "Conecta la cuenta profesional de Instagram del negocio: los mensajes directos llegan a la bandeja de entrada y el agente de IA los responde.",
       "accountTitle": "Cuenta de Instagram",

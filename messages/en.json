@@ -1261,6 +1261,8 @@
       "weeklySendFailed": "Couldn't send the summary"
     },
     "instagram": {
+      "loadFailed": "Couldn't load the Instagram status.",
+      "retry": "Retry",
       "title": "Instagram",
       "description": "Connect the business's Instagram professional account: direct messages land in the inbox and the AI agent answers them.",
       "accountTitle": "Instagram account",
