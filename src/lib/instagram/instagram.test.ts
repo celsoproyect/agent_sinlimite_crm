@@ -138,3 +138,12 @@ describe('sent mid registry', () => {
     expect(wasSentByUs('mid-b', 0)).toBe(false)
   })
 })
+
+describe('withChannel', () => {
+  it('labels Instagram chats in alerts', async () => {
+    const { withChannel } = await import('@/lib/assignment/server')
+    expect(withChannel('Fanny', 'instagram')).toBe('Fanny (Instagram)')
+    expect(withChannel('Fanny', 'whatsapp')).toBe('Fanny')
+    expect(withChannel('Fanny', null)).toBe('Fanny')
+  })
+})

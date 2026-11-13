@@ -225,7 +225,7 @@ export async function assignChatWithoutAi(
     if (!settings?.assign_when_ai_off) return
     const { data: conv } = await db
       .from('conversations')
-      .select('assigned_agent_id, status, last_message_text, contact:contacts(name, phone)')
+      .select('assigned_agent_id, status, last_message_text, channel, contact:contacts(name, phone)')
       .eq('id', args.conversationId)
       .maybeSingle()
     if (!conv || conv.assigned_agent_id || conv.status === 'closed') return
@@ -236,13 +236,19 @@ export async function assignChatWithoutAi(
       accountId: args.accountId,
       conversationId: args.conversationId,
       contactId: args.contactId,
-      contactName: contact?.name || contact?.phone || 'Un cliente',
+      contactName: withChannel(contact?.name || contact?.phone || 'Un cliente', conv.channel),
       reason: 'new_chat',
       summary: conv.last_message_text ? `Último mensaje: ${conv.last_message_text}` : null,
     })
   } catch (err) {
     console.error('[assignment] new-chat assign failed:', err)
   }
+}
+
+/** Instagram chats are named as such in alerts: their contacts have no
+ *  phone, so the name alone doesn't say which inbox to open. */
+export function withChannel(name: string, channel: string | null | undefined): string {
+  return channel === 'instagram' ? `${name} (Instagram)` : name
 }
 
 interface StaleRow {
@@ -253,6 +259,7 @@ interface StaleRow {
   assignment_attempts: number
   assignment_reason: AssignmentReason | null
   ai_handoff_summary: string | null
+  channel?: string | null
   contact: { name: string | null; phone: string | null } | { name: string | null; phone: string | null }[] | null
 }
 
@@ -292,7 +299,7 @@ export async function reassignUnanswered(db: SupabaseClient, now: Date = new Dat
     const { data: stale } = await db
       .from('conversations')
       .select(
-        'id, contact_id, assigned_agent_id, locked_at, assignment_attempts, assignment_reason, ai_handoff_summary, contact:contacts(name, phone)',
+        'id, contact_id, assigned_agent_id, locked_at, assignment_attempts, assignment_reason, ai_handoff_summary, channel, contact:contacts(name, phone)',
       )
       .eq('account_id', acct.id)
       .eq('auto_assigned', true)
@@ -322,7 +329,7 @@ async function moveOne(
   now: Date,
 ): Promise<boolean> {
   const contact = Array.isArray(conv.contact) ? conv.contact[0] : conv.contact
-  const contactName = contact?.name || contact?.phone || 'Un cliente'
+  const contactName = withChannel(contact?.name || contact?.phone || 'Un cliente', conv.channel)
   // Stop watching: the attempts stay as they are, so this doesn't count
   // as a manual change for the reset trigger.
   const stopWatching = () =>

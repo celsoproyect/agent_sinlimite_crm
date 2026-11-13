@@ -66,7 +66,10 @@ export async function loadInstagramRecipient(
   accountId: string,
   contactId: string,
 ): Promise<InstagramRecipient> {
-  const conn = await loadInstagramConnection(db, accountId)
+  // The connection holds the token, so its table is service-role only
+  // (RLS without policies): a user-scoped client (the inbox send) would
+  // read nothing. The caller has already scoped the account.
+  const conn = await loadInstagramConnection(supabaseAdmin(), accountId)
   if (!conn) throw new InstagramSendError('Instagram no está conectado en esta cuenta', 'not_connected')
   const { data: contact } = await db
     .from('contacts')

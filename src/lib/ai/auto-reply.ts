@@ -480,6 +480,9 @@ export async function dispatchInboundToAiReply(
       // The prequalification travels with the alert, so whoever takes
       // over knows who the customer is and what they want.
       const qualificationBlock = formatQualificationBlock(qualification, contactName)
+      // Alerts say where the chat is: Instagram contacts have no phone,
+      // so the name alone doesn't tell the team which inbox to open.
+      const alertName = isInstagram ? `${contactName} (Instagram)` : contactName
       const summary = qualificationBlock ? `${baseSummary}\n\n${qualificationBlock}` : baseSummary
       // Loud on purpose: "the bot handed off and I don't know why" is the
       // hardest thing to diagnose from the outside, and `reason` says
@@ -508,7 +511,7 @@ export async function dispatchInboundToAiReply(
       // teammate in the rotation gets the chat and the summary.
       const assigned = conv.assigned_agent_id
         ? null
-        : await autoAssignConversation(db, { accountId, conversationId, contactId, contactName, reason, summary })
+        : await autoAssignConversation(db, { accountId, conversationId, contactId, contactName: alertName, reason, summary })
       const update: Record<string, unknown> = {
         ai_autoreply_disabled: true,
         ai_handoff_summary: summary,
@@ -523,7 +526,7 @@ export async function dispatchInboundToAiReply(
         accountId,
         conversationId,
         contactId,
-        contactName,
+        contactName: alertName,
         summary,
         reason,
         assignedTo: assigned ? assigned.name : null,

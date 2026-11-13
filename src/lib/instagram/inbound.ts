@@ -6,6 +6,7 @@ import { reopenClosedConversation } from '@/lib/conversations/reopen'
 import { runAutomationsForTrigger } from '@/lib/automations/engine'
 import { dispatchInboundToFlows } from '@/lib/flows/engine'
 import { dispatchInboundToAiReply } from '@/lib/ai/auto-reply'
+import { assignChatWithoutAi } from '@/lib/assignment/server'
 import { isAiBookingSlotReply } from '@/lib/ai/providers/shared'
 import { dispatchWebhookEvent } from '@/lib/webhooks/deliver'
 import { mirrorInboundMedia } from '@/lib/whatsapp/mirror-inbound-media'
@@ -310,17 +311,22 @@ async function handleCustomerEvent(
 
   const understandable = parts.some((p) => ['image', 'audio', 'document'].includes(p.contentType))
   if (
-    conn.aiEnabled &&
     !flowResult.consumed &&
     (!interactiveReplyId || isAiBookingSlotReply(interactiveReplyId)) &&
     (inboundText.trim() || understandable)
   ) {
-    await dispatchInboundToAiReply({
-      accountId: conn.accountId,
-      conversationId: conversation.id,
-      contactId: contact.id,
-      configOwnerUserId: userId,
-    })
+    if (conn.aiEnabled) {
+      await dispatchInboundToAiReply({
+        accountId: conn.accountId,
+        conversationId: conversation.id,
+        contactId: contact.id,
+        configOwnerUserId: userId,
+      })
+    } else {
+      // The AI is off for Instagram: like WhatsApp with the AI off, a
+      // teammate gets the chat when `assign_when_ai_off` is set.
+      await assignChatWithoutAi(db, { accountId: conn.accountId, conversationId: conversation.id, contactId: contact.id })
+    }
   }
 
   await dispatchWebhookEvent(db, conn.accountId, 'message.received', {
