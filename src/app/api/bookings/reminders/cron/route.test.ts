@@ -74,6 +74,11 @@ const { resolveAuditUserId, FakeContactError } = vi.hoisted(() => ({
 }))
 vi.mock('@/lib/api/v1/contacts', () => ({ resolveAuditUserId, ContactError: FakeContactError }))
 
+const { conversationChannel } = vi.hoisted(() => ({
+  conversationChannel: vi.fn<(...args: unknown[]) => Promise<string>>(async () => 'whatsapp'),
+}))
+vi.mock('@/lib/instagram/send', () => ({ conversationChannel }))
+
 import { GET } from './route'
 
 function req(secret: string | null) {
@@ -86,6 +91,7 @@ describe('GET /api/bookings/reminders/cron', () => {
   beforeEach(() => {
     process.env.AUTOMATION_CRON_SECRET = 'cron-secret'
     dueRows = [{ ...BASE_ROW }]
+    conversationChannel.mockImplementation(async () => 'whatsapp')
     claimShouldConflict = false
     claimedInserts.length = 0
     sendUpdates.length = 0
@@ -149,6 +155,32 @@ describe('GET /api/bookings/reminders/cron', () => {
     expect(engineSendText).toHaveBeenCalledWith(
       expect.objectContaining({ conversationId: 'conv-1', text: 'Ref CITA-3F9A2C' }),
     )
+  })
+
+  it('reminds an Instagram booking on WhatsApp at the customer phone', async () => {
+    conversationChannel.mockImplementation(async () => 'instagram')
+    resolveConversationByPhone.mockResolvedValueOnce({
+      conversationId: 'conv-wa',
+      contactId: 'contact-wa',
+      contactCreated: true,
+    })
+    dueRows = [{ ...BASE_ROW, contact_name: '@ana.ig', contact_phone: '+18095551234' }]
+    const json = await (await GET(req('cron-secret'))).json()
+
+    expect(json).toEqual({ processed: 1, sent: 1, failed: 0 })
+    expect(resolveConversationByPhone).toHaveBeenCalledWith(expect.anything(), 'acct-1', '+18095551234', undefined)
+    expect(engineSendText).toHaveBeenCalledWith(
+      expect.objectContaining({ conversationId: 'conv-wa', contactId: 'contact-wa' }),
+    )
+  })
+
+  it('fails an Instagram booking with no phone instead of sending on Instagram', async () => {
+    conversationChannel.mockImplementation(async () => 'instagram')
+    dueRows = [{ ...BASE_ROW, contact_phone: '' }]
+    const json = await (await GET(req('cron-secret'))).json()
+
+    expect(json).toEqual({ processed: 1, sent: 0, failed: 1 })
+    expect(engineSendText).not.toHaveBeenCalled()
   })
 
   it('resolves a conversation when the booking has none', async () => {

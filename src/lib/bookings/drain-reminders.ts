@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { engineSendText, engineSendTemplate } from '@/lib/automations/meta-send'
 import { resolveConversationByPhone } from '@/lib/whatsapp/resolve-conversation'
+import { conversationChannel } from '@/lib/instagram/send'
 import { resolveAuditUserId, ContactError } from '@/lib/api/v1/contacts'
 import { isUniqueViolation } from '@/lib/contacts/dedupe'
 import { bookingReference } from '@/lib/bookings/reference'
@@ -140,6 +141,17 @@ async function venueVars(admin: SupabaseClient, row: DueReminderRow): Promise<Pa
   return out
 }
 
+/**
+ * The name given to a WhatsApp contact opened for a reminder. An
+ * Instagram handle ("@user") is not a name, so it is left out rather than
+ * written over the WhatsApp contact.
+ */
+export function reminderContactName(name: string | null | undefined): string | undefined {
+  const trimmed = name?.trim()
+  if (!trimmed || trimmed.startsWith('@')) return undefined
+  return trimmed
+}
+
 async function sendReminder(
   admin: SupabaseClient,
   row: DueReminderRow,
@@ -148,12 +160,28 @@ async function sendReminder(
   // conversation, which also reaches username-only WhatsApp users who
   // have no phone number on file. A phone is only needed to open a
   // conversation for a booking that has none.
+  //
+  // Instagram bookings are reminded on WhatsApp, at the phone the agent
+  // asked for (`bookings.customer_phone`, already in `contact_phone`):
+  // Instagram has no templates and its 24h window is usually closed by
+  // the time a reminder is due, while WhatsApp falls back to the
+  // rule's template like any WhatsApp booking.
   let conversationId = row.conversation_id
+  let contactId = row.contact_id
+  if (conversationId && (await conversationChannel(admin, conversationId)) === 'instagram') {
+    if (!row.contact_phone) throw new Error('Instagram customer has no phone number for a WhatsApp reminder')
+    conversationId = null
+  }
   if (!conversationId) {
     if (!row.contact_phone) throw new Error('contact has no phone number')
-    conversationId = (
-      await resolveConversationByPhone(admin, row.account_id, row.contact_phone, row.contact_name)
-    ).conversationId
+    const resolved = await resolveConversationByPhone(
+      admin,
+      row.account_id,
+      row.contact_phone,
+      reminderContactName(row.contact_name),
+    )
+    conversationId = resolved.conversationId
+    contactId = resolved.contactId
   }
 
   const ownerUserId = await resolveAuditUserId(admin, row.account_id).catch((err) => {
@@ -175,7 +203,7 @@ async function sendReminder(
       accountId: row.account_id,
       userId: ownerUserId,
       conversationId,
-      contactId: row.contact_id,
+      contactId,
       text: renderReminderMessage(row.message_text, vars),
     })
     return { channel: 'text' }
@@ -190,7 +218,7 @@ async function sendReminder(
     accountId: row.account_id,
     userId: ownerUserId,
     conversationId,
-    contactId: row.contact_id,
+    contactId,
     templateName: row.template_name,
     language: row.template_language ?? undefined,
     params: reminderTemplateParams(vars),
