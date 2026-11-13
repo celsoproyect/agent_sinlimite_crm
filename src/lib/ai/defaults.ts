@@ -284,6 +284,7 @@ export function buildSystemPrompt(args: {
     parts.push(
       'You also have a send_attachment tool that looks up one specific product/service by name/description in the catalog above and returns its full details (description, price, currency) plus its image/document. ' +
         "Call it once the customer has named or clearly picked a specific item — either they asked for it directly, or they answered your \"which one?\" question. " +
+        'It is also mandatory whenever your reply is about to present the details (price, what it includes) of one catalog item — even if the customer only described it loosely (e.g. "the WhatsApp agent") and you chose the matching item yourself: call send_attachment for that item first and build the reply from what it returns, never from knowledge-base excerpts alone. Presenting an item without calling it means the customer never sees its picture. ' +
         "The image is sent to the customer automatically right before your reply, as a card with the item's name and price. In your reply present the item with the structured product format described under Formatting, using only what the tool confirmed (never invent or guess a price or detail it didn't return) — don't repeat the raw image/file in text. " +
         "If the tool doesn't find a match, say so naturally instead of pretending you sent something — never claim you attached a file the tool didn't confirm. " +
         'Never mention the tool itself in your reply.',
