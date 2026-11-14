@@ -333,6 +333,9 @@ export async function engineSendMedia(
     sender_type: 'bot',
     content_type: args.kind,
     content_text: args.caption ?? null,
+    // The inbox draws the picture/file from this; without it the bubble
+    // says "unavailable" even though the customer got it.
+    media_url: args.link,
     message_id: waMessageId,
     status: 'sent',
     metadata: args.metadata ?? null,
