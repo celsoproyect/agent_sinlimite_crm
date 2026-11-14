@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { amenityLabel, amenityMentioned, canonicalAmenities, canonicalAmenity } from './amenities'
 import { amenityCoverage, parseOperation, parsePropertyType, searchProperties, zoneMatches, type Property } from './search'
 import { parsePropertySearchArgs } from '@/lib/ai/providers/property-tools'
+import { differences, findProperty, runPropertySearch } from './directory'
 
 function property(overrides: Partial<Property>): Property {
   return {
@@ -151,5 +152,33 @@ describe('searchProperties', () => {
 
   it('reports coverage per property', () => {
     expect(amenityCoverage(list[0], ['pool', 'jacuzzi'])).toEqual({ matched: ['pool'], missing: ['jacuzzi'] })
+  })
+})
+
+describe('the agent never loses a listing (WhatsApp test 2026-11-13)', () => {
+  const piantini = property({ id: 'p1', code: 'EJ-101', title: 'Apartamento moderno en Piantini', zone: 'Piantini', city: 'Santo Domingo', operation: 'sale', property_type: 'apartment', bedrooms: 3, bathrooms: 3.5, parking: 2, price: 265000 })
+  const gurabo = property({ id: 'p3', code: 'EJ-301', title: 'Casa familiar en Los Cerros de Gurabo', zone: 'Los Cerros de Gurabo', city: 'Santiago', operation: 'rent', property_type: 'house', bedrooms: 4, price: 1800 })
+  const dir = { properties: [piantini, gurabo], advisors: new Map<string, string>() }
+
+  it('offers the Piantini apartment when old criteria (rent) linger in the search', () => {
+    const out = JSON.parse(runPropertySearch(dir, { zone: 'Piantini', propertyType: 'apartment', operation: 'rent', minBedrooms: 3 }))
+    expect(out.count).toBe(0)
+    expect(out.closest[0].title).toBe('Apartamento moderno en Piantini')
+    expect(out.closest[0].differs).toEqual(['it is for sale, not for rent'])
+  })
+  it('still says nothing when the zone has nothing', () => {
+    const out = JSON.parse(runPropertySearch(dir, { zone: 'Bávaro' }))
+    expect(out).toMatchObject({ count: 0, properties: [] })
+  })
+  it('finds a listing by id, code or the title the agent wrote earlier', () => {
+    expect(findProperty(dir.properties, 'p3')?.id).toBe('p3')
+    expect(findProperty(dir.properties, 'ej-301')?.id).toBe('p3')
+    expect(findProperty(dir.properties, '*Casa familiar en Los Cerros de Gurabo*')?.id).toBe('p3')
+    expect(findProperty(dir.properties, 'la casa de los cerros de gurabo')?.id).toBe('p3')
+    expect(findProperty(dir.properties, 'apartamento piantini')?.id).toBe('p1')
+    expect(findProperty(dir.properties, 'algo')).toBeNull()
+  })
+  it('lists every way a listing misses', () => {
+    expect(differences(gurabo, { operation: 'sale', propertyType: 'apartment', minBedrooms: 5 })).toHaveLength(3)
   })
 })

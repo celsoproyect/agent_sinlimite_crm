@@ -55,10 +55,15 @@ export function propertyToolDefinitions(exec: RealEstateToolExec): ToolDef[] {
     defs.push({
       name: SEND_PROPERTY_PHOTOS_TOOL_NAME,
       description:
-        'Send the photos of one property to the customer (they arrive before your text). Use it when they ask for photos or show interest in a specific property.',
+        'Send the photos of one property to the customer (they arrive before your text). Use it when they ask for photos (also "send them again") or show interest in a specific property. Never ask the customer for a code: you know the listing.',
       parameters: {
         type: 'object',
-        properties: { property_id: { type: 'string', description: 'The property_id from search_properties.' } },
+        properties: {
+          property_id: {
+            type: 'string',
+            description: 'The property_id from search_properties, or the listing\'s code or exact title as you presented it earlier in the conversation.',
+          },
+        },
         required: ['property_id'],
       },
     })
@@ -105,8 +110,8 @@ export async function runPropertyTool(exec: RealEstateToolExec, name: string, ra
   }
   if (name === SEND_PROPERTY_PHOTOS_TOOL_NAME && exec.sendPhotos) {
     const args = (typeof rawArgs === 'object' && rawArgs !== null ? rawArgs : {}) as Args
-    const id = text(args, 'property_id', 60)
-    if (!id) return JSON.stringify({ sent: 0, error: 'property_id is required: use one from search_properties.' })
+    const id = text(args, 'property_id', 160)
+    if (!id) return JSON.stringify({ sent: 0, error: 'property_id is required: pass the property_id, code or title of the listing.' })
     const out = await exec.sendPhotos(id)
     return JSON.stringify(
       out.sent > 0

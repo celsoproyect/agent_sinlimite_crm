@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import { preferReal } from '@/lib/samples/prefer-real'
-import { amenityLabel } from './amenities'
+import { amenityLabel, normalizeText } from './amenities'
 import { searchProperties, type Property, type PropertyMatch, type PropertySearchArgs, type PropertyType } from './search'
 
 // ============================================================
@@ -140,6 +140,20 @@ export function propertyMatchForModel(m: PropertyMatch, dir: PropertyDirectory) 
 /** Run a search and build the tool result. */
 export function runPropertySearch(dir: PropertyDirectory, args: PropertySearchArgs): string {
   const matches = searchProperties(dir.properties, args, 5)
+  if (matches.length === 0) {
+    // Nothing passes every filter: before saying "we have nothing", look
+    // for listings in the same zone (and type) that miss on the rest, and
+    // tell the model exactly how each one differs. Customers' earlier
+    // criteria (rent vs buy, rooms, budget) often linger in the search.
+    const near = nearMatches(dir.properties, args)
+    if (near.length > 0) {
+      return JSON.stringify({
+        count: 0,
+        closest: near.map((m) => ({ ...propertyMatchForModel(m, dir), differs: differences(m.property, args) })),
+        note: 'Nothing matches every criterion, but these are close. Never say there is nothing in that zone: present them, saying plainly how each differs (the "differs" list), and ask whether they want to see it.',
+      })
+    }
+  }
   const wantedAmenities = (args.amenities ?? []).length > 0
   const full = matches.filter((m) => m.missingAmenities.length === 0).length
   const note =
@@ -149,6 +163,68 @@ export function runPropertySearch(dir: PropertyDirectory, args: PropertySearchAr
         ? 'None has every amenity requested. Say so plainly, then offer these as the closest options, saying for each which requested amenities it has and which it lacks.'
         : wantedAmenities && full < matches.length
           ? `The first ${full} have every requested amenity; the rest are close options: say which amenities each one lacks.`
-          : 'Present them briefly (title, zone, price, rooms and the amenities that matter to the customer) and ask which one interests them.'
+          : 'Present them briefly (title, code, zone, price, rooms and the amenities that matter to the customer) and ask which one interests them.'
   return JSON.stringify({ count: matches.length, properties: matches.map((m) => propertyMatchForModel(m, dir)), note })
+}
+
+/** Listings that keep the zone (then the type) but drop the other filters. */
+export function nearMatches(properties: Property[], args: PropertySearchArgs, limit = 3): PropertyMatch[] {
+  const tries: PropertySearchArgs[] = []
+  if (args.zone && args.propertyType) tries.push({ zone: args.zone, propertyType: args.propertyType, amenities: args.amenities })
+  if (args.zone) tries.push({ zone: args.zone, amenities: args.amenities })
+  else if (args.propertyType) tries.push({ propertyType: args.propertyType, operation: args.operation, amenities: args.amenities })
+  for (const t of tries) {
+    const found = searchProperties(properties, t, limit)
+    if (found.length > 0) return found
+  }
+  return []
+}
+
+/** How a listing misses the customer's hard criteria, in words for the model. */
+export function differences(p: Property, args: PropertySearchArgs): string[] {
+  const out: string[] = []
+  if (args.operation && p.operation !== args.operation) out.push(p.operation === 'sale' ? 'it is for sale, not for rent' : 'it is for rent, not for sale')
+  if (args.propertyType && p.property_type !== args.propertyType) out.push(`it is a ${TYPE_LABEL[p.property_type]}, not a ${TYPE_LABEL[args.propertyType]}`)
+  if (args.maxPrice != null && p.price != null && p.price > args.maxPrice) out.push(`it costs ${money(p.price, p.currency)}, above the budget`)
+  if (args.minPrice != null && p.price != null && p.price < args.minPrice) out.push(`it costs ${money(p.price, p.currency)}, below the minimum`)
+  if (args.minBedrooms != null && (p.bedrooms ?? 0) < args.minBedrooms) out.push(`${p.bedrooms ?? 0} bedrooms, fewer than asked`)
+  if (args.minBathrooms != null && (p.bathrooms ?? 0) < args.minBathrooms) out.push(`${p.bathrooms ?? 0} bathrooms, fewer than asked`)
+  if (args.minParking != null && (p.parking ?? 0) < args.minParking) out.push(`${p.parking ?? 0} parking spaces, fewer than asked`)
+  if (args.minArea != null && (p.area_m2 ?? 0) < args.minArea) out.push(`${p.area_m2 ?? 0} m², smaller than asked`)
+  return out
+}
+
+/**
+ * The listing the model means: its property_id, its code or its title.
+ * The model only keeps the text of earlier turns (not the tool results),
+ * so a turn later it knows "Casa familiar en Los Cerros de Gurabo" but
+ * not its id.
+ */
+export function findProperty(properties: Property[], ref: string): Property | null {
+  const raw = ref.trim()
+  if (!raw) return null
+  const byId = properties.find((p) => p.id === raw)
+  if (byId) return byId
+  const wanted = normalizeText(raw.replace(/^\*+|\*+$/g, ''))
+  if (!wanted) return null
+  const byCode = properties.find((p) => p.code && normalizeText(p.code) === wanted)
+  if (byCode) return byCode
+  const byTitle = properties.filter((p) => normalizeText(p.title) === wanted)
+  if (byTitle.length === 1) return byTitle[0]
+  const contains = properties.filter((p) => {
+    const t = normalizeText(p.title)
+    return t.includes(wanted) || wanted.includes(t) || (p.code ? wanted.includes(normalizeText(p.code)) : false)
+  })
+  if (contains.length === 1) return contains[0]
+  // Best word overlap, only when one listing clearly wins.
+  const words = wanted.split(' ').filter((w) => w.length > 2)
+  if (words.length === 0) return null
+  const scored = properties
+    .map((p) => {
+      const hay = normalizeText([p.title, p.zone, p.city].filter(Boolean).join(' '))
+      return { p, score: words.filter((w) => hay.includes(w)).length }
+    })
+    .sort((a, b) => b.score - a.score)
+  if (scored[0] && scored[0].score >= Math.min(2, words.length) && scored[0].score > (scored[1]?.score ?? 0)) return scored[0].p
+  return null
 }

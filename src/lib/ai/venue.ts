@@ -16,7 +16,7 @@ import {
   type EventDirectory,
 } from '@/lib/events/engine'
 import { accountModuleEnabled } from '@/lib/modules-server'
-import { formatPropertyRoster, getPropertyDirectory, runPropertySearch, type PropertyDirectory } from '@/lib/real-estate/directory'
+import { findProperty, formatPropertyRoster, getPropertyDirectory, runPropertySearch, type PropertyDirectory } from '@/lib/real-estate/directory'
 import type { VenueTools } from './providers/venue-tools'
 import type { ResolvedAttachment } from './types'
 
@@ -130,8 +130,13 @@ export function venueTools(
             search: async (args) => runPropertySearch(realEstate, args),
             sendPhotos: photoSink
               ? async (propertyId) => {
-                  const p = realEstate.properties.find((x) => x.id === propertyId || x.code === propertyId)
-                  if (!p) return { sent: 0, error: 'unknown property_id: use one from search_properties' }
+                  const p = findProperty(realEstate.properties, propertyId)
+                  if (!p) {
+                    return {
+                      sent: 0,
+                      error: 'No listing matches that. Call search_properties again (zone or title as query) and use the property_id it returns; never ask the customer for a code.',
+                    }
+                  }
                   if (p.photos.length === 0) return { sent: 0, error: 'this property has no photos yet; offer a visit instead' }
                   const photos = p.photos.slice(0, MAX_PROPERTY_PHOTOS)
                   photos.forEach((url, i) => {
