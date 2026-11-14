@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { loadInstagramConnection } from '@/lib/instagram/connection'
 import { syncInstagramPosts } from '@/lib/instagram/comments'
+import { normalizeRule } from '@/lib/instagram/keywords'
 import { instagramDbError, instagramGuard, isMissingInstagramSchema } from '@/lib/instagram/page-api'
 
 // /instagram page data: posts and reels, keyword rules, and what the rule
@@ -29,7 +30,7 @@ export async function GET() {
   let posts = await postsQuery()
   if (posts.error) {
     if (isMissingInstagramSchema(posts.error.code)) {
-      return NextResponse.json({ migrated: false, connected: !!conn, posts: [], rules: [], catalog: [], tags: [] })
+      return NextResponse.json({ migrated: false, v2: false, connected: !!conn, posts: [], rules: [], catalog: [], tags: [], automations: [] })
     }
     return instagramDbError(posts.error)
   }
@@ -45,10 +46,13 @@ export async function GET() {
     }
   }
 
-  const [rules, catalog, tags] = await Promise.all([
+  const [rules, catalog, tags, automations, ruleColumns] = await Promise.all([
     ctx.supabase.from('instagram_keyword_rules').select('*').eq('account_id', ctx.accountId).order('created_at'),
     ctx.supabase.from('ai_attachments').select('id, name, kind').eq('account_id', ctx.accountId).order('name').limit(500),
     ctx.supabase.from('tags').select('id, name, color').eq('account_id', ctx.accountId).order('name').limit(500),
+    ctx.supabase.from('automations').select('id, name, trigger_type, is_active').eq('account_id', ctx.accountId).order('name').limit(500),
+    // Migration 080 (several posts per rule, files, automations, examples).
+    ctx.supabase.from('instagram_keyword_rules').select('media_ids', { head: true, count: 'exact' }).eq('account_id', ctx.accountId),
   ])
   if (rules.error) return instagramDbError(rules.error)
 
@@ -58,8 +62,10 @@ export async function GET() {
     username: conn?.username ?? null,
     syncError,
     posts: posts.data ?? [],
-    rules: rules.data ?? [],
+    v2: !ruleColumns.error,
+    rules: ((rules.data ?? []) as Record<string, unknown>[]).map(normalizeRule),
     catalog: catalog.data ?? [],
     tags: tags.data ?? [],
+    automations: automations.data ?? [],
   })
 }

@@ -24,6 +24,7 @@ const PILL_CLASS: Record<AutomationTriggerType, string> = {
   interactive_reply: 'border-pink-500/30 bg-pink-500/10 text-pink-300',
   deal_won: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-400',
   deal_lost: 'border-rose-500/30 bg-rose-500/10 text-rose-400',
+  instagram_rule: 'border-fuchsia-500/30 bg-fuchsia-500/10 text-fuchsia-400',
 }
 
 export const TRIGGER_META: Record<AutomationTriggerType, TriggerMeta> =

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { keywordConflicts, type KeywordRule } from '@/lib/instagram/keywords'
+import { keywordConflicts, normalizeRule } from '@/lib/instagram/keywords'
 import { instagramDbError, instagramGuard, parseRuleInput, ruleProblem } from '@/lib/instagram/page-api'
 
 // One keyword rule: edit or delete (admins).
@@ -18,11 +18,11 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .select('*')
     .eq('account_id', ctx.accountId)
   if (allErr) return instagramDbError(allErr)
-  const rules = (all ?? []) as KeywordRule[]
+  const rules = ((all ?? []) as Record<string, unknown>[]).map(normalizeRule)
   const current = rules.find((r) => r.id === id)
   if (!current) return NextResponse.json({ error: 'not_found' }, { status: 404 })
 
-  const next = { ...current, ...parsed.input } as KeywordRule
+  const next = normalizeRule({ ...current, ...parsed.input })
   const problem = ruleProblem(next)
   if (problem) return NextResponse.json({ error: problem }, { status: 400 })
   const conflicts = keywordConflicts(next, rules)
@@ -36,7 +36,7 @@ export async function PATCH(request: Request, { params }: { params: Promise<{ id
     .select('*')
   if (error) return instagramDbError(error)
   if (!data?.length) return NextResponse.json({ error: 'not_found' }, { status: 404 })
-  return NextResponse.json({ rule: data[0] })
+  return NextResponse.json({ rule: normalizeRule(data[0] as Record<string, unknown>) })
 }
 
 export async function DELETE(_request: Request, { params }: { params: Promise<{ id: string }> }) {

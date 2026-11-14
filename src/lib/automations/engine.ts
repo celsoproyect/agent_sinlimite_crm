@@ -119,6 +119,46 @@ export async function runAutomationsForTrigger(input: DispatchInput): Promise<vo
 }
 
 /**
+ * Run one automation by id, whatever its trigger (an Instagram keyword
+ * rule starts the automation it names, migration 080). Only active
+ * automations of the account run, and the contact must belong to it.
+ * Never throws; returns whether it ran.
+ */
+export async function runAutomationById(input: {
+  accountId: string
+  automationId: string
+  contactId: string
+  context?: AutomationContext
+}): Promise<boolean> {
+  try {
+    const db = supabaseAdmin()
+    const [{ data: owned }, { data: automation, error }] = await Promise.all([
+      db.from('contacts').select('id').eq('id', input.contactId).eq('account_id', input.accountId).maybeSingle(),
+      db
+        .from('automations')
+        .select('*')
+        .eq('id', input.automationId)
+        .eq('account_id', input.accountId)
+        .eq('is_active', true)
+        .maybeSingle(),
+    ])
+    if (error) console.error('[automations] run by id: fetch failed:', error)
+    if (!owned || !automation) return false
+    const row = automation as Automation
+    await executeAutomation(row, {
+      accountId: input.accountId,
+      triggerType: row.trigger_type,
+      contactId: input.contactId,
+      context: input.context,
+    })
+    return true
+  } catch (err) {
+    console.error('[automations] run by id failed:', input.automationId, err)
+    return false
+  }
+}
+
+/**
  * Resume a run that was parked at a wait step. Called from the cron
  * endpoint after it grabs a due `automation_pending_executions` row.
  */

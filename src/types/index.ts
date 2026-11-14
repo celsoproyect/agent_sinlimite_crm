@@ -834,7 +834,10 @@ export type AutomationTriggerType =
   | 'interactive_reply'
   /** A deal was closed as won / lost (src/lib/deals/close.ts). */
   | 'deal_won'
-  | 'deal_lost';
+  | 'deal_lost'
+  /** Started by an Instagram keyword rule that names it (migration 080);
+   *  never fires on its own. */
+  | 'instagram_rule';
 
 export type AutomationStepType =
   | 'send_message'

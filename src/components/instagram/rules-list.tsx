@@ -3,11 +3,11 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Pencil, Trash2 } from "lucide-react";
+import { Copy, Pencil, Trash2 } from "lucide-react";
 import type { KeywordRule } from "@/lib/instagram/keywords";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { apiErrorText, postLabel, type InstagramPageData } from "./instagram-utils";
+import { apiErrorText, rulePostsLabel, type InstagramPageData } from "./instagram-utils";
 
 interface RulesListProps {
   rules: KeywordRule[];
@@ -16,10 +16,12 @@ interface RulesListProps {
   /** Hide the post name (inside a post's own card). */
   hidePost?: boolean;
   onEdit: (rule: KeywordRule) => void;
+  /** Opens a copy of the rule as a new one. */
+  onDuplicate: (rule: KeywordRule) => void;
   onChanged: () => void;
 }
 
-export function RulesList({ rules, data, canManage, hidePost, onEdit, onChanged }: RulesListProps) {
+export function RulesList({ rules, data, canManage, hidePost, onEdit, onDuplicate, onChanged }: RulesListProps) {
   const t = useTranslations("Instagram");
   const [busy, setBusy] = useState<string | null>(null);
 
@@ -45,11 +47,18 @@ export function RulesList({ rules, data, canManage, hidePost, onEdit, onChanged 
   return (
     <ul className="space-y-2">
       {rules.map((rule) => {
-        const post = data.posts.find((p) => p.media_id === rule.media_id);
+        const automation = rule.automation_id ? data.automations.find((a) => a.id === rule.automation_id) : null;
         return (
           <li key={rule.id} className="flex flex-wrap items-start justify-between gap-3 rounded-lg border border-border bg-card p-3">
             <div className="min-w-0 flex-1 space-y-1">
-              <p className="text-sm font-medium text-foreground">{rule.name || t("untitledRule")}</p>
+              <p className="text-sm font-medium text-foreground">
+                {rule.name || t("untitledRule")}
+                {rule.is_sample && (
+                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[11px] font-medium text-amber-600">
+                    {t("sampleBadge")}
+                  </span>
+                )}
+              </p>
               <div className="flex flex-wrap gap-1">
                 {rule.match_any ? (
                   <span className="rounded bg-muted px-1.5 py-0.5 text-xs text-foreground">{t("anyComment")}</span>
@@ -61,13 +70,17 @@ export function RulesList({ rules, data, canManage, hidePost, onEdit, onChanged 
                   ))
                 )}
               </div>
-              {!hidePost && <p className="break-words text-xs text-muted-foreground">{postLabel(rule.media_id ? post : undefined, t)}</p>}
+              {(!hidePost || rule.media_ids.length > 1) && (
+                <p className="break-words text-xs text-muted-foreground">{rulePostsLabel(rule, data.posts, t)}</p>
+              )}
               <p className="text-xs text-muted-foreground">
                 {[
                   rule.public_replies.length > 0 ? t("summaryPublic", { count: rule.public_replies.length }) : null,
                   rule.dm_button_label ? t("summaryButton", { label: rule.dm_button_label }) : null,
                   rule.dm_text || rule.dm_link_url ? t("summaryDm") : null,
                   rule.catalog_item_id ? t("summaryCatalog") : null,
+                  rule.dm_media_url ? (rule.dm_media_kind === "image" ? t("summaryImage") : t("summaryPdf")) : null,
+                  automation ? t("summaryAutomation", { name: automation.name }) : null,
                 ]
                   .filter(Boolean)
                   .join(" · ")}
@@ -81,8 +94,11 @@ export function RulesList({ rules, data, canManage, hidePost, onEdit, onChanged 
                   onCheckedChange={(v) => void patch(rule, { active: v })}
                   aria-label={t("active")}
                 />
-                <Button size="icon" variant="ghost" onClick={() => onEdit(rule)} aria-label={t("editRule")}>
+                <Button size="icon" variant="ghost" onClick={() => onEdit(rule)} aria-label={t("editRule")} title={t("editRule")}>
                   <Pencil className="h-4 w-4" />
+                </Button>
+                <Button size="icon" variant="ghost" onClick={() => onDuplicate(rule)} aria-label={t("duplicate")} title={t("duplicate")}>
+                  <Copy className="h-4 w-4" />
                 </Button>
                 <Button
                   size="icon"

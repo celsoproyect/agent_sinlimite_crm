@@ -55,12 +55,18 @@ export function parseRuleInput(
   const input: Record<string, unknown> = {}
   const want = (k: string) => !partial || k in b
 
-  if (want('media_id')) {
-    const v = b.media_id
-    if (v !== null && v !== undefined && v !== '' && (typeof v !== 'string' || !/^\d{5,40}$/.test(v))) {
-      return { error: 'invalid_media' }
+  // Posts: `media_ids` (080), or the single `media_id` of older clients.
+  if (want('media_ids') || want('media_id')) {
+    const raw = 'media_ids' in b ? b.media_ids : b.media_id ? [b.media_id] : []
+    if (raw !== null && raw !== undefined && !Array.isArray(raw)) return { error: 'invalid_media' }
+    const ids: string[] = []
+    for (const v of (raw ?? []) as unknown[]) {
+      if (typeof v !== 'string' || !/^\d{5,40}$/.test(v)) return { error: 'invalid_media' }
+      if (!ids.includes(v)) ids.push(v)
     }
-    input.media_id = typeof v === 'string' && v ? v : null
+    if (ids.length > 100) return { error: 'too_many_posts' }
+    input.media_ids = ids
+    input.media_id = ids[0] ?? null
   }
   if (want('name')) input.name = text(b.name, 80) ?? ''
   if (want('keywords')) input.keywords = cleanKeywords(stringList(b.keywords))
@@ -79,7 +85,14 @@ export function parseRuleInput(
     if (link && !/^https?:\/\/\S+$/i.test(link)) return { error: 'invalid_link' }
     input.dm_link_url = link
   }
-  for (const key of ['catalog_item_id', 'tag_id'] as const) {
+  if (want('dm_media_url')) {
+    const url = text(b.dm_media_url, 1000)
+    if (url && !/^https:\/\/\S+$/i.test(url)) return { error: 'invalid_file' }
+    input.dm_media_url = url
+    input.dm_media_kind = url ? (b.dm_media_kind === 'image' ? 'image' : 'document') : null
+    input.dm_media_name = url ? text(b.dm_media_name, 120) : null
+  }
+  for (const key of ['catalog_item_id', 'tag_id', 'automation_id'] as const) {
     if (want(key)) {
       const id = uuidOrNull(b[key])
       if (id === undefined) return { error: `invalid_${key}` }
@@ -104,16 +117,28 @@ interface RuleShape {
   dm_link_url: string | null
   catalog_item_id: string | null
   dm_button_label: string | null
+  dm_media_url?: string | null
+  automation_id?: string | null
 }
 
 /** Why a whole rule can't be saved, or null. Pure. */
 export function ruleProblem(rule: RuleShape): string | null {
   if (!rule.match_any && rule.keywords.length === 0) return 'keywords_required'
-  if (!rule.dm_text && !rule.dm_link_url && !rule.catalog_item_id && rule.public_replies.length === 0) {
+  if (
+    !rule.dm_text &&
+    !rule.dm_link_url &&
+    !rule.catalog_item_id &&
+    !rule.dm_media_url &&
+    !rule.automation_id &&
+    rule.public_replies.length === 0
+  ) {
     return 'reply_required'
   }
-  // A private reply carries text only: a catalog picture needs the button
-  // (the customer's tap opens the window to send it).
+  // A private reply carries text only: a catalog picture or a file needs
+  // the button (the customer's tap opens the window to send it), and so
+  // does an automation, whose messages need that window too.
   if (rule.catalog_item_id && !rule.dm_button_label) return 'catalog_needs_button'
+  if (rule.dm_media_url && !rule.dm_button_label) return 'file_needs_button'
+  if (rule.automation_id && !rule.dm_button_label) return 'automation_needs_button'
   return null
 }

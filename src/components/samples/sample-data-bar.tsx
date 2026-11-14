@@ -7,7 +7,7 @@ import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 interface SampleDataBarProps {
-  module: "restaurant" | "events" | "clinic" | "properties";
+  module: "restaurant" | "events" | "clinic" | "properties" | "instagram";
   /** Whether example rows already exist (shows "Quitar ejemplos"). */
   hasSamples: boolean;
   onChanged: () => Promise<void> | void;
@@ -35,7 +35,7 @@ export function SampleDataBar({ module, hasSamples, onChanged }: SampleDataBarPr
       const code = json?.code as string | undefined;
       toast.error(
         code === "needs_migration" || code === "clinic_not_migrated"
-          ? t("needsMigration")
+          ? t(module === "instagram" ? "needsMigration080" : "needsMigration")
           : code === "module_disabled"
             ? t("moduleDisabled")
             : t("failed"),

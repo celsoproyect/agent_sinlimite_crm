@@ -1832,6 +1832,10 @@
         "deal_lost": {
           "label": "Deal lost",
           "hint": "When a deal is marked as lost (great for a win-back message with Wait)"
+        },
+        "instagram_rule": {
+          "label": "Instagram rule",
+          "hint": "Started by an Instagram comment rule when the customer taps its button"
         }
       },
       "trigger": "Trigger",
@@ -3436,7 +3440,8 @@
       "restaurant": "Load example tables, areas, reservations (single, joined and separate tables, a pre-order, a no-show) and a waitlist to see how it works. Examples are marked and never reminded.",
       "events": "Load example halls, packages and one request in each stage (Request → Quoted → Deposit paid → Confirmed → Done/Cancelled). Examples are marked and never reminded.",
       "clinic": "Load example doctors, services, a day off and appointments to see how each doctor's agenda works. Examples are marked and never reminded.",
-      "properties": "Loads 3 properties with photos and amenities (an apartment for sale in Piantini, a villa in Cap Cana and a house for rent in Santiago), 2 advisors with their visit agenda and a sample visit. Samples are marked and never get reminders."
+      "properties": "Loads 3 properties with photos and amenities (an apartment for sale in Piantini, a villa in Cap Cana and a house for rent in Santiago), 2 advisors with their visit agenda and a sample visit. Samples are marked and never get reminders.",
+      "instagram": "Loads one example rule of every kind (keyword on one post, on every post, any comment, text and link, one rule for several posts, send a PDF, a catalog product and qualify with an automation) plus 3 automations that qualify the lead. The rules are created switched off: turn them on when you want to use them."
     },
     "load": "Load examples",
     "reload": "Reload examples",
@@ -3448,7 +3453,8 @@
     "failed": "Could not update the examples",
     "needsMigration": "Run migration 068 in Supabase first",
     "moduleDisabled": "Turn the module on first",
-    "badge": "Example"
+    "badge": "Example",
+    "needsMigration080": "First run migration 080 in Supabase"
   },
   "Agents": {
     "page": {
@@ -4278,13 +4284,42 @@
       "needs_migration": "Migration 079 still has to be applied in Supabase.",
       "module_disabled": "The Instagram module is off.",
       "not_connected": "Instagram isn't connected.",
-      "keyword_conflict": "\"{keyword}\" is already in the rule \"{rule}\" of the same post.",
+      "keyword_conflict": "\"{keyword}\" is already in the rule \"{rule}\" on one of the same posts.",
       "keywords_required": "Enter at least one keyword or turn on \"any comment\".",
       "reply_required": "Add a public reply or content for the private message.",
       "catalog_needs_button": "To send a catalog picture, turn on \"Send a button first\".",
       "invalid_link": "The link must start with http:// or https://.",
       "already_messaged": "This comment already got its private message.",
-      "too_old": "Instagram only allows the private message within 7 days of the comment."
-    }
+      "too_old": "Instagram only allows the private message within 7 days of the comment.",
+      "posts_required": "Pick at least one post or turn on \"All posts\".",
+      "file_needs_button": "To send a file, turn on \"Send a button first\".",
+      "automation_needs_button": "To start an automation, turn on \"Send a button first\".",
+      "invalid_file": "The file isn't valid. Upload it again.",
+      "too_many_posts": "A rule can have up to 100 posts."
+    },
+    "duplicate": "Duplicate",
+    "duplicateRule": "Duplicate rule",
+    "copySuffix": "(copy)",
+    "allPosts": "All posts",
+    "allPostsHint": "Turn it off to pick one or more posts or reels that will share this rule.",
+    "pickPostsHint": "{count, plural, =0 {Tap the posts that will use this rule.} one {1 post selected.} other {# posts selected.}}",
+    "postsCount": "{count, plural, one {1 post} other {# posts}}",
+    "buttonColor": "Button color",
+    "noColor": "No color",
+    "buttonColorHint": "Instagram doesn't allow changing a button's real color, so the color shows as a colored circle before the text.",
+    "ruleFile": "File (PDF or image)",
+    "uploadFile": "Upload file",
+    "removeFile": "Remove file",
+    "ruleFileHint": "Sent after the customer taps the button. PDF up to 16 MB, JPG or PNG up to 5 MB.",
+    "fileTypeError": "Only PDF, JPG or PNG files are allowed.",
+    "fileTooBig": "The file is larger than {mb} MB.",
+    "ruleAutomation": "Start automation",
+    "ruleAutomationHint": "Starts when the customer taps the button, e.g. to qualify the lead with questions. Create automations with the \"Instagram rule\" trigger.",
+    "inactive": "inactive",
+    "summaryImage": "image",
+    "summaryPdf": "PDF",
+    "summaryAutomation": "automation \"{name}\"",
+    "sampleBadge": "Example",
+    "needsMigration080": "To use several posts per rule, files, automations and examples, apply migration 080 in Supabase."
   }
 }

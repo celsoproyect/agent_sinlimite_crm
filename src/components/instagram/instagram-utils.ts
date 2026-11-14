@@ -35,6 +35,8 @@ export interface InstagramCommentRow {
 /** GET /api/instagram/posts. */
 export interface InstagramPageData {
   migrated: boolean;
+  /** Migration 080 applied (several posts, files, automations, examples). */
+  v2?: boolean;
   connected: boolean;
   username?: string | null;
   syncError?: string | null;
@@ -42,6 +44,34 @@ export interface InstagramPageData {
   rules: KeywordRule[];
   catalog: { id: string; name: string; kind: string }[];
   tags: { id: string; name: string; color?: string | null }[];
+  automations: { id: string; name: string; trigger_type: string; is_active: boolean }[];
+}
+
+/**
+ * Instagram draws quick-reply buttons itself and lets no one color them,
+ * so the "color" is a colored emoji at the start of the label.
+ */
+export const BUTTON_COLORS = ["", "🟢", "🔵", "🔴", "🟡", "🟣", "🟠", "⚫", "⚪"] as const;
+
+/** Splits a saved label into its color emoji and its text. */
+export function buttonColorOf(label: string): { color: string; label: string } {
+  for (const c of BUTTON_COLORS) {
+    if (c && label.startsWith(c)) return { color: c, label: label.slice(c.length).trimStart() };
+  }
+  return { color: "", label };
+}
+
+/** The label with `color` in front, replacing any color it already had. */
+export function withButtonColor(color: string, label: string): string {
+  const text = buttonColorOf(label.trim()).label.trim();
+  return (color ? `${color} ${text}` : text).slice(0, 20);
+}
+
+/** Which posts a rule covers, for its card. */
+export function rulePostsLabel(rule: KeywordRule, posts: InstagramPost[], t: InstagramT): string {
+  if (rule.media_ids.length === 0) return t("generalRule");
+  if (rule.media_ids.length === 1) return postLabel(posts.find((p) => p.media_id === rule.media_ids[0]), t);
+  return t("postsCount", { count: rule.media_ids.length });
 }
 
 export const SELECT_CLASS =
@@ -68,6 +98,11 @@ const KNOWN_ERRORS = new Set([
   "keywords_required",
   "reply_required",
   "catalog_needs_button",
+  "file_needs_button",
+  "automation_needs_button",
+  "posts_required",
+  "invalid_file",
+  "too_many_posts",
   "invalid_link",
   "already_messaged",
   "too_old",

@@ -22,8 +22,8 @@ import { DEFAULT_EVENT_SETTINGS } from '@/lib/events/settings'
 //    rows flagged `is_sample`.
 // ============================================================
 
-export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'properties' | 'reminders'
-export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'properties', 'reminders']
+export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'properties' | 'reminders' | 'instagram'
+export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'properties', 'reminders', 'instagram']
 
 export class SampleError extends Error {
   constructor(
@@ -61,7 +61,7 @@ function plusMinutes(iso: string, minutes: number): string {
 
 /** Example customers. Phones in 809-000-xxxx: an exchange no real line has. */
 async function sampleContacts(ctx: Ctx, module: SampleModule, names: string[]): Promise<{ id: string; name: string; phone: string }[]> {
-  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4, properties: 5 }[module]
+  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4, properties: 5, instagram: 6 }[module]
   const rows = names.map((name, i) => ({
     account_id: ctx.accountId,
     user_id: ctx.userId,
@@ -702,6 +702,294 @@ async function seedReminders(ctx: Ctx, scope: ReminderAppliesTo | null): Promise
   return { rules: created, skipped }
 }
 
+// ---------- instagram (migration 080) ----------
+
+/** A one-page PDF ("Catálogo de ejemplo"), built by hand so no library is needed. */
+export function samplePdf(lines: string[]): Uint8Array {
+  const esc = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^\x20-\x7e]/g, '').replace(/([\\()])/g, '\\$1')
+  const text = lines.map((l, i) => `BT /F1 ${i === 0 ? 22 : 13} Tf 60 ${740 - i * 30} Td (${esc(l)}) Tj ET`).join('\n')
+  const objects = [
+    '<< /Type /Catalog /Pages 2 0 R >>',
+    '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+    '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+    `<< /Length ${text.length} >>\nstream\n${text}\nendstream`,
+    '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+  ]
+  let out = '%PDF-1.4\n'
+  const offsets: number[] = []
+  objects.forEach((body, i) => {
+    offsets.push(out.length)
+    out += `${i + 1} 0 obj\n${body}\nendobj\n`
+  })
+  const xref = out.length
+  out += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`
+  out += offsets.map((o) => `${String(o).padStart(10, '0')} 00000 n \n`).join('')
+  out += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xref}\n%%EOF\n`
+  return new TextEncoder().encode(out)
+}
+
+async function findOrCreateTag(ctx: Ctx, name: string, color: string): Promise<string | null> {
+  const { data } = await ctx.db.from('tags').select('id, name').eq('account_id', ctx.accountId)
+  const found = ((data ?? []) as { id: string; name: string }[]).find((t) => t.name.trim().toLowerCase() === name.toLowerCase())
+  if (found) return found.id
+  const { data: created } = await ctx.db
+    .from('tags')
+    .insert({ account_id: ctx.accountId, user_id: ctx.userId, name, color })
+    .select('id')
+    .maybeSingle()
+  return (created as { id: string } | null)?.id ?? null
+}
+
+/** The first pipeline and its first open stage, for the "hot lead" deal. */
+async function firstOpenStage(ctx: Ctx): Promise<{ pipeline_id: string; stage_id: string } | null> {
+  const { data: pipes } = await ctx.db.from('pipelines').select('id').eq('account_id', ctx.accountId).order('created_at').limit(1)
+  const pipelineId = (pipes as { id: string }[] | null)?.[0]?.id
+  if (!pipelineId) return null
+  const { data: stages } = await ctx.db.from('pipeline_stages').select('*').eq('pipeline_id', pipelineId).order('position')
+  const stage = ((stages ?? []) as { id: string; kind?: string | null }[]).find((s) => !s.kind || s.kind === 'open')
+  return stage ? { pipeline_id: pipelineId, stage_id: stage.id } : null
+}
+
+function failInstagram(error: { code?: string; message: string } | null, what: string): never {
+  if (error?.code && MISSING.has(error.code)) {
+    throw new SampleError('Run migration 080 first.', 'needs_migration', 503)
+  }
+  fail(error, what)
+}
+
+async function insertAutomation(
+  ctx: Ctx,
+  row: { name: string; description: string; trigger_type: string; trigger_config: Record<string, unknown> },
+  steps: { step_type: string; step_config: Record<string, unknown> }[],
+): Promise<string> {
+  const { data, error } = await ctx.db
+    .from('automations')
+    .insert({ ...row, account_id: ctx.accountId, user_id: ctx.userId, is_active: true, is_sample: true })
+    .select('id')
+    .single()
+  if (error || !data) failInstagram(error, 'automations')
+  const id = (data as { id: string }).id
+  if (steps.length) {
+    const { error: stepErr } = await ctx.db
+      .from('automation_steps')
+      .insert(steps.map((s, position) => ({ ...s, automation_id: id, position })))
+    if (stepErr) failInstagram(stepErr, 'automation_steps')
+  }
+  return id
+}
+
+/**
+ * One example of every kind of comment rule, plus the lead-qualifying
+ * automations the "automation" example starts. The rules are created
+ * switched off: this is a live Instagram account, so nothing answers a
+ * real comment until the owner turns an example on.
+ */
+async function seedInstagram(ctx: Ctx): Promise<Record<string, number | boolean>> {
+  // Probe the 080 columns first, so a missing migration says so clearly.
+  const probe = await ctx.db.from('instagram_keyword_rules').select('media_ids, is_sample', { head: true }).eq('account_id', ctx.accountId)
+  if (probe.error) failInstagram(probe.error, 'instagram_keyword_rules')
+
+  const { data: postRows } = await ctx.db
+    .from('instagram_posts')
+    .select('media_id')
+    .eq('account_id', ctx.accountId)
+    .order('posted_at', { ascending: false })
+    .limit(4)
+  const posts = ((postRows ?? []) as { media_id: string }[]).map((p) => p.media_id)
+
+  const { data: items } = await ctx.db.from('ai_attachments').select('id').eq('account_id', ctx.accountId).order('updated_at', { ascending: false }).limit(1)
+  const catalogId = (items as { id: string }[] | null)?.[0]?.id ?? null
+
+  // The example PDF goes to the account's chat-media folder.
+  let pdfUrl: string | null = null
+  const pdfPath = `account-${ctx.accountId}/${Date.now()}-catalogo-ejemplo.pdf`
+  const upload = await ctx.db.storage.from('chat-media').upload(
+    pdfPath,
+    samplePdf([
+      'Catalogo de ejemplo',
+      'Este PDF lo envia la regla "Ejemplo: enviar PDF".',
+      'Cambialo por tu catalogo, menu o lista de precios',
+      'en Instagram > Palabras clave > Editar regla > Archivo.',
+    ]),
+    { contentType: 'application/pdf' },
+  )
+  if (!upload.error) pdfUrl = ctx.db.storage.from('chat-media').getPublicUrl(pdfPath).data.publicUrl
+
+  const [igTag, hotTag, coldTag, stage] = await Promise.all([
+    findOrCreateTag(ctx, 'Lead Instagram', '#d946ef'),
+    findOrCreateTag(ctx, 'Lead caliente', '#ef4444'),
+    findOrCreateTag(ctx, 'Lead frío', '#3b82f6'),
+    firstOpenStage(ctx),
+  ])
+
+  // 1) The rule starts this one: ask when they need it, tag the lead.
+  const qualifyId = await insertAutomation(
+    ctx,
+    {
+      name: 'Instagram: calificar lead (ejemplo)',
+      description: 'La inicia la regla "Ejemplo: calificar con automatización" cuando el cliente toca el botón.',
+      trigger_type: 'instagram_rule',
+      trigger_config: {},
+    },
+    [
+      ...(igTag ? [{ step_type: 'add_tag', step_config: { tag_id: igTag } }] : []),
+      {
+        step_type: 'send_buttons',
+        step_config: {
+          kind: 'buttons',
+          body: 'Para darte la mejor información, ¿para cuándo lo necesitas?',
+          buttons: [
+            { id: 'IGQ_NOW', title: 'Esta semana' },
+            { id: 'IGQ_MONTH', title: 'Este mes' },
+            { id: 'IGQ_LATER', title: 'Solo mirando' },
+          ],
+        },
+      },
+    ],
+  )
+  // 2) The answers: soon = hot lead (tag, deal, a person follows up).
+  await insertAutomation(
+    ctx,
+    {
+      name: 'Instagram: lead caliente (ejemplo)',
+      description: 'Responde "Esta semana" o "Este mes": etiqueta Lead caliente y crea la oportunidad.',
+      trigger_type: 'interactive_reply',
+      trigger_config: { reply_ids: ['IGQ_NOW', 'IGQ_MONTH'] },
+    },
+    [
+      ...(hotTag ? [{ step_type: 'add_tag', step_config: { tag_id: hotTag } }] : []),
+      ...(stage ? [{ step_type: 'create_deal', step_config: { ...stage, title: 'Lead de Instagram', value: 0 } }] : []),
+      { step_type: 'send_message', step_config: { text: '¡Perfecto! 🙌 Un asesor te escribirá en breve para ayudarte.' } },
+    ],
+  )
+  // 3) "Just looking" = cold lead: tag it and leave the door open.
+  await insertAutomation(
+    ctx,
+    {
+      name: 'Instagram: lead frío (ejemplo)',
+      description: 'Responde "Solo mirando": etiqueta Lead frío.',
+      trigger_type: 'interactive_reply',
+      trigger_config: { reply_ids: ['IGQ_LATER'] },
+    },
+    [
+      ...(coldTag ? [{ step_type: 'add_tag', step_config: { tag_id: coldTag } }] : []),
+      { step_type: 'send_message', step_config: { text: '¡Sin problema! 😊 Aquí estamos cuando lo necesites. Escríbenos por aquí.' } },
+    ],
+  )
+
+  const replies = ['¡Listo {{username}}! Te escribí por mensaje privado 📩', 'Gracias {{username}}, revisa tus mensajes 💬']
+  const base = {
+    account_id: ctx.accountId,
+    match_any: false,
+    public_replies: replies,
+    dm_opening: null as string | null,
+    dm_button_label: null as string | null,
+    dm_text: '',
+    dm_link_url: null as string | null,
+    catalog_item_id: null as string | null,
+    tag_id: igTag,
+    dm_media_url: null as string | null,
+    dm_media_kind: null as string | null,
+    dm_media_name: null as string | null,
+    automation_id: null as string | null,
+    once_per_user: true,
+    active: false,
+    is_sample: true,
+  }
+  const on = (ids: string[]) => ({ media_ids: ids, media_id: ids[0] ?? null })
+  const first = posts.slice(0, 1)
+  const rules: Record<string, unknown>[] = [
+    {
+      ...base,
+      ...on(first),
+      name: 'Ejemplo: palabra clave en una publicación',
+      keywords: ['PRECIO'],
+      dm_opening: '¡Hola! 👋 Gracias por comentar. Toca el botón y te envío los precios.',
+      dm_button_label: '🟢 Ver precios',
+      dm_text: 'Estos son nuestros precios:\n• Servicio básico: RD$1,000\n• Servicio completo: RD$2,500\n\n¿Te gustaría agendar?',
+    },
+    {
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: palabra clave en todas las publicaciones',
+      keywords: ['INFO', 'INFORMACION'],
+      dm_button_label: '🔵 Recibir información',
+      dm_text: '¡Hola! Aquí tienes la información que pediste. Si tienes dudas, escríbeme por aquí.',
+    },
+    {
+      ...base,
+      ...on(posts.slice(1, 2).length ? posts.slice(1, 2) : first),
+      name: 'Ejemplo: cualquier comentario en una publicación',
+      keywords: [],
+      match_any: true,
+      dm_text: '¡Gracias por comentar! 😊 Si quieres más detalles de esta publicación, respóndeme por aquí.',
+    },
+    {
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: cualquier comentario (todas las publicaciones)',
+      keywords: [],
+      match_any: true,
+      public_replies: ['¡Gracias {{username}}! 💛'],
+      dm_text: '',
+      tag_id: null,
+    },
+    {
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: texto y enlace directo (sin botón)',
+      keywords: ['WEB', 'LINK'],
+      dm_text: 'Aquí tienes nuestro enlace 👇',
+      dm_link_url: 'https://example.com',
+    },
+    {
+      ...base,
+      ...on(posts),
+      name: `Ejemplo: una regla para ${posts.length > 1 ? `${posts.length} publicaciones` : 'varias publicaciones'}`,
+      keywords: ['DETALLES'],
+      dm_button_label: '🟡 Ver detalles',
+      dm_text: 'Estos detalles aplican a todas las publicaciones de esta regla. Agrega o quita publicaciones al editarla.',
+    },
+    {
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: calificar con automatización',
+      keywords: ['QUIERO'],
+      dm_opening: '¡Hola! 👋 Te hago 1 pregunta rápida para ayudarte mejor.',
+      dm_button_label: '🟣 Empezar',
+      automation_id: qualifyId,
+    },
+  ]
+  if (pdfUrl) {
+    rules.push({
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: enviar PDF',
+      keywords: ['CATALOGO', 'PDF'],
+      dm_opening: '¡Hola! 📄 Toca el botón y te envío el catálogo en PDF.',
+      dm_button_label: '🔴 Recibir catálogo',
+      dm_text: 'Aquí tienes el catálogo. ¿Te interesa algo en especial?',
+      dm_media_url: pdfUrl,
+      dm_media_kind: 'document',
+      dm_media_name: 'catalogo-ejemplo.pdf',
+    })
+  }
+  if (catalogId) {
+    rules.push({
+      ...base,
+      ...on([]),
+      name: 'Ejemplo: enviar un producto del catálogo',
+      keywords: ['PRODUCTO'],
+      dm_opening: '¡Hola! Toca el botón y te envío la foto y los detalles.',
+      dm_button_label: '🟠 Ver producto',
+      catalog_item_id: catalogId,
+    })
+  }
+  const { error } = await ctx.db.from('instagram_keyword_rules').insert(rules)
+  if (error) failInstagram(error, 'instagram_keyword_rules')
+  return { rules: rules.length, automations: 3, posts: posts.length, pdf: !!pdfUrl, catalog: !!catalogId }
+}
+
 // ---------- removal ----------
 
 async function del(ctx: Ctx, table: string, apply?: (q: ReturnType<ReturnType<SupabaseClient['from']>['delete']>) => unknown) {
@@ -715,6 +1003,12 @@ async function del(ctx: Ctx, table: string, apply?: (q: ReturnType<ReturnType<Su
 export async function removeSamples(ctx: Ctx, module: SampleModule, scope: ReminderAppliesTo | null = null): Promise<void> {
   if (module === 'reminders') {
     await del(ctx, 'booking_reminder_rules', scope && scope !== 'all' ? (q) => q.eq('applies_to', scope) : undefined)
+    return
+  }
+  if (module === 'instagram') {
+    // Rules first (they point at the automations); steps cascade.
+    await del(ctx, 'instagram_keyword_rules')
+    await del(ctx, 'automations')
     return
   }
   if (module === 'properties') {
@@ -782,6 +1076,8 @@ export async function loadSamples(ctx: Ctx, module: SampleModule, scope: Reminde
       return seedProperties(ctx)
     case 'reminders':
       return seedReminders(ctx, scope)
+    case 'instagram':
+      return seedInstagram(ctx)
   }
 }
 
@@ -793,12 +1089,13 @@ export async function countSamples(ctx: Ctx): Promise<Record<SampleModule, numbe
     const { count: n, error } = await q
     return error ? 0 : (n ?? 0)
   }
-  const [restaurant, events, clinic, properties, reminders] = await Promise.all([
+  const [restaurant, events, clinic, properties, reminders, instagram] = await Promise.all([
     count('restaurant_tables'),
     count('event_halls'),
     count('professionals'),
     count('properties'),
     count('booking_reminder_rules'),
+    count('instagram_keyword_rules'),
   ])
-  return { restaurant, events, clinic, properties, reminders }
+  return { restaurant, events, clinic, properties, reminders, instagram }
 }

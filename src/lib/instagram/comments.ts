@@ -1,6 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import { addContactTagAndDispatch } from '@/lib/contacts/tag-events'
+import { runAutomationById } from '@/lib/automations/engine'
 import {
   fetchInstagramMedia,
   listInstagramMedia,
@@ -13,6 +14,7 @@ import { isMissingTable } from './connection'
 import { findOrCreateContact, findOrCreateConversation, saveSource } from './contacts'
 import { toInstagramText } from './format'
 import {
+  normalizeRule,
   pickPublicReply,
   pickRule,
   ruleButtonPayload,
@@ -35,9 +37,6 @@ import type { InstagramComment } from './webhook'
 export const DEFAULT_DM_OPENING = '¡Hola! 👋 Gracias por tu comentario. Toca el botón y te envío la información por aquí.'
 /** Meta allows a private reply up to 7 days after the comment. */
 const PRIVATE_REPLY_WINDOW_MS = 7 * 24 * 60 * 60 * 1000
-
-const RULE_COLUMNS =
-  'id, media_id, name, keywords, match_any, public_replies, dm_opening, dm_button_label, dm_text, dm_link_url, catalog_item_id, tag_id, once_per_user, active, created_at, updated_at'
 
 export interface PostRow {
   media_id: string
@@ -94,12 +93,13 @@ async function ensurePost(db: SupabaseClient, conn: InstagramConnection, mediaId
 }
 
 export async function loadKeywordRules(db: SupabaseClient, accountId: string): Promise<KeywordRule[]> {
-  const { data, error } = await db.from('instagram_keyword_rules').select(RULE_COLUMNS).eq('account_id', accountId)
+  // `*` so the rules keep working before migration 080 adds its columns.
+  const { data, error } = await db.from('instagram_keyword_rules').select('*').eq('account_id', accountId)
   if (error) {
     if (!isMissingTable(error)) console.error('[instagram] loading keyword rules failed:', error)
     return []
   }
-  return (data ?? []) as KeywordRule[]
+  return ((data ?? []) as Record<string, unknown>[]).map(normalizeRule)
 }
 
 async function updateComment(db: SupabaseClient, id: string, patch: Record<string, unknown>): Promise<void> {
@@ -338,11 +338,11 @@ export async function deliverPendingRuleContent(
 
   const { data: ruleRow } = await db
     .from('instagram_keyword_rules')
-    .select(RULE_COLUMNS)
+    .select('*')
     .eq('id', ruleId)
     .eq('account_id', args.accountId)
     .maybeSingle()
-  const rule = ruleRow as KeywordRule | null
+  const rule = ruleRow ? normalizeRule(ruleRow as Record<string, unknown>) : null
   if (!rule) return false
 
   // Claim it before sending, so a double tap delivers once.
@@ -373,11 +373,34 @@ export async function deliverPendingRuleContent(
       }).catch((err) => console.error('[instagram] sending the rule catalog item failed:', err))
     }
   }
+  // The rule's own file (080): a PDF or a picture. Instagram refuses some
+  // files; the customer then gets the link to it instead.
+  if (rule.dm_media_url) {
+    const kind = rule.dm_media_kind ?? 'document'
+    await instagramEngineSendMedia({ ...base, kind, link: rule.dm_media_url }).catch(async (err) => {
+      console.error('[instagram] sending the rule file failed, sending its link:', err)
+      const label = rule.dm_media_name?.trim() || (kind === 'document' ? '📄 Documento' : '🖼️ Imagen')
+      await instagramEngineSendText({ ...base, text: `${label}
+${rule.dm_media_url}` }).catch((err2) =>
+        console.error('[instagram] sending the rule file link failed:', err2),
+      )
+    })
+  }
   const text = ruleContentText(rule)
   if (text) {
     await instagramEngineSendText({ ...base, text }).catch((err) =>
       console.error('[instagram] sending the rule content failed:', err),
     )
+  }
+  // Then the automation the rule starts (e.g. qualify the lead): the
+  // window is open now, so its messages can go.
+  if (rule.automation_id) {
+    await runAutomationById({
+      accountId: args.accountId,
+      automationId: rule.automation_id,
+      contactId: args.contactId,
+      context: { conversation_id: args.conversationId, vars: { instagram_rule: rule.name } },
+    })
   }
   return true
 }

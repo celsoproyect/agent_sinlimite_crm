@@ -150,6 +150,7 @@ const TRIGGER_OPTIONS: { value: AutomationTriggerType }[] = [
   { value: "time_based" },
   { value: "deal_won" },
   { value: "deal_lost" },
+  { value: "instagram_rule" },
 ]
 
 function cid(): string {

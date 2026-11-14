@@ -1832,6 +1832,10 @@
         "deal_lost": {
           "label": "Negocio perdido",
           "hint": "Cuando un negocio se marca como perdido (ideal para re-contactar con Esperar)"
+        },
+        "instagram_rule": {
+          "label": "Regla de Instagram",
+          "hint": "La inicia una regla de comentarios de Instagram cuando el cliente toca su botón"
         }
       },
       "trigger": "Disparador",
@@ -3436,7 +3440,8 @@
       "restaurant": "Carga mesas, áreas, reservas (mesa sola, mesas juntas y separadas, un pedido anticipado, un no-show) y una lista de espera de ejemplo para ver cómo funciona. Los ejemplos están marcados y nunca reciben recordatorios.",
       "events": "Carga salones, paquetes y una solicitud de ejemplo en cada etapa (Solicitud → Cotizado → Depósito pagado → Confirmado → Realizado/Cancelado). Los ejemplos están marcados y nunca reciben recordatorios.",
       "clinic": "Carga doctores, servicios, una ausencia y citas de ejemplo para ver cómo funciona la agenda de cada doctor. Los ejemplos están marcados y nunca reciben recordatorios.",
-      "properties": "Carga 3 inmuebles con fotos y amenidades (apartamento en venta en Piantini, villa en Cap Cana y casa en alquiler en Santiago), 2 asesores con su agenda de visitas y una visita de ejemplo. Los ejemplos están marcados y nunca reciben recordatorios."
+      "properties": "Carga 3 inmuebles con fotos y amenidades (apartamento en venta en Piantini, villa en Cap Cana y casa en alquiler en Santiago), 2 asesores con su agenda de visitas y una visita de ejemplo. Los ejemplos están marcados y nunca reciben recordatorios.",
+      "instagram": "Carga una regla de ejemplo de cada tipo (palabra clave en una publicación, en todas, cualquier comentario, texto y enlace, una regla para varias publicaciones, enviar PDF, producto del catálogo y calificar con automatización) y 3 automatizaciones que califican al lead. Las reglas se crean apagadas: actívalas cuando quieras usarlas."
     },
     "load": "Cargar ejemplos",
     "reload": "Recargar ejemplos",
@@ -3448,7 +3453,8 @@
     "failed": "No se pudieron actualizar los ejemplos",
     "needsMigration": "Primero ejecuta la migración 068 en Supabase",
     "moduleDisabled": "Primero activa el módulo",
-    "badge": "Ejemplo"
+    "badge": "Ejemplo",
+    "needsMigration080": "Primero ejecuta la migración 080 en Supabase"
   },
   "Agents": {
     "page": {
@@ -4278,13 +4284,42 @@
       "needs_migration": "Falta aplicar la migración 079 en Supabase.",
       "module_disabled": "El módulo de Instagram está apagado.",
       "not_connected": "Instagram no está conectado.",
-      "keyword_conflict": "«{keyword}» ya está en la regla «{rule}» de la misma publicación.",
+      "keyword_conflict": "«{keyword}» ya está en la regla «{rule}» de una misma publicación.",
       "keywords_required": "Escribe al menos una palabra clave o activa «cualquier comentario».",
       "reply_required": "Agrega una respuesta pública o un contenido para el mensaje privado.",
       "catalog_needs_button": "Para enviar una foto del catálogo activa «Enviar primero un botón».",
       "invalid_link": "El enlace debe empezar por http:// o https://.",
       "already_messaged": "Este comentario ya recibió su mensaje privado.",
-      "too_old": "Instagram solo permite el mensaje privado en los 7 días siguientes al comentario."
-    }
+      "too_old": "Instagram solo permite el mensaje privado en los 7 días siguientes al comentario.",
+      "posts_required": "Elige al menos una publicación o activa «Todas las publicaciones».",
+      "file_needs_button": "Para enviar un archivo activa «Enviar primero un botón».",
+      "automation_needs_button": "Para iniciar una automatización activa «Enviar primero un botón».",
+      "invalid_file": "El archivo no es válido. Súbelo de nuevo.",
+      "too_many_posts": "Una regla puede tener hasta 100 publicaciones."
+    },
+    "duplicate": "Duplicar",
+    "duplicateRule": "Duplicar regla",
+    "copySuffix": "(copia)",
+    "allPosts": "Todas las publicaciones",
+    "allPostsHint": "Apágalo para elegir una o varias publicaciones o reels que usarán esta misma regla.",
+    "pickPostsHint": "{count, plural, =0 {Toca las publicaciones que usarán esta regla.} one {1 publicación elegida.} other {# publicaciones elegidas.}}",
+    "postsCount": "{count, plural, one {1 publicación} other {# publicaciones}}",
+    "buttonColor": "Color del botón",
+    "noColor": "Sin color",
+    "buttonColorHint": "Instagram no permite cambiar el color real de los botones, así que el color se muestra como un círculo de color delante del texto.",
+    "ruleFile": "Archivo (PDF o imagen)",
+    "uploadFile": "Subir archivo",
+    "removeFile": "Quitar archivo",
+    "ruleFileHint": "Se envía después de que el cliente toque el botón. PDF hasta 16 MB, JPG o PNG hasta 5 MB.",
+    "fileTypeError": "Solo se permiten archivos PDF, JPG o PNG.",
+    "fileTooBig": "El archivo pesa más de {mb} MB.",
+    "ruleAutomation": "Iniciar automatización",
+    "ruleAutomationHint": "Se inicia cuando el cliente toca el botón, por ejemplo para calificar al lead con preguntas. Crea automatizaciones con el disparador «Regla de Instagram».",
+    "inactive": "inactiva",
+    "summaryImage": "imagen",
+    "summaryPdf": "PDF",
+    "summaryAutomation": "automatización «{name}»",
+    "sampleBadge": "Ejemplo",
+    "needsMigration080": "Para usar varias publicaciones por regla, archivos, automatizaciones y ejemplos, aplica la migración 080 en Supabase."
   }
 }

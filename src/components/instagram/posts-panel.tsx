@@ -13,12 +13,13 @@ interface PostsPanelProps {
   canManage: boolean;
   onNewRule: (mediaId: string) => void;
   onEdit: (rule: KeywordRule) => void;
+  onDuplicate: (rule: KeywordRule) => void;
   onChanged: () => void;
 }
 
 // Publicaciones: the account's posts and reels, each with its own keyword
 // rules ("comment PRECIO on this reel").
-export function PostsPanel({ data, canManage, onNewRule, onEdit, onChanged }: PostsPanelProps) {
+export function PostsPanel({ data, canManage, onNewRule, onEdit, onDuplicate, onChanged }: PostsPanelProps) {
   const t = useTranslations("Instagram");
   const [selected, setSelected] = useState<string | null>(null);
 
@@ -37,18 +38,19 @@ export function PostsPanel({ data, canManage, onNewRule, onEdit, onChanged }: Po
       {current && (
         <PostDetail
           post={current}
-          rules={data.rules.filter((r) => r.media_id === current.media_id)}
+          rules={data.rules.filter((r) => r.media_ids.includes(current.media_id))}
           data={data}
           canManage={canManage}
           onClose={() => setSelected(null)}
           onNewRule={() => onNewRule(current.media_id)}
           onEdit={onEdit}
+          onDuplicate={onDuplicate}
           onChanged={onChanged}
         />
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {data.posts.map((p) => {
-          const count = data.rules.filter((r) => r.media_id === p.media_id).length;
+          const count = data.rules.filter((r) => r.media_ids.includes(p.media_id)).length;
           const image = postImage(p);
           return (
             <button
@@ -90,6 +92,7 @@ function PostDetail({
   onClose,
   onNewRule,
   onEdit,
+  onDuplicate,
   onChanged,
 }: {
   post: InstagramPost;
@@ -99,6 +102,7 @@ function PostDetail({
   onClose: () => void;
   onNewRule: () => void;
   onEdit: (rule: KeywordRule) => void;
+  onDuplicate: (rule: KeywordRule) => void;
   onChanged: () => void;
 }) {
   const t = useTranslations("Instagram");
@@ -131,8 +135,8 @@ function PostDetail({
           </Button>
         </div>
       </div>
-      <RulesList rules={rules} data={data} canManage={canManage} hidePost onEdit={onEdit} onChanged={onChanged} />
-      {rules.length === 0 && data.rules.some((r) => !r.media_id && r.active) && (
+      <RulesList rules={rules} data={data} canManage={canManage} hidePost onEdit={onEdit} onDuplicate={onDuplicate} onChanged={onChanged} />
+      {rules.length === 0 && data.rules.some((r) => r.media_ids.length === 0 && r.active) && (
         <p className="text-xs text-muted-foreground">{t("generalRulesApply")}</p>
       )}
     </div>

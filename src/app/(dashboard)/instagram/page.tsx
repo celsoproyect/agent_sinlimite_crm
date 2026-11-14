@@ -9,12 +9,13 @@ import { useModuleGate } from "@/hooks/use-module-gate";
 import { useCan } from "@/hooks/use-can";
 import { useAuth } from "@/hooks/use-auth";
 import { isModuleEnabled } from "@/lib/modules";
-import type { KeywordRule } from "@/lib/instagram/keywords";
+import { duplicateRule, type KeywordRule } from "@/lib/instagram/keywords";
 import { Button } from "@/components/ui/button";
 import { PostsPanel } from "@/components/instagram/posts-panel";
 import { RulesList } from "@/components/instagram/rules-list";
 import { RuleFormDialog } from "@/components/instagram/rule-form-dialog";
 import { CommentsPanel } from "@/components/instagram/comments-panel";
+import { SampleDataBar } from "@/components/samples/sample-data-bar";
 import { apiErrorText, type InstagramPageData } from "@/components/instagram/instagram-utils";
 
 type Tab = "posts" | "keywords" | "comments";
@@ -83,7 +84,8 @@ export default function InstagramPage() {
 
   const commentsOn = isModuleEnabled(account?.enabled_modules, "instagram_comments");
   const canManage = isAdmin && data.migrated;
-  const generalRules = data.rules.filter((r) => !r.media_id);
+  const generalRules = data.rules.filter((r) => r.media_ids.length === 0);
+  const duplicate = (rule: KeywordRule) => setEditing({ rule: duplicateRule(rule, t("copySuffix")) });
   const tabs: Tab[] = ["posts", "keywords", "comments"];
 
   return (
@@ -123,7 +125,11 @@ export default function InstagramPage() {
           )}
         </Notice>
       )}
+      {data.migrated && !data.v2 && <Notice>{t("needsMigration080")}</Notice>}
       {data.migrated && !commentsOn && <Notice>{t("commentsModuleOff")}</Notice>}
+      {canManage && data.v2 && (
+        <SampleDataBar module="instagram" hasSamples={data.rules.some((r) => r.is_sample)} onChanged={load} />
+      )}
       {data.syncError && <Notice>{t("syncFailed", { error: data.syncError })}</Notice>}
 
       <div className="flex w-fit max-w-full flex-wrap items-center gap-1 rounded-lg border border-border bg-card p-1">
@@ -149,6 +155,7 @@ export default function InstagramPage() {
           canManage={canManage}
           onNewRule={(mediaId) => setEditing({ rule: null, mediaId })}
           onEdit={(rule) => setEditing({ rule })}
+          onDuplicate={duplicate}
           onChanged={() => void load()}
         />
       )}
@@ -157,15 +164,23 @@ export default function InstagramPage() {
           <section className="space-y-2">
             <h2 className="text-sm font-semibold text-foreground">{t("generalRules")}</h2>
             <p className="text-xs text-muted-foreground">{t("generalRulesHint")}</p>
-            <RulesList rules={generalRules} data={data} canManage={canManage} onEdit={(rule) => setEditing({ rule })} onChanged={() => void load()} />
+            <RulesList
+              rules={generalRules}
+              data={data}
+              canManage={canManage}
+              onEdit={(rule) => setEditing({ rule })}
+              onDuplicate={duplicate}
+              onChanged={() => void load()}
+            />
           </section>
           <section className="space-y-2">
             <h2 className="text-sm font-semibold text-foreground">{t("postRules")}</h2>
             <RulesList
-              rules={data.rules.filter((r) => r.media_id)}
+              rules={data.rules.filter((r) => r.media_ids.length > 0)}
               data={data}
               canManage={canManage}
               onEdit={(rule) => setEditing({ rule })}
+              onDuplicate={duplicate}
               onChanged={() => void load()}
             />
           </section>

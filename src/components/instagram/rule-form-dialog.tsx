@@ -3,20 +3,21 @@
 import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
-import { Loader2 } from "lucide-react";
-import type { KeywordRule } from "@/lib/instagram/keywords";
+import { Check, FileText, Image as ImageIcon, Loader2, Paperclip, X } from "lucide-react";
+import type { KeywordRule, RuleMediaKind } from "@/lib/instagram/keywords";
+import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { SELECT_CLASS, apiErrorText, postLabel, type InstagramPageData } from "./instagram-utils";
+import { BUTTON_COLORS, SELECT_CLASS, apiErrorText, buttonColorOf, postImage, postLabel, withButtonColor, type InstagramPageData } from "./instagram-utils";
 
 interface RuleFormDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  /** null = new rule. */
+  /** null = new rule; a rule with id "" = a duplicate to save as new. */
   rule: KeywordRule | null;
   /** Preselected post for a new rule ("" = general). */
   mediaId?: string;
@@ -30,11 +31,13 @@ export function RuleFormDialog({ open, onOpenChange, rule, mediaId, data, onSave
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[90dvh] overflow-y-auto border-border bg-popover sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle className="text-popover-foreground">{rule ? t("editRule") : t("newRule")}</DialogTitle>
+          <DialogTitle className="text-popover-foreground">
+            {rule?.id ? t("editRule") : rule ? t("duplicateRule") : t("newRule")}
+          </DialogTitle>
         </DialogHeader>
         {open && (
           <RuleForm
-            key={rule?.id ?? `new-${mediaId ?? ""}`}
+            key={rule ? rule.id || `dup-${rule.name}` : `new-${mediaId ?? ""}`}
             rule={rule}
             mediaId={mediaId ?? ""}
             data={data}
@@ -71,40 +74,82 @@ function RuleForm({
 }) {
   const t = useTranslations("Instagram");
   const [name, setName] = useState(rule?.name ?? "");
-  const [media, setMedia] = useState(rule ? rule.media_id ?? "" : mediaId);
+  const [mediaIds, setMediaIds] = useState<string[]>(rule ? rule.media_ids : mediaId ? [mediaId] : []);
+  const [allPosts, setAllPosts] = useState(rule ? rule.media_ids.length === 0 : !mediaId);
   const [matchAny, setMatchAny] = useState(rule?.match_any ?? false);
   const [keywords, setKeywords] = useState((rule?.keywords ?? []).join(", "));
   const [publicReplies, setPublicReplies] = useState((rule?.public_replies ?? []).join("\n"));
   const [useButton, setUseButton] = useState(rule ? !!rule.dm_button_label : true);
   const [opening, setOpening] = useState(rule?.dm_opening ?? "");
-  const [buttonLabel, setButtonLabel] = useState(rule?.dm_button_label ?? t("defaultButton"));
+  const initialButton = buttonColorOf(rule?.dm_button_label ?? t("defaultButton"));
+  const [buttonColor, setButtonColor] = useState(initialButton.color);
+  const [buttonLabel, setButtonLabel] = useState(initialButton.label);
   const [dmText, setDmText] = useState(rule?.dm_text ?? "");
   const [link, setLink] = useState(rule?.dm_link_url ?? "");
   const [catalogItem, setCatalogItem] = useState(rule?.catalog_item_id ?? "");
+  const [file, setFile] = useState<{ url: string; kind: RuleMediaKind; name: string } | null>(
+    rule?.dm_media_url ? { url: rule.dm_media_url, kind: rule.dm_media_kind ?? "document", name: rule.dm_media_name ?? "" } : null,
+  );
+  const [uploading, setUploading] = useState(false);
+  const [automation, setAutomation] = useState(rule?.automation_id ?? "");
   const [tag, setTag] = useState(rule?.tag_id ?? "");
   const [oncePerUser, setOncePerUser] = useState(rule?.once_per_user ?? true);
   const [active, setActive] = useState(rule?.active ?? true);
   const [saving, setSaving] = useState(false);
 
+  async function upload(picked: File | undefined) {
+    if (!picked) return;
+    const kind: RuleMediaKind = picked.type.startsWith("image/") ? "image" : "document";
+    if (kind === "document" && picked.type !== "application/pdf") {
+      toast.error(t("fileTypeError"));
+      return;
+    }
+    if (picked.size > MEDIA_MAX_BYTES_BY_KIND[kind]) {
+      toast.error(t("fileTooBig", { mb: Math.round(MEDIA_MAX_BYTES_BY_KIND[kind] / 1024 / 1024) }));
+      return;
+    }
+    setUploading(true);
+    try {
+      const { publicUrl } = await uploadAccountMedia("chat-media", picked);
+      setFile({ url: publicUrl, kind, name: picked.name });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : t("errors.generic"));
+    } finally {
+      setUploading(false);
+    }
+  }
+
+  function togglePost(id: string) {
+    setMediaIds((ids) => (ids.includes(id) ? ids.filter((x) => x !== id) : [...ids, id]));
+  }
+
   async function save() {
+    if (!allPosts && mediaIds.length === 0) {
+      toast.error(t("errors.posts_required"));
+      return;
+    }
     setSaving(true);
     const body = {
       name,
-      media_id: media || null,
+      media_ids: allPosts ? [] : mediaIds,
       match_any: matchAny,
       keywords: matchAny ? [] : keywords.split(/[,\n]/).map((k) => k.trim()).filter(Boolean),
       public_replies: lines(publicReplies),
       dm_opening: useButton ? opening : null,
-      dm_button_label: useButton ? buttonLabel : null,
+      dm_button_label: useButton ? withButtonColor(buttonColor, buttonLabel) : null,
       dm_text: dmText,
       dm_link_url: link || null,
       catalog_item_id: catalogItem || null,
+      dm_media_url: file?.url ?? null,
+      dm_media_kind: file?.kind ?? null,
+      dm_media_name: file?.name || null,
+      automation_id: automation || null,
       tag_id: tag || null,
       once_per_user: oncePerUser,
       active,
     };
-    const res = await fetch(rule ? `/api/instagram/rules/${rule.id}` : "/api/instagram/rules", {
-      method: rule ? "PATCH" : "POST",
+    const res = await fetch(rule?.id ? `/api/instagram/rules/${rule.id}` : "/api/instagram/rules", {
+      method: rule?.id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     }).catch(() => null);
@@ -123,22 +168,58 @@ function RuleForm({
 
   return (
     <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-2">
-        <div className="space-y-1.5">
-          <Label>{t("ruleName")}</Label>
-          <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("ruleNamePlaceholder")} maxLength={80} />
+      <div className="space-y-1.5">
+        <Label>{t("ruleName")}</Label>
+        <Input value={name} onChange={(e) => setName(e.target.value)} placeholder={t("ruleNamePlaceholder")} maxLength={80} />
+      </div>
+
+      <div className="space-y-2 rounded-lg border border-border p-3">
+        <div className="flex items-center justify-between gap-3">
+          <Label className="leading-snug">{t("allPosts")}</Label>
+          <Switch checked={allPosts} onCheckedChange={setAllPosts} />
         </div>
-        <div className="space-y-1.5">
-          <Label>{t("rulePost")}</Label>
-          <select className={SELECT_CLASS} value={media} onChange={(e) => setMedia(e.target.value)}>
-            <option value="">{t("generalRule")}</option>
-            {data.posts.map((p) => (
-              <option key={p.media_id} value={p.media_id}>
-                {postLabel(p, t)}
-              </option>
-            ))}
-          </select>
-        </div>
+        {allPosts ? (
+          <p className="text-xs text-muted-foreground">{t("allPostsHint")}</p>
+        ) : (
+          <>
+            <p className="text-xs text-muted-foreground">{t("pickPostsHint", { count: mediaIds.length })}</p>
+            {data.posts.length === 0 ? (
+              <p className="text-xs text-muted-foreground">{t("noPosts")}</p>
+            ) : (
+              <div className="grid max-h-64 grid-cols-3 gap-2 overflow-y-auto pr-1 sm:grid-cols-4">
+                {data.posts.map((p) => {
+                  const on = mediaIds.includes(p.media_id);
+                  const image = postImage(p);
+                  return (
+                    <button
+                      key={p.media_id}
+                      type="button"
+                      onClick={() => togglePost(p.media_id)}
+                      title={postLabel(p, t)}
+                      aria-pressed={on}
+                      className={`relative overflow-hidden rounded-lg border text-left ${
+                        on ? "border-primary ring-2 ring-primary" : "border-border opacity-80 hover:opacity-100"
+                      }`}
+                    >
+                      <div className="aspect-square bg-muted">
+                        {image && (
+                          // eslint-disable-next-line @next/next/no-img-element -- Instagram CDN URLs
+                          <img src={image} alt="" className="h-full w-full object-cover" loading="lazy" />
+                        )}
+                      </div>
+                      {on && (
+                        <span className="absolute right-1 top-1 rounded-full bg-primary p-0.5 text-primary-foreground">
+                          <Check className="h-3 w-3" />
+                        </span>
+                      )}
+                      <p className="line-clamp-1 px-1 py-0.5 text-[11px] text-muted-foreground">{postLabel(p, t)}</p>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       <div className="space-y-2 rounded-lg border border-border p-3">
@@ -181,8 +262,32 @@ function RuleForm({
             </div>
             <div className="space-y-1.5">
               <Label>{t("buttonLabel")}</Label>
-              <Input value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} maxLength={20} />
+              <Input value={buttonLabel} onChange={(e) => setButtonLabel(e.target.value)} maxLength={buttonColor ? 17 : 20} />
             </div>
+          </div>
+        )}
+        {useButton && (
+          <div className="space-y-1.5">
+            <Label>{t("buttonColor")}</Label>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {BUTTON_COLORS.map((c) => (
+                <button
+                  key={c || "none"}
+                  type="button"
+                  onClick={() => setButtonColor(c)}
+                  aria-pressed={buttonColor === c}
+                  className={`flex h-8 min-w-8 items-center justify-center rounded-md border px-1.5 text-base ${
+                    buttonColor === c ? "border-primary ring-1 ring-primary" : "border-border"
+                  }`}
+                >
+                  {c || <span className="text-xs text-muted-foreground">{t("noColor")}</span>}
+                </button>
+              ))}
+              <span className="ml-2 rounded-full border border-border bg-background px-3 py-1 text-xs font-medium text-foreground">
+                {withButtonColor(buttonColor, buttonLabel || t("defaultButton"))}
+              </span>
+            </div>
+            <p className="text-xs text-muted-foreground">{t("buttonColorHint")}</p>
           </div>
         )}
         <div className="space-y-1.5">
@@ -204,6 +309,53 @@ function RuleForm({
             ))}
           </select>
           {catalogItem && !useButton && <p className="text-xs text-destructive">{t("errors.catalog_needs_button")}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("ruleFile")}</Label>
+          {file ? (
+            <div className="flex items-center gap-2 rounded-lg border border-border bg-muted px-2.5 py-1.5 text-sm">
+              {file.kind === "image" ? <ImageIcon className="h-4 w-4 shrink-0" /> : <FileText className="h-4 w-4 shrink-0" />}
+              <a href={file.url} target="_blank" rel="noreferrer" className="min-w-0 flex-1 truncate text-primary hover:underline">
+                {file.name || file.url}
+              </a>
+              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setFile(null)} aria-label={t("removeFile")}>
+                <X className="h-4 w-4" />
+              </Button>
+            </div>
+          ) : (
+            <label className="flex cursor-pointer items-center gap-2 rounded-lg border border-dashed border-border px-2.5 py-2 text-sm text-muted-foreground hover:border-primary">
+              {uploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Paperclip className="h-4 w-4" />}
+              {t("uploadFile")}
+              <input
+                type="file"
+                accept="application/pdf,image/jpeg,image/png"
+                className="hidden"
+                disabled={uploading}
+                onChange={(e) => {
+                  void upload(e.target.files?.[0]);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+          )}
+          <p className="text-xs text-muted-foreground">{t("ruleFileHint")}</p>
+          {file && !useButton && <p className="text-xs text-destructive">{t("errors.file_needs_button")}</p>}
+        </div>
+        <div className="space-y-1.5">
+          <Label>{t("ruleAutomation")}</Label>
+          <select className={SELECT_CLASS} value={automation} onChange={(e) => setAutomation(e.target.value)}>
+            <option value="">{t("none")}</option>
+            {[...data.automations]
+              .sort((a, b) => Number(b.trigger_type === "instagram_rule") - Number(a.trigger_type === "instagram_rule"))
+              .map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name}
+                  {a.is_active ? "" : ` (${t("inactive")})`}
+                </option>
+              ))}
+          </select>
+          <p className="text-xs text-muted-foreground">{t("ruleAutomationHint")}</p>
+          {automation && !useButton && <p className="text-xs text-destructive">{t("errors.automation_needs_button")}</p>}
         </div>
       </div>
 
@@ -235,7 +387,7 @@ function RuleForm({
         <Button variant="outline" onClick={onCancel} disabled={saving}>
           {t("cancel")}
         </Button>
-        <Button onClick={() => void save()} disabled={saving}>
+        <Button onClick={() => void save()} disabled={saving || uploading}>
           {saving && <Loader2 className="mr-1 h-4 w-4 animate-spin" />}
           {t("save")}
         </Button>

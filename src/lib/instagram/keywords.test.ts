@@ -8,6 +8,8 @@ vi.mock('@/lib/whatsapp/mirror-inbound-media', () => ({ mirrorInboundMedia: vi.f
 
 import {
   cleanKeywords,
+  duplicateRule,
+  isGeneralRule,
   keywordConflicts,
   matchesKeyword,
   normalizeForMatch,
@@ -16,16 +18,19 @@ import {
   ruleButtonPayload,
   ruleContentText,
   ruleIdFromPayload,
+  normalizeRule,
   type KeywordRule,
 } from './keywords'
 import { parseInstagramComments } from './webhook'
 import { DEFAULT_DM_OPENING, privateReplyFor } from './comments'
 import { parseRuleInput, ruleProblem } from './page-api'
+import { buttonColorOf, withButtonColor } from '@/components/instagram/instagram-utils'
 
 function rule(over: Partial<KeywordRule>): KeywordRule {
   return {
     id: 'r1',
     media_id: null,
+    media_ids: [],
     name: 'Regla',
     keywords: [],
     match_any: false,
@@ -38,6 +43,10 @@ function rule(over: Partial<KeywordRule>): KeywordRule {
     tag_id: null,
     once_per_user: true,
     active: true,
+    dm_media_url: null,
+    dm_media_kind: null,
+    dm_media_name: null,
+    automation_id: null,
     ...over,
   }
 }
@@ -57,8 +66,8 @@ describe('keyword matching', () => {
 
 describe('pickRule', () => {
   const general = rule({ id: 'g', keywords: ['precio'] })
-  const own = rule({ id: 'o', media_id: '111', keywords: ['precio'] })
-  const anyOwn = rule({ id: 'ao', media_id: '111', match_any: true })
+  const own = rule({ id: 'o', media_ids: ['111'], keywords: ['precio'] })
+  const anyOwn = rule({ id: 'ao', media_ids: ['111'], match_any: true })
   const anyGeneral = rule({ id: 'ag', match_any: true })
 
   it("prefers the post's own keyword rule", () => {
@@ -69,6 +78,11 @@ describe('pickRule', () => {
     expect(pickRule([general, anyOwn, anyGeneral], { mediaId: '111', text: 'lindo' })?.rule.id).toBe('ao')
     expect(pickRule([general, anyOwn, anyGeneral], { mediaId: '111', text: 'precio' })?.rule.id).toBe('g')
     expect(pickRule([anyGeneral], { mediaId: '999', text: 'hola' })).toEqual({ rule: anyGeneral, keyword: null })
+  })
+  it('matches any of the posts of a multi-post rule', () => {
+    const multi = rule({ id: 'm', media_ids: ['111', '222', '333'], keywords: ['info'] })
+    expect(pickRule([multi], { mediaId: '222', text: 'INFO' })?.rule.id).toBe('m')
+    expect(pickRule([multi], { mediaId: '444', text: 'info' })).toBeNull()
   })
   it('skips inactive rules', () => {
     expect(pickRule([rule({ keywords: ['precio'], active: false })], { mediaId: null, text: 'precio' })).toBeNull()
@@ -82,10 +96,32 @@ describe('rule helpers', () => {
   it('finds conflicts in the same scope only', () => {
     const a = rule({ id: 'a', keywords: ['Precio'] })
     const b = rule({ id: 'b', name: 'Otra', keywords: ['precio', 'info'] })
-    const c = rule({ id: 'c', media_id: '1', keywords: ['precio'] })
+    const c = rule({ id: 'c', media_ids: ['1'], keywords: ['precio'] })
     expect(keywordConflicts(a, [a, b, c])).toEqual([{ keyword: 'Precio', ruleId: 'b', ruleName: 'Otra' }])
     expect(keywordConflicts(rule({ id: 'x', match_any: true }), [rule({ id: 'y', match_any: true })])).toHaveLength(1)
     expect(keywordConflicts({ ...a, active: false }, [b])).toEqual([])
+  })
+  it('finds conflicts between rules sharing a post', () => {
+    const a = rule({ id: 'a', media_ids: ['1', '2'], keywords: ['precio'] })
+    const b = rule({ id: 'b', media_ids: ['2', '3'], keywords: ['precio'] })
+    const c = rule({ id: 'c', media_ids: ['4'], keywords: ['precio'] })
+    expect(keywordConflicts(a, [a, b, c]).map((x) => x.ruleId)).toEqual(['b'])
+  })
+  it('normalizes 079 rows and duplicates rules', () => {
+    const old = normalizeRule({ id: 'x', media_id: '9', name: 'Vieja', keywords: ['a'] })
+    expect(old.media_ids).toEqual(['9'])
+    expect(old.automation_id).toBeNull()
+    expect(isGeneralRule(rule({}))).toBe(true)
+    expect(isGeneralRule(old)).toBe(false)
+    const copy = duplicateRule(rule({ id: 'r9', name: 'Precio', is_sample: true }), '(copia)')
+    expect(copy).toMatchObject({ id: '', name: 'Precio (copia)', is_sample: false })
+  })
+  it('puts a color dot before the button text', () => {
+    expect(withButtonColor('🟢', 'Ver precios')).toBe('🟢 Ver precios')
+    expect(withButtonColor('🔵', '🟢 Ver precios')).toBe('🔵 Ver precios')
+    expect(withButtonColor('', '🟢 Ver precios')).toBe('Ver precios')
+    expect(buttonColorOf('🟣 Empezar')).toEqual({ color: '🟣', label: 'Empezar' })
+    expect(buttonColorOf('Empezar')).toEqual({ color: '', label: 'Empezar' })
   })
   it('rotates public replies and fills the username', () => {
     expect(pickPublicReply(['Listo {{username}} 📩', 'Otra'], 'ana', () => 0)).toBe('Listo @ana 📩')
@@ -146,6 +182,25 @@ describe('parseRuleInput', () => {
     expect(parseRuleInput({ keywords: ['a'], dm_link_url: 'ftp://x' }, false)).toEqual({ error: 'invalid_link' })
     expect(parseRuleInput({ media_id: 'abc' }, true)).toEqual({ error: 'invalid_media' })
     expect(parseRuleInput(null, false)).toEqual({ error: 'invalid_body' })
+  })
+  it('takes several posts, a file and an automation', () => {
+    const out = parseRuleInput(
+      {
+        name: 'Multi',
+        media_ids: ['17900000001', '17900000002', '17900000001'],
+        keywords: ['pdf'],
+        dm_button_label: 'Ver',
+        dm_media_url: 'https://x.supabase.co/f.pdf',
+        dm_media_kind: 'document',
+        automation_id: '00000000-0000-0000-0000-000000000001',
+      },
+      false,
+    )
+    expect(out).toMatchObject({
+      input: { media_ids: ['17900000001', '17900000002'], media_id: '17900000001', dm_media_kind: 'document' },
+    })
+    expect(parseRuleInput({ keywords: ['a'], dm_media_url: 'http://x/f.pdf', dm_button_label: 'V' }, false)).toEqual({ error: 'invalid_file' })
+    expect(parseRuleInput({ media_ids: Array.from({ length: 101 }, (_, i) => String(10000 + i)) }, true)).toEqual({ error: 'too_many_posts' })
   })
   it('keeps PATCH partial', () => {
     expect(parseRuleInput({ active: false }, true)).toEqual({ input: { active: false } })

@@ -7,11 +7,18 @@
 // "precio por favor" do. A keyword of several words matches that phrase.
 // Order: the post's own keyword rules, then the general ones, then the
 // post's "any comment" rule, then a general "any comment" rule.
+// A rule covers a list of posts (migration 080, `media_ids`); an empty
+// list makes it general (every post).
 // ============================================================
+
+export type RuleMediaKind = 'image' | 'document'
 
 export interface KeywordRule {
   id: string
+  /** Legacy single post (079). Read `media_ids`. */
   media_id: string | null
+  /** The posts/reels the rule answers on; [] = every post (general). */
+  media_ids: string[]
   name: string
   keywords: string[]
   match_any: boolean
@@ -21,11 +28,46 @@ export interface KeywordRule {
   dm_text: string
   dm_link_url: string | null
   catalog_item_id: string | null
+  /** A file of the rule's own (080): a PDF or a picture sent after the button. */
+  dm_media_url: string | null
+  dm_media_kind: RuleMediaKind | null
+  dm_media_name: string | null
+  /** Automation started once the content is delivered (080). */
+  automation_id: string | null
   tag_id: string | null
   once_per_user: boolean
   active: boolean
+  is_sample?: boolean
   created_at?: string
   updated_at?: string
+}
+
+/**
+ * A rule row as the DB returns it, before or after migration 080: the
+ * post list falls back to the single `media_id`, and the 080 fields
+ * default to empty.
+ */
+export function normalizeRule(row: Record<string, unknown>): KeywordRule {
+  const r = row as Partial<KeywordRule> & { id: string }
+  const ids = Array.isArray(r.media_ids) ? r.media_ids.filter((m): m is string => typeof m === 'string' && !!m) : []
+  return {
+    ...(r as KeywordRule),
+    media_id: r.media_id ?? null,
+    media_ids: ids.length ? [...new Set(ids)] : r.media_id ? [r.media_id] : [],
+    keywords: r.keywords ?? [],
+    public_replies: r.public_replies ?? [],
+    dm_text: r.dm_text ?? '',
+    dm_media_url: r.dm_media_url ?? null,
+    dm_media_kind: r.dm_media_kind === 'image' || r.dm_media_kind === 'document' ? r.dm_media_kind : null,
+    dm_media_name: r.dm_media_name ?? null,
+    automation_id: r.automation_id ?? null,
+    is_sample: r.is_sample ?? false,
+  }
+}
+
+/** Whether a rule covers every post (no list of its own). */
+export function isGeneralRule(rule: Pick<KeywordRule, 'media_ids'>): boolean {
+  return rule.media_ids.length === 0
 }
 
 /** Lowercase, no accents, words separated by single spaces. */
@@ -51,8 +93,8 @@ export function pickRule(
   comment: { mediaId: string | null; text: string },
 ): { rule: KeywordRule; keyword: string | null } | null {
   const active = rules.filter((r) => r.active)
-  const own = active.filter((r) => r.media_id && r.media_id === comment.mediaId)
-  const general = active.filter((r) => !r.media_id)
+  const own = active.filter((r) => !!comment.mediaId && r.media_ids.includes(comment.mediaId))
+  const general = active.filter(isGeneralRule)
   const byKeyword = (list: KeywordRule[]) => {
     for (const rule of list) {
       if (rule.match_any) continue
@@ -82,19 +124,25 @@ export function cleanKeywords(raw: string[]): string[] {
   return out.slice(0, 30)
 }
 
+/** Two rules answer on a common post (or are both general). */
+function sameScope(a: Pick<KeywordRule, 'media_ids'>, b: Pick<KeywordRule, 'media_ids'>): boolean {
+  if (isGeneralRule(a) || isGeneralRule(b)) return isGeneralRule(a) && isGeneralRule(b)
+  return a.media_ids.some((m) => b.media_ids.includes(m))
+}
+
 /**
- * Keywords `rule` shares with another active rule of the same scope (the
- * same post, or both general). Those would be ambiguous: the first one
- * would always win.
+ * Keywords `rule` shares with another active rule of the same scope (a
+ * post they both cover, or both general). Those would be ambiguous: the
+ * first one would always win.
  */
 export function keywordConflicts(
-  rule: Pick<KeywordRule, 'id' | 'media_id' | 'keywords' | 'match_any' | 'active'>,
-  others: Pick<KeywordRule, 'id' | 'media_id' | 'keywords' | 'match_any' | 'active' | 'name'>[],
+  rule: Pick<KeywordRule, 'id' | 'media_ids' | 'keywords' | 'match_any' | 'active'>,
+  others: Pick<KeywordRule, 'id' | 'media_ids' | 'keywords' | 'match_any' | 'active' | 'name'>[],
 ): { keyword: string; ruleId: string; ruleName: string }[] {
   if (!rule.active) return []
   const out: { keyword: string; ruleId: string; ruleName: string }[] = []
   for (const other of others) {
-    if (other.id === rule.id || !other.active || (other.media_id ?? null) !== (rule.media_id ?? null)) continue
+    if (other.id === rule.id || !other.active || !sameScope(rule, other)) continue
     if (rule.match_any && other.match_any) {
       out.push({ keyword: '*', ruleId: other.id, ruleName: other.name })
       continue
@@ -129,6 +177,11 @@ export const RULE_BUTTON_PREFIX = 'IGRULE:'
 
 export function ruleButtonPayload(ruleId: string): string {
   return `${RULE_BUTTON_PREFIX}${ruleId}`
+}
+
+/** A copy of a rule to open as a new one ("Duplicar"). */
+export function duplicateRule(rule: KeywordRule, suffix: string): KeywordRule {
+  return { ...rule, id: '', name: `${rule.name || ''} ${suffix}`.trim().slice(0, 80), is_sample: false }
 }
 
 export function ruleIdFromPayload(payload: string | null | undefined): string | null {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { keywordConflicts, type KeywordRule } from '@/lib/instagram/keywords'
+import { keywordConflicts, normalizeRule } from '@/lib/instagram/keywords'
 import { instagramDbError, instagramGuard, parseRuleInput } from '@/lib/instagram/page-api'
 
 // Create a keyword rule (admins). The same keyword twice in one scope
@@ -14,11 +14,11 @@ export async function POST(request: Request) {
 
   const { data: others, error: othersErr } = await ctx.supabase
     .from('instagram_keyword_rules')
-    .select('id, media_id, keywords, match_any, active, name')
+    .select('*')
     .eq('account_id', ctx.accountId)
   if (othersErr) return instagramDbError(othersErr)
-  const candidate = { id: '', ...parsed.input } as unknown as KeywordRule
-  const conflicts = keywordConflicts(candidate, (others ?? []) as KeywordRule[])
+  const candidate = normalizeRule({ id: '', ...parsed.input })
+  const conflicts = keywordConflicts(candidate, ((others ?? []) as Record<string, unknown>[]).map(normalizeRule))
   if (conflicts.length > 0) return NextResponse.json({ error: 'keyword_conflict', conflicts }, { status: 409 })
 
   const { data, error } = await ctx.supabase
@@ -27,5 +27,5 @@ export async function POST(request: Request) {
     .select('*')
     .single()
   if (error) return instagramDbError(error)
-  return NextResponse.json({ rule: data }, { status: 201 })
+  return NextResponse.json({ rule: normalizeRule(data as Record<string, unknown>) }, { status: 201 })
 }
