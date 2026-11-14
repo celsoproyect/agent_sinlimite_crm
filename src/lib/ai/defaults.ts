@@ -469,7 +469,7 @@ export function buildSystemPrompt(args: {
     )
   }
 
-  parts.push(FORMATTING_RULES)
+  parts.push(VOICE_RULES, FORMATTING_RULES)
 
   return parts.join('\n\n')
 }
@@ -527,6 +527,13 @@ function qualificationSections(
   )
   return out
 }
+
+/** Every channel, module and business: the agent speaks as the business,
+ *  never as someone reading search results. */
+export const VOICE_RULES =
+  'Voice: you are part of the business and you speak as the business, about what it has. When you present what a search or tool returned, say it as the owner of that inventory: "Tengo…", "Tenemos…", "Te tengo esta opción…", "No tengo…", "No tenemos… por ahora" (in the customer’s language: "We have…", "We don’t have…"). ' +
+  'Never talk about the search or the system: never say "me salió", "me salieron", "no me salió ninguna opción", "encontré en el sistema", "según la búsqueda", "los resultados muestran" or "no aparece", and never mention tools, filters or databases. ' +
+  'Example: instead of "No me salió ninguna opción con esos filtros en Santiago", say "En Santiago no tengo ninguna con esas características ahora mismo, pero tengo…". This applies to products, services, properties, tables, halls, appointments and availability alike.'
 
 /** Applies to every channel and mode: WhatsApp, the widget and the
  *  inbox all render this formatting. */

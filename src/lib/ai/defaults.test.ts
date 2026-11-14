@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { buildSystemPrompt, HANDOFF_MISSING_INFO_SENTINEL, HANDOFF_SENTINEL } from './defaults'
+import { buildSystemPrompt, VOICE_RULES, HANDOFF_MISSING_INFO_SENTINEL, HANDOFF_SENTINEL } from './defaults'
 
 const KNOWLEDGE = [
   { kbName: 'Policies', title: 'Returns', content: 'Returns accepted within 30 days.' },
@@ -120,5 +120,16 @@ describe('buildSystemPrompt — prequalification and formatting', () => {
     expect(prompt).toContain('💰 *Precio:*')
     expect(prompt).toContain('✅ *¡Cita confirmada!*')
     expect(prompt).not.toContain('save_qualification')
+  })
+})
+
+describe('voice', () => {
+  it('speaks as the business in every mode ("tengo/tenemos", never "me salió")', () => {
+    for (const mode of ['auto_reply', 'draft'] as const) {
+      const prompt = buildSystemPrompt({ userPrompt: null, mode })
+      expect(prompt).toContain(VOICE_RULES)
+    }
+    expect(VOICE_RULES).toMatch(/Tenemos/)
+    expect(VOICE_RULES).toMatch(/me salió/)
   })
 })
