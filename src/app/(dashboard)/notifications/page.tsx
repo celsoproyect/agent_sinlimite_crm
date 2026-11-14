@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { useAuth } from "@/hooks/use-auth";
 import type { Notification } from "@/types";
-import { Bell, CheckCheck, CreditCard, Hand, Loader2, UserPlus } from "lucide-react";
+import { Bell, CheckCheck, CreditCard, Hand, Loader2, MessageCircleWarning, UserPlus } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { es as esLocale } from "date-fns/locale";
 import { useLocale, useTranslations } from "next-intl";
@@ -21,6 +21,7 @@ const TYPE_ICON: Record<Notification["type"], typeof Bell> = {
   conversation_assigned: UserPlus,
   handoff_requested: Hand,
   plan_alert: CreditCard,
+  instagram_comment: MessageCircleWarning,
 };
 
 export default function NotificationsPage() {
@@ -128,6 +129,8 @@ export default function NotificationsPage() {
       } else if (n.type === "plan_alert") {
         // Super admins get every account's alerts; clients see their plan.
         router.push(isSuperAdmin ? "/super-admin?tab=accounts" : "/settings?tab=plan");
+      } else if (n.type === "instagram_comment") {
+        router.push("/instagram?tab=comments");
       }
     },
     [markRead, router, isSuperAdmin],

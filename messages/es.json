@@ -183,7 +183,11 @@
     "instagramModule": "Instagram (mensajes directos)",
     "telegramAgendaModule": "Agendar citas desde Telegram",
     "instagram": "Instagram",
-    "instagramCommentsModule": "Instagram: comentarios y palabras clave"
+    "instagramCommentsModule": "Instagram: comentarios y palabras clave",
+    "instagramAiCommentsModule": "Instagram: IA en comentarios",
+    "instagramOffersModule": "Instagram: ofertas por publicación",
+    "instagramEngagementModule": "Instagram: historias, menú y botones de inicio",
+    "instagramReportsModule": "Instagram: resultados por publicación"
   },
   "Push": {
     "title": "Notificaciones en este dispositivo",
@@ -4193,7 +4197,9 @@
     "tabs": {
       "posts": "Publicaciones",
       "keywords": "Palabras clave",
-      "comments": "Comentarios"
+      "comments": "Comentarios",
+      "ai": "IA y automatización",
+      "results": "Resultados"
     },
     "sync": "Sincronizar",
     "synced": "{count, plural, =0 {No hay publicaciones nuevas} one {# publicación sincronizada} other {# publicaciones sincronizadas}}",
@@ -4270,7 +4276,11 @@
       "delivered": "Contenido entregado",
       "repeat": "Ya había recibido el DM",
       "failed": "El DM falló",
-      "manual": "DM enviado a mano"
+      "manual": "DM enviado a mano",
+      "queued": "DM en cola (límite por hora)",
+      "sending": "Enviando DM",
+      "expired": "DM vencido (más de 7 días)",
+      "hidden": "Comentario ocultado"
     },
     "replyPublic": "Responder en público",
     "replyPrivate": "Enviar DM",
@@ -4295,7 +4305,12 @@
       "file_needs_button": "Para enviar un archivo activa «Enviar primero un botón».",
       "automation_needs_button": "Para iniciar una automatización activa «Enviar primero un botón».",
       "invalid_file": "El archivo no es válido. Súbelo de nuevo.",
-      "too_many_posts": "Una regla puede tener hasta 100 publicaciones."
+      "too_many_posts": "Una regla puede tener hasta 100 publicaciones.",
+      "triggers_required": "Elige al menos un lugar donde escuche la regla.",
+      "invalid_date": "La fecha no es válida.",
+      "invalid_catalog_item_id": "El producto del catálogo no es válido.",
+      "invalid_body": "Los datos enviados no son válidos.",
+      "not_found": "No se encontró."
     },
     "duplicate": "Duplicar",
     "duplicateRule": "Duplicar regla",
@@ -4320,6 +4335,104 @@
     "summaryPdf": "PDF",
     "summaryAutomation": "automatización «{name}»",
     "sampleBadge": "Ejemplo",
-    "needsMigration080": "Para usar varias publicaciones por regla, archivos, automatizaciones y ejemplos, aplica la migración 080 en Supabase."
+    "needsMigration080": "Para usar varias publicaciones por regla, archivos, automatizaciones y ejemplos, aplica la migración 080 en Supabase.",
+    "ruleTriggers": "Dónde escucha esta regla",
+    "ruleTrigger": {
+      "comments": "Comentarios",
+      "story_replies": "Respuestas a historias",
+      "dms": "Mensajes directos"
+    },
+    "ruleTriggersHint": "En historias y mensajes directos solo cuentan las reglas generales. En mensajes directos, \"cualquier comentario\" no aplica.",
+    "requireFollow": "Pedir que me siga antes de enviarlo",
+    "requireFollowHint": "Si la persona no te sigue, recibe el texto para seguirte y el mismo botón; el contenido llega cuando te sigue y lo toca otra vez.",
+    "commentSource": {
+      "live": "En vivo",
+      "story_reply": "Respuesta a historia",
+      "dm": "Mensaje directo",
+      "mention": "Mención en historia"
+    },
+    "commentCategory": {
+      "question": "Pregunta",
+      "interest": "Interés de compra",
+      "praise": "Elogio",
+      "complaint": "Queja",
+      "spam": "Spam",
+      "other": "Otro"
+    },
+    "aiCategoryLabel": "IA: {category}",
+    "profileSyncFailed": "Guardado, pero Instagram no aceptó los botones de inicio o el menú.",
+    "settingsSaved": "Configuración guardada",
+    "aiCommentsTitle": "IA para comentarios sin palabra clave",
+    "aiCommentsHint": "La IA lee los comentarios que ninguna regla atrapó, los clasifica y hace lo que marques para cada tipo.",
+    "aiCommentsModuleOff": "El módulo \"Instagram: IA en comentarios\" está apagado en Super admin → Módulos.",
+    "category": "Tipo",
+    "commentAction": {
+      "public": "Responder en público",
+      "dm": "Enviar DM",
+      "notify": "Avisarme",
+      "hide": "Ocultar"
+    },
+    "aiInstructions": "Instrucciones para la IA",
+    "aiInstructionsPlaceholder": "Ej.: nunca des precios en público; a las quejas responde con empatía.",
+    "aiCommentsPerPost": "Puedes apagar la IA en una publicación concreta desde su oferta, en la pestaña Publicaciones.",
+    "engagementTitle": "Historias, botones de inicio y menú",
+    "engagementHint": "Lo que reciben quienes te mencionan en una historia o te escriben por primera vez.",
+    "engagementModuleOff": "El módulo \"Instagram: historias, menú y botones de inicio\" está apagado en Super admin → Módulos.",
+    "mentionThanks": "Agradecimiento por menciones en historias",
+    "mentionThanksPlaceholder": "¡Gracias por mencionarnos! 💛 Si quieres algo, escríbenos por aquí.",
+    "mentionThanksHint": "Vacío = no se envía nada.",
+    "followGateText": "Texto para pedir que te sigan",
+    "followGateHint": "Se usa en las reglas con \"Pedir que me siga\". Vacío = el texto de ejemplo.",
+    "iceBreakers": "Botones de inicio (ice breakers)",
+    "iceBreakersHint": "Hasta 4 preguntas que ve quien abre tu chat por primera vez. Cada una la responde una regla o la IA.",
+    "iceBreakerQuestion": "Pregunta (ej.: ¿Cuáles son los precios?)",
+    "answeredByAi": "La responde la IA",
+    "remove": "Quitar",
+    "addIceBreaker": "Agregar botón de inicio",
+    "menu": "Menú fijo",
+    "menuHint": "Hasta 5 opciones en el menú del chat: el contenido de una regla, un enlace o una pregunta para la IA.",
+    "menuTitle": "Título (ej.: Ver catálogo)",
+    "menuKind": {
+      "ai": "La IA responde",
+      "rule": "Contenido de una regla",
+      "url": "Abrir enlace"
+    },
+    "pickRule": "Elige una regla",
+    "addMenuItem": "Agregar opción",
+    "menuIncompleteHint": "Las opciones sin título, sin regla o sin enlace válido no se guardan.",
+    "profileSyncedAt": "Enviado a Instagram: {date}",
+    "profileError": "Instagram respondió: {error}",
+    "resyncProfile": "Enviar de nuevo a Instagram",
+    "dmLimitTitle": "Límite de DMs por hora",
+    "dmLimitHint": "Instagram permite unos {max} mensajes privados por hora. Los que pasen el límite esperan en cola y salen solos la hora siguiente (dentro de los 7 días que permite Instagram).",
+    "unknownPost": "Sin publicación",
+    "reportHint": "Por publicación: comentarios → DMs enviados → clientes que respondieron → oportunidades creadas después de comentar → ventas ganadas.",
+    "needsMigration082": "Para la IA en comentarios, las ofertas, el menú y los resultados falta pegar la migración 082 en el SQL Editor de Supabase.",
+    "report": {
+      "post": "Publicación",
+      "comments": "Comentarios",
+      "byRule": "Por regla",
+      "byAi": "Por IA",
+      "dmsSent": "DMs enviados",
+      "replied": "Respondieron",
+      "leads": "Oportunidades",
+      "sales": "Ventas",
+      "revenue": "Ingresos"
+    },
+    "reportQueued": "{count} DMs esperando en la cola.",
+    "reportEmpty": "No hay comentarios en este período.",
+    "postOffer": "Oferta de la publicación",
+    "postOfferHint": "Cuando alguien llega desde esta publicación (comentario, historia o la comparte por DM), el agente sabe de qué oferta habla.",
+    "offerText": "Detalles de la oferta",
+    "offerTextPlaceholder": "Ej.: 2x1 en tratamientos faciales, RD$2,500. Incluye limpieza y mascarilla.",
+    "offerExpiresOn": "Válida hasta",
+    "offerExpiresHint": "Último día incluido. Después, el agente dice con amabilidad que terminó y ofrece lo que hay.",
+    "postAiComments": "La IA responde los comentarios de esta publicación",
+    "offerSaved": "Oferta guardada",
+    "hasOffer": "Tiene oferta",
+    "editOffer": "Editar oferta",
+    "addOffer": "Agregar oferta",
+    "validUntil": "válida hasta {date}",
+    "postAiOff": "La IA no responde los comentarios de esta publicación."
   }
 }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server'
 import { requireRole, toErrorResponse, type AccountContext } from '@/lib/auth/account'
 import type { AccountRole } from '@/lib/auth/roles'
 import { accountModuleEnabled } from '@/lib/modules-server'
-import { cleanKeywords } from './keywords'
+import { cleanKeywords, RULE_TRIGGERS } from './keywords'
 
 // Shared plumbing for the /instagram page routes (phase 2, migration 079).
 
@@ -99,6 +99,13 @@ export function parseRuleInput(
       input[key] = id
     }
   }
+  // Migration 082: only sent by clients that know it ran.
+  if ('triggers' in b) {
+    const list = stringList(b.triggers).filter((t) => (RULE_TRIGGERS as readonly string[]).includes(t))
+    if (list.length === 0) return { error: 'triggers_required' }
+    input.triggers = [...new Set(list)]
+  }
+  if ('require_follow' in b) input.require_follow = b.require_follow === true
   if (want('once_per_user')) input.once_per_user = b.once_per_user !== false
   if (want('active')) input.active = b.active !== false
 
@@ -141,4 +148,37 @@ export function ruleProblem(rule: RuleShape): string | null {
   if (rule.dm_media_url && !rule.dm_button_label) return 'file_needs_button'
   if (rule.automation_id && !rule.dm_button_label) return 'automation_needs_button'
   return null
+}
+
+/** A post's offer fields from a request body (migration 082). Pure. */
+export function parseOfferInput(raw: unknown): { input: Record<string, unknown> } | { error: string } {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { error: 'invalid_body' }
+  const b = raw as Record<string, unknown>
+  const input: Record<string, unknown> = {}
+  if ('offer_text' in b) input.offer_text = text(b.offer_text, 1500)
+  if ('offer_link_url' in b) {
+    const link = text(b.offer_link_url, 1000)
+    if (link && !/^https?:\/\/\S+$/i.test(link)) return { error: 'invalid_link' }
+    input.offer_link_url = link
+  }
+  if ('offer_media_url' in b) {
+    const url = text(b.offer_media_url, 1000)
+    if (url && !/^https:\/\/\S+$/i.test(url)) return { error: 'invalid_file' }
+    input.offer_media_url = url
+    input.offer_media_name = url ? text(b.offer_media_name, 120) : null
+  }
+  if ('offer_catalog_item_id' in b) {
+    const id = uuidOrNull(b.offer_catalog_item_id)
+    if (id === undefined) return { error: 'invalid_catalog_item_id' }
+    input.offer_catalog_item_id = id
+  }
+  if ('offer_expires_on' in b) {
+    const d = b.offer_expires_on
+    if (d === null || d === '') input.offer_expires_on = null
+    else if (typeof d === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(d)) input.offer_expires_on = d
+    else return { error: 'invalid_date' }
+  }
+  if ('ai_comments_enabled' in b) input.ai_comments_enabled = b.ai_comments_enabled !== false
+  if (Object.keys(input).length === 0) return { error: 'invalid_body' }
+  return { input }
 }

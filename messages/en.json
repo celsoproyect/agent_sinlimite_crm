@@ -183,7 +183,11 @@
     "instagramModule": "Instagram (direct messages)",
     "telegramAgendaModule": "Book appointments from Telegram",
     "instagram": "Instagram",
-    "instagramCommentsModule": "Instagram: comments and keywords"
+    "instagramCommentsModule": "Instagram: comments and keywords",
+    "instagramAiCommentsModule": "Instagram: comments AI",
+    "instagramOffersModule": "Instagram: offers per post",
+    "instagramEngagementModule": "Instagram: stories, menu and ice breakers",
+    "instagramReportsModule": "Instagram: results per post"
   },
   "Push": {
     "title": "Notifications on this device",
@@ -4193,7 +4197,9 @@
     "tabs": {
       "posts": "Posts",
       "keywords": "Keywords",
-      "comments": "Comments"
+      "comments": "Comments",
+      "ai": "AI & automation",
+      "results": "Results"
     },
     "sync": "Sync",
     "synced": "{count, plural, =0 {No new posts} one {# post synced} other {# posts synced}}",
@@ -4270,7 +4276,11 @@
       "delivered": "Content delivered",
       "repeat": "Already got the DM",
       "failed": "DM failed",
-      "manual": "DM sent by hand"
+      "manual": "DM sent by hand",
+      "queued": "DM queued (hourly limit)",
+      "sending": "Sending DM",
+      "expired": "DM expired (over 7 days)",
+      "hidden": "Comment hidden"
     },
     "replyPublic": "Reply publicly",
     "replyPrivate": "Send DM",
@@ -4295,7 +4305,12 @@
       "file_needs_button": "To send a file, turn on \"Send a button first\".",
       "automation_needs_button": "To start an automation, turn on \"Send a button first\".",
       "invalid_file": "The file isn't valid. Upload it again.",
-      "too_many_posts": "A rule can have up to 100 posts."
+      "too_many_posts": "A rule can have up to 100 posts.",
+      "triggers_required": "Pick at least one place for the rule to listen.",
+      "invalid_date": "The date isn't valid.",
+      "invalid_catalog_item_id": "The catalog item isn't valid.",
+      "invalid_body": "The data sent isn't valid.",
+      "not_found": "Not found."
     },
     "duplicate": "Duplicate",
     "duplicateRule": "Duplicate rule",
@@ -4320,6 +4335,104 @@
     "summaryPdf": "PDF",
     "summaryAutomation": "automation \"{name}\"",
     "sampleBadge": "Example",
-    "needsMigration080": "To use several posts per rule, files, automations and examples, apply migration 080 in Supabase."
+    "needsMigration080": "To use several posts per rule, files, automations and examples, apply migration 080 in Supabase.",
+    "ruleTriggers": "Where this rule listens",
+    "ruleTrigger": {
+      "comments": "Comments",
+      "story_replies": "Story replies",
+      "dms": "Direct messages"
+    },
+    "ruleTriggersHint": "On stories and direct messages only general rules count. \"Any comment\" doesn't apply to direct messages.",
+    "requireFollow": "Ask them to follow me first",
+    "requireFollowHint": "If they don't follow you, they get the follow text and the same button; the content arrives once they follow and tap again.",
+    "commentSource": {
+      "live": "Live",
+      "story_reply": "Story reply",
+      "dm": "Direct message",
+      "mention": "Story mention"
+    },
+    "commentCategory": {
+      "question": "Question",
+      "interest": "Purchase interest",
+      "praise": "Praise",
+      "complaint": "Complaint",
+      "spam": "Spam",
+      "other": "Other"
+    },
+    "aiCategoryLabel": "AI: {category}",
+    "profileSyncFailed": "Saved, but Instagram didn't accept the ice breakers or the menu.",
+    "settingsSaved": "Settings saved",
+    "aiCommentsTitle": "AI for comments without a keyword",
+    "aiCommentsHint": "The AI reads the comments no rule caught, classifies them and does what you tick for each type.",
+    "aiCommentsModuleOff": "The \"Instagram: comments AI\" module is off in Super admin → Modules.",
+    "category": "Type",
+    "commentAction": {
+      "public": "Reply publicly",
+      "dm": "Send DM",
+      "notify": "Alert me",
+      "hide": "Hide"
+    },
+    "aiInstructions": "Instructions for the AI",
+    "aiInstructionsPlaceholder": "E.g.: never give prices in public; answer complaints with empathy.",
+    "aiCommentsPerPost": "You can turn the AI off on a single post from its offer, in the Posts tab.",
+    "engagementTitle": "Stories, ice breakers and menu",
+    "engagementHint": "What people get when they mention you in a story or write to you for the first time.",
+    "engagementModuleOff": "The \"Instagram: stories, menu and ice breakers\" module is off in Super admin → Modules.",
+    "mentionThanks": "Thanks for story mentions",
+    "mentionThanksPlaceholder": "Thanks for the mention! 💛 If you need anything, write to us here.",
+    "mentionThanksHint": "Empty = nothing is sent.",
+    "followGateText": "Text asking them to follow you",
+    "followGateHint": "Used by rules with \"Ask them to follow me first\". Empty = the sample text.",
+    "iceBreakers": "Ice breakers",
+    "iceBreakersHint": "Up to 4 questions shown to people opening your chat for the first time. Each is answered by a rule or the AI.",
+    "iceBreakerQuestion": "Question (e.g.: What are your prices?)",
+    "answeredByAi": "The AI answers it",
+    "remove": "Remove",
+    "addIceBreaker": "Add ice breaker",
+    "menu": "Persistent menu",
+    "menuHint": "Up to 5 options in the chat menu: a rule's content, a link or a question for the AI.",
+    "menuTitle": "Title (e.g.: See catalog)",
+    "menuKind": {
+      "ai": "The AI answers",
+      "rule": "A rule's content",
+      "url": "Open a link"
+    },
+    "pickRule": "Pick a rule",
+    "addMenuItem": "Add option",
+    "menuIncompleteHint": "Options without a title, rule or valid link aren't saved.",
+    "profileSyncedAt": "Sent to Instagram: {date}",
+    "profileError": "Instagram answered: {error}",
+    "resyncProfile": "Send to Instagram again",
+    "dmLimitTitle": "DMs per hour",
+    "dmLimitHint": "Instagram allows about {max} private messages per hour. The rest wait in a queue and go out on their own the next hour (within the 7 days Instagram allows).",
+    "unknownPost": "No post",
+    "reportHint": "Per post: comments → DMs sent → customers who answered → deals created after commenting → won sales.",
+    "needsMigration082": "Comments AI, offers, the menu and results need migration 082 pasted into Supabase's SQL Editor.",
+    "report": {
+      "post": "Post",
+      "comments": "Comments",
+      "byRule": "By rule",
+      "byAi": "By AI",
+      "dmsSent": "DMs sent",
+      "replied": "Answered",
+      "leads": "Deals",
+      "sales": "Sales",
+      "revenue": "Revenue"
+    },
+    "reportQueued": "{count} DMs waiting in the queue.",
+    "reportEmpty": "No comments in this period.",
+    "postOffer": "Post offer",
+    "postOfferHint": "When someone comes from this post (a comment, a story or sharing it by DM), the agent knows which offer they mean.",
+    "offerText": "Offer details",
+    "offerTextPlaceholder": "E.g.: 2-for-1 facials, RD$2,500. Includes cleansing and mask.",
+    "offerExpiresOn": "Valid until",
+    "offerExpiresHint": "Last day included. After it, the agent kindly says it ended and offers what there is.",
+    "postAiComments": "The AI answers this post's comments",
+    "offerSaved": "Offer saved",
+    "hasOffer": "Has an offer",
+    "editOffer": "Edit offer",
+    "addOffer": "Add offer",
+    "validUntil": "valid until {date}",
+    "postAiOff": "The AI doesn't answer this post's comments."
   }
 }

@@ -10,6 +10,9 @@ import { Input } from "@/components/ui/input";
 import { SELECT_CLASS, apiErrorText, postLabel, type InstagramCommentRow, type InstagramPageData } from "./instagram-utils";
 
 const STATUSES = ["", "replied", "no_match", "error"] as const;
+const KNOWN_SOURCES = ["live", "story_reply", "dm", "mention"];
+const KNOWN_CATEGORIES = ["question", "interest", "praise", "complaint", "spam", "other"];
+const KNOWN_DM = ["sent", "awaiting_tap", "delivered", "repeat", "failed", "manual", "queued", "sending", "expired", "hidden"];
 const PRIVATE_WINDOW_MS = 7 * 24 * 60 * 60 * 1000;
 
 // Comentarios: every comment received and what the system did with it,
@@ -93,7 +96,7 @@ export function CommentsPanel({ data, canReply }: { data: InstagramPageData; can
         <ul className="space-y-2">
           {comments.map((c) => {
             const post = data.posts.find((p) => p.media_id === c.media_id);
-            const dmDone = ["sent", "awaiting_tap", "delivered", "manual"].includes(c.dm_status ?? "");
+            const dmDone = ["sent", "awaiting_tap", "delivered", "manual", "queued", "sending"].includes(c.dm_status ?? "");
             const canPrivate = !dmDone && loadedAt - new Date(c.created_at).getTime() < PRIVATE_WINDOW_MS;
             const rule = ruleName(c.rule_id);
             return (
@@ -106,10 +109,14 @@ export function CommentsPanel({ data, canReply }: { data: InstagramPageData; can
                 </div>
                 <p className="break-words text-xs text-muted-foreground">
                   {[
+                    c.source && KNOWN_SOURCES.includes(c.source) ? t(`commentSource.${c.source}`) : null,
                     post ? postLabel(post, t) : null,
                     t(`commentStatus.${["replied", "no_match", "skipped", "error", "processing"].includes(c.status) ? c.status : "all"}`),
                     rule ? t("byRule", { rule }) : null,
-                    c.dm_status ? t(`dmStatus.${c.dm_status}`) : null,
+                    c.ai_category && KNOWN_CATEGORIES.includes(c.ai_category)
+                      ? t("aiCategoryLabel", { category: t(`commentCategory.${c.ai_category}`) })
+                      : null,
+                    c.dm_status && KNOWN_DM.includes(c.dm_status) ? t(`dmStatus.${c.dm_status}`) : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}

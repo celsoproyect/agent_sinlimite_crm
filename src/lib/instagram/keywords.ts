@@ -13,6 +13,15 @@
 
 export type RuleMediaKind = 'image' | 'document'
 
+/** Where a rule fires (migration 082): comments, story replies, DMs. */
+export const RULE_TRIGGERS = ['comments', 'story_replies', 'dms'] as const
+export type RuleTrigger = (typeof RULE_TRIGGERS)[number]
+
+export function normalizeTriggers(raw: unknown): RuleTrigger[] {
+  const list = Array.isArray(raw) ? raw.filter((t): t is RuleTrigger => (RULE_TRIGGERS as readonly string[]).includes(t as string)) : []
+  return list.length ? [...new Set(list)] : ['comments']
+}
+
 export interface KeywordRule {
   id: string
   /** Legacy single post (079). Read `media_ids`. */
@@ -35,6 +44,10 @@ export interface KeywordRule {
   /** Automation started once the content is delivered (080). */
   automation_id: string | null
   tag_id: string | null
+  /** Where it fires (082); before 082 = comments only. */
+  triggers: RuleTrigger[]
+  /** Deliver the content only to followers of the account (082). */
+  require_follow: boolean
   once_per_user: boolean
   active: boolean
   is_sample?: boolean
@@ -61,6 +74,8 @@ export function normalizeRule(row: Record<string, unknown>): KeywordRule {
     dm_media_kind: r.dm_media_kind === 'image' || r.dm_media_kind === 'document' ? r.dm_media_kind : null,
     dm_media_name: r.dm_media_name ?? null,
     automation_id: r.automation_id ?? null,
+    triggers: normalizeTriggers(r.triggers),
+    require_follow: r.require_follow === true,
     is_sample: r.is_sample ?? false,
   }
 }
@@ -91,8 +106,9 @@ export function matchesKeyword(text: string, keyword: string): boolean {
 export function pickRule(
   rules: KeywordRule[],
   comment: { mediaId: string | null; text: string },
+  trigger: RuleTrigger = 'comments',
 ): { rule: KeywordRule; keyword: string | null } | null {
-  const active = rules.filter((r) => r.active)
+  const active = rules.filter((r) => r.active && r.triggers.includes(trigger))
   const own = active.filter((r) => !!comment.mediaId && r.media_ids.includes(comment.mediaId))
   const general = active.filter(isGeneralRule)
   const byKeyword = (list: KeywordRule[]) => {
@@ -108,6 +124,30 @@ export function pickRule(
     return rule ? { rule, keyword: null } : null
   }
   return byKeyword(own) ?? byKeyword(general) ?? anyComment(own) ?? anyComment(general)
+}
+
+/**
+ * The rule a story reply or a DM fires (082). Only general rules (a story
+ * or a DM is not on a post) whose triggers include it. DMs never fire
+ * "any comment" rules, so normal chats still reach the AI; a story reply
+ * can.
+ */
+export function pickMessageRule(
+  rules: KeywordRule[],
+  text: string,
+  trigger: Exclude<RuleTrigger, 'comments'>,
+): { rule: KeywordRule; keyword: string | null } | null {
+  const pool = rules.filter((r) => r.active && isGeneralRule(r) && r.triggers.includes(trigger))
+  for (const rule of pool) {
+    if (rule.match_any) continue
+    const hit = rule.keywords.find((k) => matchesKeyword(text, k))
+    if (hit) return { rule, keyword: hit }
+  }
+  if (trigger === 'story_replies') {
+    const any = pool.find((r) => r.match_any)
+    if (any) return { rule: any, keyword: null }
+  }
+  return null
 }
 
 /** Cleans a keyword list: trimmed, no blanks, no duplicates (by normalized form). */

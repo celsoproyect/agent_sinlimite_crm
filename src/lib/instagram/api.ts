@@ -27,7 +27,7 @@ export const INSTAGRAM_SCOPES = [
 ]
 
 /** Webhook fields the app subscribes the account to. */
-export const INSTAGRAM_WEBHOOK_FIELDS = ['messages', 'messaging_postbacks', 'messaging_referral', 'comments']
+export const INSTAGRAM_WEBHOOK_FIELDS = ['messages', 'messaging_postbacks', 'messaging_referral', 'comments', 'live_comments']
 
 export function instagramConfigured(): boolean {
   return !!process.env.INSTAGRAM_APP_ID && !!process.env.INSTAGRAM_APP_SECRET
@@ -198,10 +198,20 @@ export async function fetchInstagramMe(accessToken: string): Promise<InstagramPr
 
 /** Subscribes this app to the account's webhooks (messages, comments…). */
 export async function subscribeInstagramWebhooks(accessToken: string): Promise<void> {
-  await graph('me/subscribed_apps', accessToken, {
-    method: 'POST',
-    query: { subscribed_fields: INSTAGRAM_WEBHOOK_FIELDS.join(',') },
-  })
+  try {
+    await graph('me/subscribed_apps', accessToken, {
+      method: 'POST',
+      query: { subscribed_fields: INSTAGRAM_WEBHOOK_FIELDS.join(',') },
+    })
+  } catch (err) {
+    // An app not yet approved for `live_comments` refuses the whole call:
+    // subscribe the rest so DMs and comments keep working.
+    console.warn('[instagram] full webhook subscription refused, retrying without live_comments:', err)
+    await graph('me/subscribed_apps', accessToken, {
+      method: 'POST',
+      query: { subscribed_fields: INSTAGRAM_WEBHOOK_FIELDS.filter((f) => f !== 'live_comments').join(',') },
+    })
+  }
 }
 
 export interface InstagramUserProfile {
@@ -373,4 +383,62 @@ export async function sendInstagramPrivateReply(
   }
   const json = await graph('me/messages', accessToken, { method: 'POST', body })
   return { mid: String(json.message_id ?? ''), recipientId: (json.recipient_id as string) ?? null }
+}
+
+/** Hides (or shows again) a comment on the account's post. */
+export async function hideInstagramComment(accessToken: string, commentId: string, hide = true): Promise<void> {
+  await graph(commentId, accessToken, { method: 'POST', query: { hide: hide ? 'true' : 'false' } })
+}
+
+// ---- Phase 4: ice breakers and the persistent menu ----------------
+
+export interface MessengerProfileInput {
+  iceBreakers: { question: string; payload: string }[]
+  menu: ({ title: string; payload: string } | { title: string; url: string })[]
+}
+
+/** The Messenger Profile body for Instagram. Pure. */
+export function messengerProfileBody(input: MessengerProfileInput): Record<string, unknown> {
+  const body: Record<string, unknown> = { platform: 'instagram' }
+  if (input.iceBreakers.length) {
+    body.ice_breakers = [
+      {
+        locale: 'default',
+        call_to_actions: input.iceBreakers.slice(0, 4).map((b) => ({ question: b.question.slice(0, 80), payload: b.payload })),
+      },
+    ]
+  }
+  if (input.menu.length) {
+    body.persistent_menu = [
+      {
+        locale: 'default',
+        composer_input_disabled: false,
+        call_to_actions: input.menu.slice(0, 5).map((m) =>
+          'url' in m
+            ? { type: 'web_url', title: m.title.slice(0, 30), url: m.url }
+            : { type: 'postback', title: m.title.slice(0, 30), payload: m.payload },
+        ),
+      },
+    ]
+  }
+  return body
+}
+
+/**
+ * Pushes the ice breakers and menu. Empty lists are deleted on Instagram,
+ * so removing every item in the CRM removes them in the app too.
+ */
+export async function setInstagramMessengerProfile(accessToken: string, input: MessengerProfileInput): Promise<void> {
+  const remove: string[] = []
+  if (!input.iceBreakers.length) remove.push('ice_breakers')
+  if (!input.menu.length) remove.push('persistent_menu')
+  if (remove.length) {
+    await graph('me/messenger_profile', accessToken, {
+      method: 'DELETE',
+      body: { platform: 'instagram', fields: remove },
+    })
+  }
+  if (input.iceBreakers.length || input.menu.length) {
+    await graph('me/messenger_profile', accessToken, { method: 'POST', body: messengerProfileBody(input) })
+  }
 }

@@ -3,6 +3,7 @@ import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { loadInstagramConnection } from '@/lib/instagram/connection'
 import { syncInstagramPosts } from '@/lib/instagram/comments'
 import { normalizeRule } from '@/lib/instagram/keywords'
+import { normalizeInstagramSettings } from '@/lib/instagram/settings'
 import { instagramDbError, instagramGuard, isMissingInstagramSchema } from '@/lib/instagram/page-api'
 
 // /instagram page data: posts and reels, keyword rules, and what the rule
@@ -10,8 +11,8 @@ import { instagramDbError, instagramGuard, isMissingInstagramSchema } from '@/li
 // re-synced on the way when the newest sync is older than STALE_MS.
 
 const STALE_MS = 12 * 60 * 60 * 1000
-const POST_COLUMNS =
-  'media_id, caption, media_type, media_product_type, permalink, media_url, thumbnail_url, posted_at, synced_at'
+// `*` so the offer columns of migration 082 come along once it has run.
+const POST_COLUMNS = '*'
 
 export async function GET() {
   const guard = await instagramGuard('viewer')
@@ -46,13 +47,15 @@ export async function GET() {
     }
   }
 
-  const [rules, catalog, tags, automations, ruleColumns] = await Promise.all([
+  const [rules, catalog, tags, automations, ruleColumns, settingsRow] = await Promise.all([
     ctx.supabase.from('instagram_keyword_rules').select('*').eq('account_id', ctx.accountId).order('created_at'),
     ctx.supabase.from('ai_attachments').select('id, name, kind').eq('account_id', ctx.accountId).order('name').limit(500),
     ctx.supabase.from('tags').select('id, name, color').eq('account_id', ctx.accountId).order('name').limit(500),
     ctx.supabase.from('automations').select('id, name, trigger_type, is_active').eq('account_id', ctx.accountId).order('name').limit(500),
     // Migration 080 (several posts per rule, files, automations, examples).
     ctx.supabase.from('instagram_keyword_rules').select('media_ids', { head: true, count: 'exact' }).eq('account_id', ctx.accountId),
+    // Migration 082 (comments AI, offers, triggers, ice breakers, queue).
+    ctx.supabase.from('accounts').select('instagram_settings').eq('id', ctx.accountId).maybeSingle(),
   ])
   if (rules.error) return instagramDbError(rules.error)
 
@@ -63,6 +66,8 @@ export async function GET() {
     syncError,
     posts: posts.data ?? [],
     v2: !ruleColumns.error,
+    v3: !settingsRow.error,
+    settings: normalizeInstagramSettings(settingsRow.data?.instagram_settings),
     rules: ((rules.data ?? []) as Record<string, unknown>[]).map(normalizeRule),
     catalog: catalog.data ?? [],
     tags: tags.data ?? [],

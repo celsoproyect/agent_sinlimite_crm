@@ -5,6 +5,7 @@ import { sendDueWeeklySummaries } from '@/lib/reports/weekly-summary'
 import { checkPlanAlerts } from '@/lib/plans/alerts'
 import { reassignUnanswered } from '@/lib/assignment/server'
 import { refreshExpiringInstagramTokens } from '@/lib/instagram/connection'
+import { drainInstagramDmQueue } from '@/lib/instagram/comments'
 
 type Timers = Record<string, ReturnType<typeof setInterval> | undefined>
 
@@ -71,5 +72,10 @@ export function startServerSchedulers(getAdmin: () => SupabaseClient) {
   every('instagram-tokens', 6 * 60 * 60, async () => {
     const refreshed = await refreshExpiringInstagramTokens(getAdmin())
     if (refreshed > 0) console.log('[instagram] refreshed tokens', refreshed)
+  })
+  // Private replies that waited for the hourly DM limit (migration 082).
+  every('instagram-dm-queue', 60, async () => {
+    const sent = await drainInstagramDmQueue(getAdmin())
+    if (sent > 0) console.log('[instagram] queued DMs sent', sent)
   })
 }

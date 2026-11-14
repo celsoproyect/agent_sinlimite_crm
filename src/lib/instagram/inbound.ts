@@ -13,6 +13,8 @@ import { findInstagramConnectionByIgUser, type InstagramConnection } from './con
 import { wasSentByUs } from './send'
 import { deliverPendingRuleContent, processInstagramComments } from './comments'
 import { ruleIdFromPayload } from './keywords'
+import { handleEngagementInbound } from './engagement'
+import { loadInstagramSettings } from './settings'
 import {
   describeInstagramEvent,
   parseInstagramComments,
@@ -40,7 +42,7 @@ export async function processInstagramWebhook(body: InstagramWebhookBody): Promi
   const echoes: Promise<void>[] = []
   for (const entry of body.entry ?? []) {
     const events = parseInstagramEntry(entry)
-    const hasComments = (entry.changes ?? []).some((c) => c.field === 'comments')
+    const hasComments = (entry.changes ?? []).some((c) => c.field === 'comments' || c.field === 'live_comments')
     if (events.length === 0 && !hasComments) continue
     const conn = await findInstagramConnectionByIgUser(db, entry.id)
     if (!conn) {
@@ -54,7 +56,8 @@ export async function processInstagramWebhook(body: InstagramWebhookBody): Promi
       const { data: account } = await db.from('accounts').select('owner_user_id').eq('id', conn.accountId).maybeSingle()
       conn.connectedBy = (account?.owner_user_id as string | undefined) ?? null
     }
-    // Comments on posts and reels: keyword rules (phase 2).
+    // Comments on posts, reels, ads and lives: keyword rules (phase 2),
+    // then the AI (phase 3).
     const comments = hasComments ? parseInstagramComments(entry, conn.username) : []
     if (comments.length > 0) await processInstagramComments(db, conn, comments)
     for (const event of events) {
@@ -158,17 +161,34 @@ async function handleCustomerEvent(
   // typed back): the window is open now, so the rule's content goes out
   // and stands in for the agent's reply to this message.
   const tappedRuleId = ruleIdFromPayload(interactiveReplyId)
+  const followGateText = tappedRuleId ? (await loadInstagramSettings(db, conn.accountId)).follow_gate_text : undefined
   const deliveredRule = await deliverPendingRuleContent(db, {
     accountId: conn.accountId,
     igsid: event.igsid,
     contactId: contact.id,
     conversationId: conversation.id,
     tappedRuleId,
+    accessToken: conn.accessToken,
+    followGateText,
   }).catch((err) => {
     console.error('[instagram] delivering the rule content failed:', err)
     return false
   })
-  if (tappedRuleId || deliveredRule) {
+  // Phase 4: ice breakers, menu, story mentions, story/DM keyword rules.
+  const engagement =
+    tappedRuleId || deliveredRule
+      ? { handled: false, letAiAnswer: false }
+      : await handleEngagementInbound(db, conn, {
+          igsid: event.igsid,
+          contactId: contact.id,
+          conversationId: conversation.id,
+          mid: first.mid,
+          customerText: event.kind === 'message' ? event.text : null,
+          interactiveReplyId,
+          sourceType: source?.type ?? null,
+          sourceId: source?.id ?? null,
+        })
+  if (tappedRuleId || deliveredRule || engagement.handled) {
     await dispatchWebhookEvent(db, conn.accountId, 'message.received', {
       conversation_id: conversation.id,
       contact_id: contact.id,
@@ -214,7 +234,7 @@ async function handleCustomerEvent(
   const understandable = parts.some((p) => ['image', 'audio', 'document'].includes(p.contentType))
   if (
     !flowResult.consumed &&
-    (!interactiveReplyId || isAiBookingSlotReply(interactiveReplyId)) &&
+    (!interactiveReplyId || isAiBookingSlotReply(interactiveReplyId) || engagement.letAiAnswer) &&
     (inboundText.trim() || understandable)
   ) {
     if (conn.aiEnabled) {

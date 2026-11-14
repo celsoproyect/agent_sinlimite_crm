@@ -164,6 +164,8 @@ export interface InstagramComment {
   igsid: string
   username: string | null
   text: string
+  /** Where it was written: a post/reel (incl. ads) or a live video (082). */
+  source: 'comment' | 'live'
 }
 
 interface RawCommentValue {
@@ -184,7 +186,7 @@ export function parseInstagramComments(
 ): InstagramComment[] {
   const out: InstagramComment[] = []
   for (const change of entry.changes ?? []) {
-    if (change.field !== 'comments') continue
+    if (change.field !== 'comments' && change.field !== 'live_comments') continue
     const v = (change.value ?? {}) as RawCommentValue
     const from = v.from?.id
     if (!v.id || !from || from === entry.id) continue
@@ -197,6 +199,7 @@ export function parseInstagramComments(
       igsid: from,
       username: v.from?.username ?? null,
       text: v.text ?? '',
+      source: change.field === 'live_comments' ? 'live' : 'comment',
     })
   }
   return out

@@ -47,6 +47,8 @@ function rule(over: Partial<KeywordRule>): KeywordRule {
     dm_media_kind: null,
     dm_media_name: null,
     automation_id: null,
+    triggers: ['comments'],
+    require_follow: false,
     ...over,
   }
 }
@@ -163,7 +165,7 @@ describe('parseInstagramComments', () => {
       ],
     }
     expect(parseInstagramComments(entry, 'negocio')).toEqual([
-      { commentId: 'c1', mediaId: 'm1', mediaProductType: 'REELS', parentId: null, igsid: 'u1', username: 'ana', text: 'PRECIO' },
+      { commentId: 'c1', mediaId: 'm1', mediaProductType: 'REELS', parentId: null, igsid: 'u1', username: 'ana', text: 'PRECIO', source: 'comment' },
     ])
   })
 })

@@ -1,5 +1,6 @@
 import type { useTranslations } from "next-intl";
 import type { KeywordRule } from "@/lib/instagram/keywords";
+import type { InstagramSettings } from "@/lib/instagram/settings";
 
 // Shared bits of the /instagram page (phase 2, migration 079).
 
@@ -14,6 +15,14 @@ export interface InstagramPost {
   media_url: string | null;
   thumbnail_url: string | null;
   posted_at: string | null;
+  /** Migration 082: the post's offer and its AI switch. */
+  offer_text?: string | null;
+  offer_link_url?: string | null;
+  offer_catalog_item_id?: string | null;
+  offer_media_url?: string | null;
+  offer_media_name?: string | null;
+  offer_expires_on?: string | null;
+  ai_comments_enabled?: boolean;
 }
 
 export interface InstagramCommentRow {
@@ -30,6 +39,9 @@ export interface InstagramCommentRow {
   dm_error: string | null;
   conversation_id: string | null;
   created_at: string;
+  /** Migration 082. */
+  ai_category?: string | null;
+  source?: string | null;
 }
 
 /** GET /api/instagram/posts. */
@@ -37,6 +49,9 @@ export interface InstagramPageData {
   migrated: boolean;
   /** Migration 080 applied (several posts, files, automations, examples). */
   v2?: boolean;
+  /** Migration 082 applied (comments AI, offers, triggers, ice breakers, queue). */
+  v3?: boolean;
+  settings?: InstagramSettings;
   connected: boolean;
   username?: string | null;
   syncError?: string | null;
@@ -106,6 +121,11 @@ const KNOWN_ERRORS = new Set([
   "invalid_link",
   "already_messaged",
   "too_old",
+  "triggers_required",
+  "invalid_date",
+  "invalid_catalog_item_id",
+  "invalid_body",
+  "not_found",
 ]);
 
 export async function apiErrorText(res: Response, t: InstagramT): Promise<string> {

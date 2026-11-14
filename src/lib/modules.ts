@@ -44,6 +44,13 @@
 // Its page /instagram holds the posts, keyword rules and comment log.
 // `instagram_comments` (on top of it) answers comments that match a
 // keyword rule with a public reply and a private DM (migration 079).
+// Migration 082 adds, each switchable (on by default under `instagram`):
+//   `instagram_ai_comments` the AI classifies comments no rule caught and
+//     answers, thanks, alerts or hides them (Instagram → IA y automatización),
+//   `instagram_offers` an offer per post the DM agent knows about,
+//   `instagram_engagement` rules on story replies and DMs, "follow me to
+//     get it", story-mention thanks, ice breakers and the fixed menu,
+//   `instagram_reports` the Resultados tab (comments → DMs → leads → sales).
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -61,6 +68,10 @@ export const MODULE_KEYS = [
   "telegram_agenda",
   "instagram",
   "instagram_comments",
+  "instagram_ai_comments",
+  "instagram_offers",
+  "instagram_engagement",
+  "instagram_reports",
   "widget_booking",
   "google_calendar",
   "web_push",

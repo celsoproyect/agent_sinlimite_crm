@@ -36,6 +36,7 @@ import { assignChatWithoutAi, autoAssignConversation } from '@/lib/assignment/se
 import { applyQualificationCapture, loadQualificationContext, qualificationPrompt } from './qualification-server'
 import { formatQualificationBlock } from './qualification'
 import { productCardCaption } from './whatsapp-format'
+import { conversationOfferPrompt } from '@/lib/instagram/offers'
 
 // Pending reply-delay timers, keyed by conversation. In-process only —
 // doesn't survive a restart and doesn't coordinate across replicas, which
@@ -230,6 +231,7 @@ export async function dispatchInboundToAiReply(
       clinic,
       venue,
       agendaOn,
+      instagramOffer,
     ] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
@@ -245,6 +247,8 @@ export async function dispatchInboundToAiReply(
       // Restaurant/events modules: tables and halls (null while off).
       loadVenue(db, accountId),
       agendaModuleOn(db, accountId),
+      // Module instagram_offers: the post the customer came from and its offer.
+      isInstagram ? conversationOfferPrompt(db, accountId, conversationId) : Promise.resolve(null),
     ])
     const bookingAvailable = hoursSaved && agendaOn
     const venueOn = !!(venue.restaurant || venue.events)
@@ -252,7 +256,7 @@ export async function dispatchInboundToAiReply(
     const customFieldNames = customFieldRoster.map((f) => f.field_name)
     const leadStageNames = leadStageRoster.map((s) => s.name)
 
-    const systemPrompt = buildSystemPrompt({
+    const basePrompt = buildSystemPrompt({
       userPrompt: config.systemPrompt,
       mode: 'auto_reply',
       knowledge,
@@ -276,6 +280,7 @@ export async function dispatchInboundToAiReply(
       sentimentCaptureAvailable: true,
       qualification: qualificationSetup?.options ?? null,
     })
+    const systemPrompt = instagramOffer ? [basePrompt, '## Instagram post', instagramOffer].join('\n\n') : basePrompt
 
     // Property photos send_property_photos picked, sent before the text.
     const propertyPhotos: ResolvedAttachment[] = []

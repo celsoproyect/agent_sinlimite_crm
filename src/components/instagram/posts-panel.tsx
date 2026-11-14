@@ -2,15 +2,18 @@
 
 import { useState } from "react";
 import { useTranslations } from "next-intl";
-import { ExternalLink, Film, Plus } from "lucide-react";
+import { ExternalLink, Film, Plus, Tag } from "lucide-react";
 import type { KeywordRule } from "@/lib/instagram/keywords";
 import { Button } from "@/components/ui/button";
 import { RulesList } from "./rules-list";
+import { PostOfferDialog } from "./post-offer-dialog";
 import { postImage, postLabel, type InstagramPageData, type InstagramPost } from "./instagram-utils";
 
 interface PostsPanelProps {
   data: InstagramPageData;
   canManage: boolean;
+  /** Module instagram_offers on. */
+  offersOn: boolean;
   onNewRule: (mediaId: string) => void;
   onEdit: (rule: KeywordRule) => void;
   onDuplicate: (rule: KeywordRule) => void;
@@ -19,9 +22,10 @@ interface PostsPanelProps {
 
 // Publicaciones: the account's posts and reels, each with its own keyword
 // rules ("comment PRECIO on this reel").
-export function PostsPanel({ data, canManage, onNewRule, onEdit, onDuplicate, onChanged }: PostsPanelProps) {
+export function PostsPanel({ data, canManage, offersOn, onNewRule, onEdit, onDuplicate, onChanged }: PostsPanelProps) {
   const t = useTranslations("Instagram");
   const [selected, setSelected] = useState<string | null>(null);
+  const [offerFor, setOfferFor] = useState<InstagramPost | null>(null);
 
   if (data.posts.length === 0) {
     return (
@@ -46,8 +50,18 @@ export function PostsPanel({ data, canManage, onNewRule, onEdit, onDuplicate, on
           onEdit={onEdit}
           onDuplicate={onDuplicate}
           onChanged={onChanged}
+          onOffer={data.v3 && offersOn ? () => setOfferFor(current) : undefined}
         />
       )}
+      <PostOfferDialog
+        post={offerFor}
+        data={data}
+        onOpenChange={(o) => !o && setOfferFor(null)}
+        onSaved={() => {
+          setOfferFor(null);
+          onChanged();
+        }}
+      />
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
         {data.posts.map((p) => {
           const count = data.rules.filter((r) => r.media_ids.includes(p.media_id)).length;
@@ -68,6 +82,9 @@ export function PostsPanel({ data, canManage, onNewRule, onEdit, onDuplicate, on
                 )}
                 {p.media_product_type === "REELS" && (
                   <Film className="absolute right-2 top-2 h-4 w-4 text-white drop-shadow" />
+                )}
+                {hasPostOffer(p) && (
+                  <Tag className="absolute left-2 top-2 h-4 w-4 text-white drop-shadow" aria-label={t("hasOffer")} />
                 )}
                 {count > 0 && (
                   <span className="absolute bottom-2 left-2 rounded bg-primary px-1.5 py-0.5 text-xs font-medium text-primary-foreground">
@@ -94,6 +111,7 @@ function PostDetail({
   onEdit,
   onDuplicate,
   onChanged,
+  onOffer,
 }: {
   post: InstagramPost;
   rules: KeywordRule[];
@@ -104,6 +122,7 @@ function PostDetail({
   onEdit: (rule: KeywordRule) => void;
   onDuplicate: (rule: KeywordRule) => void;
   onChanged: () => void;
+  onOffer?: () => void;
 }) {
   const t = useTranslations("Instagram");
   return (
@@ -123,7 +142,13 @@ function PostDetail({
             </a>
           )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          {canManage && onOffer && (
+            <Button size="sm" variant="outline" onClick={onOffer}>
+              <Tag className="mr-1 h-4 w-4" />
+              {hasPostOffer(post) ? t("editOffer") : t("addOffer")}
+            </Button>
+          )}
           {canManage && (
             <Button size="sm" onClick={onNewRule}>
               <Plus className="mr-1 h-4 w-4" />
@@ -135,10 +160,21 @@ function PostDetail({
           </Button>
         </div>
       </div>
+      {hasPostOffer(post) && (
+        <p className="whitespace-pre-line break-words rounded-lg bg-muted p-2 text-xs text-foreground">
+          <span className="font-medium">{t("postOffer")}:</span> {post.offer_text || post.offer_link_url || post.offer_media_name || "—"}
+          {post.offer_expires_on && ` · ${t("validUntil", { date: post.offer_expires_on })}`}
+        </p>
+      )}
+      {post.ai_comments_enabled === false && <p className="text-xs text-muted-foreground">{t("postAiOff")}</p>}
       <RulesList rules={rules} data={data} canManage={canManage} hidePost onEdit={onEdit} onDuplicate={onDuplicate} onChanged={onChanged} />
       {rules.length === 0 && data.rules.some((r) => r.media_ids.length === 0 && r.active) && (
         <p className="text-xs text-muted-foreground">{t("generalRulesApply")}</p>
       )}
     </div>
   );
+}
+
+function hasPostOffer(p: InstagramPost): boolean {
+  return !!(p.offer_text?.trim() || p.offer_link_url || p.offer_catalog_item_id || p.offer_media_url);
 }

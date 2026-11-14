@@ -209,7 +209,7 @@ export interface Conversation {
 // Notifications (migration 027)
 // ============================================================
 
-export type NotificationType = 'conversation_assigned' | 'handoff_requested' | 'plan_alert';
+export type NotificationType = 'conversation_assigned' | 'handoff_requested' | 'plan_alert' | 'instagram_comment';
 
 export interface Notification {
   id: string;

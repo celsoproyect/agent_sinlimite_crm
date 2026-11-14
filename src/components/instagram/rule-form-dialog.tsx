@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useTranslations } from "next-intl";
 import { toast } from "sonner";
 import { Check, FileText, Image as ImageIcon, Loader2, Paperclip, X } from "lucide-react";
-import type { KeywordRule, RuleMediaKind } from "@/lib/instagram/keywords";
+import { RULE_TRIGGERS, type KeywordRule, type RuleMediaKind, type RuleTrigger } from "@/lib/instagram/keywords";
 import { MEDIA_MAX_BYTES_BY_KIND, uploadAccountMedia } from "@/lib/storage/upload-media";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,6 +95,8 @@ function RuleForm({
   const [tag, setTag] = useState(rule?.tag_id ?? "");
   const [oncePerUser, setOncePerUser] = useState(rule?.once_per_user ?? true);
   const [active, setActive] = useState(rule?.active ?? true);
+  const [triggers, setTriggers] = useState<RuleTrigger[]>(rule?.triggers?.length ? rule.triggers : ["comments"]);
+  const [requireFollow, setRequireFollow] = useState(rule?.require_follow ?? false);
   const [saving, setSaving] = useState(false);
 
   async function upload(picked: File | undefined) {
@@ -128,8 +130,12 @@ function RuleForm({
       toast.error(t("errors.posts_required"));
       return;
     }
+    if (data.v3 && triggers.length === 0) {
+      toast.error(t("errors.triggers_required"));
+      return;
+    }
     setSaving(true);
-    const body = {
+    const body: Record<string, unknown> = {
       name,
       media_ids: allPosts ? [] : mediaIds,
       match_any: matchAny,
@@ -148,6 +154,11 @@ function RuleForm({
       once_per_user: oncePerUser,
       active,
     };
+    // Migration 082: where the rule listens and the follow gate.
+    if (data.v3) {
+      body.triggers = triggers;
+      body.require_follow = requireFollow;
+    }
     const res = await fetch(rule?.id ? `/api/instagram/rules/${rule.id}` : "/api/instagram/rules", {
       method: rule?.id ? "PATCH" : "POST",
       headers: { "Content-Type": "application/json" },
@@ -371,6 +382,31 @@ function RuleForm({
             ))}
           </select>
         </div>
+        {data.v3 && (
+          <div className="space-y-2">
+            <Label>{t("ruleTriggers")}</Label>
+            <div className="flex flex-wrap gap-3">
+              {RULE_TRIGGERS.map((key) => (
+                <label key={key} className="flex items-center gap-1.5 text-sm text-foreground">
+                  <input
+                    type="checkbox"
+                    checked={triggers.includes(key)}
+                    onChange={() =>
+                      setTriggers((list) => (list.includes(key) ? list.filter((x) => x !== key) : [...list, key]))
+                    }
+                  />
+                  {t(`ruleTrigger.${key}`)}
+                </label>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">{t("ruleTriggersHint")}</p>
+            <div className="flex items-center justify-between gap-3 pt-1">
+              <Label className="leading-snug">{t("requireFollow")}</Label>
+              <Switch checked={requireFollow} onCheckedChange={setRequireFollow} />
+            </div>
+            {requireFollow && <p className="text-xs text-muted-foreground">{t("requireFollowHint")}</p>}
+          </div>
+        )}
         <div className="space-y-2 pt-1">
           <div className="flex items-center justify-between gap-3">
             <Label className="leading-snug">{t("oncePerUser")}</Label>

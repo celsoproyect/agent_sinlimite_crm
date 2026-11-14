@@ -15,10 +15,20 @@ import { PostsPanel } from "@/components/instagram/posts-panel";
 import { RulesList } from "@/components/instagram/rules-list";
 import { RuleFormDialog } from "@/components/instagram/rule-form-dialog";
 import { CommentsPanel } from "@/components/instagram/comments-panel";
+import { InstagramSettingsPanel } from "@/components/instagram/instagram-settings-panel";
+import { InstagramReportPanel } from "@/components/instagram/instagram-report-panel";
 import { SampleDataBar } from "@/components/samples/sample-data-bar";
 import { apiErrorText, type InstagramPageData } from "@/components/instagram/instagram-utils";
 
-type Tab = "posts" | "keywords" | "comments";
+type Tab = "posts" | "keywords" | "comments" | "ai" | "results";
+const TABS: Tab[] = ["posts", "keywords", "comments", "ai", "results"];
+
+/** `?tab=` from the URL (notifications link to the comments). */
+function initialTab(): Tab {
+  if (typeof window === "undefined") return "posts";
+  const tab = new URLSearchParams(window.location.search).get("tab");
+  return TABS.includes(tab as Tab) ? (tab as Tab) : "posts";
+}
 
 // Instagram (module `instagram`, comments behind `instagram_comments`,
 // migration 079): posts and reels with their keyword rules ("comment
@@ -31,7 +41,7 @@ export default function InstagramPage() {
   const isAdmin = useCan("edit-settings");
   const canReply = useCan("send-messages");
 
-  const [tab, setTab] = useState<Tab>("posts");
+  const [tab, setTab] = useState<Tab>(initialTab);
   const [data, setData] = useState<InstagramPageData | null>(null);
   const [failed, setFailed] = useState(false);
   const [syncing, setSyncing] = useState(false);
@@ -86,7 +96,8 @@ export default function InstagramPage() {
   const canManage = isAdmin && data.migrated;
   const generalRules = data.rules.filter((r) => r.media_ids.length === 0);
   const duplicate = (rule: KeywordRule) => setEditing({ rule: duplicateRule(rule, t("copySuffix")) });
-  const tabs: Tab[] = ["posts", "keywords", "comments"];
+  const reportsOn = isModuleEnabled(account?.enabled_modules, "instagram_reports");
+  const tabs = TABS.filter((k) => (k === "results" ? reportsOn && data.migrated : k === "ai" ? data.migrated : true));
 
   return (
     <div className="space-y-6">
@@ -127,6 +138,7 @@ export default function InstagramPage() {
       )}
       {data.migrated && !data.v2 && <Notice>{t("needsMigration080")}</Notice>}
       {data.migrated && !commentsOn && <Notice>{t("commentsModuleOff")}</Notice>}
+      {data.migrated && data.v2 && !data.v3 && <Notice>{t("needsMigration082")}</Notice>}
       {canManage && data.v2 && (
         <SampleDataBar module="instagram" hasSamples={data.rules.some((r) => r.is_sample)} onChanged={load} />
       )}
@@ -153,6 +165,7 @@ export default function InstagramPage() {
         <PostsPanel
           data={data}
           canManage={canManage}
+          offersOn={isModuleEnabled(account?.enabled_modules, "instagram_offers")}
           onNewRule={(mediaId) => setEditing({ rule: null, mediaId })}
           onEdit={(rule) => setEditing({ rule })}
           onDuplicate={duplicate}
@@ -187,6 +200,20 @@ export default function InstagramPage() {
         </div>
       )}
       {tab === "comments" && <CommentsPanel data={data} canReply={canReply && data.connected} />}
+      {tab === "ai" &&
+        (data.v3 && data.settings ? (
+          <InstagramSettingsPanel
+            data={data}
+            settings={data.settings}
+            canManage={canManage}
+            aiModuleOn={isModuleEnabled(account?.enabled_modules, "instagram_ai_comments")}
+            engagementModuleOn={isModuleEnabled(account?.enabled_modules, "instagram_engagement")}
+            onSaved={() => void load()}
+          />
+        ) : (
+          <Notice>{t("needsMigration082")}</Notice>
+        ))}
+      {tab === "results" && <InstagramReportPanel />}
 
       <RuleFormDialog
         open={!!editing}
