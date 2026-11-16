@@ -221,3 +221,13 @@ describe('parseRuleInput', () => {
     ).toBe('catalog_needs_button')
   })
 })
+
+describe('threadReplyText', () => {
+  it('mentions the author when the comment is itself a reply', async () => {
+    const { threadReplyText } = await import('./keywords')
+    expect(threadReplyText('Gracias', 'ana', 'p1')).toBe('@ana Gracias')
+    expect(threadReplyText('Gracias @Ana!', 'ana', 'p1')).toBe('Gracias @Ana!')
+    expect(threadReplyText(' Gracias ', 'ana', null)).toBe('Gracias')
+    expect(threadReplyText('Gracias', null, 'p1')).toBe('Gracias')
+  })
+})

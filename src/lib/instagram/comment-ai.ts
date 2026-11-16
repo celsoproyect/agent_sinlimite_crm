@@ -41,7 +41,7 @@ export function buildCommentPrompt(args: {
       '{"category": "...", "public_reply": "...", "private_reply": "..."}.',
     'Categories: "question" (asks something: price, availability, how, where, when), ' +
       '"interest" (wants to buy or book, "lo quiero", "me interesa", tags a friend to buy), ' +
-      '"praise" (compliment, emojis of love, congratulations), ' +
+      '"praise" (compliment, emojis of love, congratulations, a positive opinion of the post or its content: "muy interesante", "buena info", "sigue así", "me encantó"), ' +
       '"complaint" (unhappy customer, bad experience, problem with an order), ' +
       '"spam" (ads for other accounts, links, scams, insults, "follow me", bots), ' +
       '"other" (a friend tagged with no intent, random chat, anything else).',
@@ -49,9 +49,12 @@ export function buildCommentPrompt(args: {
       'Never put prices, phone numbers, personal data or long details in public. ' +
       'For "question" and "interest" it says you just sent the details by DM (e.g. "¡Te escribimos por DM! 📩"). ' +
       'For "praise" it thanks them. For "complaint" it apologizes briefly and says you will write to them by DM. ' +
-      'For "spam" and "other" leave it empty. ' +
+      'For "other" a short friendly line about the comment. For "spam" leave it empty. ' +
+      'Always write it (except spam): the owner decides per category whether it is posted. ' +
       `At most ${PUBLIC_MAX} characters.`,
-    'private_reply: the direct message for "question", "interest" and "complaint" (empty for the others). ' +
+    'private_reply: the direct message, written for every category except "spam" (the owner decides per category whether it is sent). ' +
+      'For "praise" and "other" it thanks them warmly and offers help with what the business has, without pushing. ' +
+      'For "question", "interest" and "complaint": ' +
       'It answers the question with facts from the business context, the catalog and the post below only — never invent prices, stock or dates; ' +
       "if you don't have the answer, say a person from the team will confirm it shortly. " +
       'End with one short question that moves the sale forward (e.g. which size, for when). ' +

@@ -207,6 +207,20 @@ export function pickPublicReply(
   return chosen.replace(/\{\{\s*username\s*\}\}/gi, username ? `@${username}` : '').replace(/\s{2,}/g, ' ').trim()
 }
 
+/**
+ * Instagram threads are one level deep: a reply to a reply lands in the
+ * top-level comment's thread, where its author gets no notification and
+ * can't tell it is for them. So a reply to a comment that is itself a
+ * reply starts with @username (unless it already mentions them). Pure.
+ */
+export function threadReplyText(text: string, username: string | null, parentId: string | null): string {
+  const clean = text.trim()
+  if (!parentId || !username) return clean
+  const handle = `@${username}`
+  if (clean.toLowerCase().includes(handle.toLowerCase())) return clean
+  return `${handle} ${clean}`
+}
+
 /** The content DM: the text plus the link on its own line. */
 export function ruleContentText(rule: Pick<KeywordRule, 'dm_text' | 'dm_link_url'>): string {
   return [rule.dm_text.trim(), rule.dm_link_url?.trim() ?? ''].filter(Boolean).join('\n\n')

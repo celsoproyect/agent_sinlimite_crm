@@ -27,6 +27,7 @@ import {
   pickRule,
   ruleButtonPayload,
   ruleContentText,
+  threadReplyText,
   type KeywordRule,
 } from './keywords'
 import { instagramEngineSendChoices, instagramEngineSendMedia, instagramEngineSendText, rememberSentMid } from './send'
@@ -221,8 +222,9 @@ async function processComment(
   const publicText = pickPublicReply(rule.public_replies, comment.username)
   if (publicText) {
     try {
-      patch.public_reply_id = await replyToInstagramComment(conn.accessToken, comment.commentId, publicText)
-      patch.public_reply_text = publicText
+      const sentText = threadReplyText(publicText, comment.username, comment.parentId)
+      patch.public_reply_id = await replyToInstagramComment(conn.accessToken, comment.commentId, sentText)
+      patch.public_reply_text = sentText
     } catch (err) {
       patch.dm_error = `Respuesta pública: ${err instanceof Error ? err.message : String(err)}`
     }
@@ -297,8 +299,9 @@ async function answerWithAi(
   }
   if (action.public && verdict.publicReply && !action.hide) {
     try {
-      patch.public_reply_id = await replyToInstagramComment(conn.accessToken, comment.commentId, verdict.publicReply)
-      patch.public_reply_text = verdict.publicReply
+      const sentText = threadReplyText(verdict.publicReply, comment.username, comment.parentId)
+      patch.public_reply_id = await replyToInstagramComment(conn.accessToken, comment.commentId, sentText)
+      patch.public_reply_text = sentText
       didSomething = true
     } catch (err) {
       patch.dm_error = `Respuesta pública: ${err instanceof Error ? err.message : String(err)}`

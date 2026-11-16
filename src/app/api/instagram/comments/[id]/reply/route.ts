@@ -6,6 +6,7 @@ import { findOrCreateContact, findOrCreateConversation } from '@/lib/instagram/c
 import { toInstagramText } from '@/lib/instagram/format'
 import { instagramGuard } from '@/lib/instagram/page-api'
 import { rememberSentMid } from '@/lib/instagram/send'
+import { threadReplyText } from '@/lib/instagram/keywords'
 
 // A teammate answers a comment by hand. `public` posts a reply under it;
 // `private` sends its one private DM (only if none went yet, within 7
@@ -28,7 +29,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
   const admin = supabaseAdmin()
   const { data: comment } = await admin
     .from('instagram_comments')
-    .select('id, comment_id, igsid, username, dm_status, created_at')
+    .select('id, comment_id, parent_id, igsid, username, dm_status, created_at')
     .eq('id', id)
     .eq('account_id', ctx.accountId)
     .maybeSingle()
@@ -39,10 +40,11 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
 
   try {
     if (mode === 'public') {
-      const replyId = await replyToInstagramComment(conn.accessToken, comment.comment_id as string, text)
+      const publicText = threadReplyText(text, comment.username as string | null, comment.parent_id as string | null)
+      const replyId = await replyToInstagramComment(conn.accessToken, comment.comment_id as string, publicText)
       await admin
         .from('instagram_comments')
-        .update({ public_reply_text: text, public_reply_id: replyId, status: 'replied', updated_at: now })
+        .update({ public_reply_text: publicText, public_reply_id: replyId, status: 'replied', updated_at: now })
         .eq('id', id)
       return NextResponse.json({ ok: true })
     }
