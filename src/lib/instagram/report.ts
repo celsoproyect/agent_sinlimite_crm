@@ -121,9 +121,9 @@ export function computePostReport(input: {
 }
 
 const PAGE = 1000
-const IN_CHUNK = 150
+export const IN_CHUNK = 150
 
-async function paged<T>(
+export async function paged<T>(
   run: (from: number, to: number) => PromiseLike<{ data: T[] | null; error: { code?: string; message?: string } | null }>,
 ): Promise<T[]> {
   const out: T[] = []
@@ -135,7 +135,7 @@ async function paged<T>(
   }
 }
 
-function chunks<T>(list: T[], size: number): T[][] {
+export function chunks<T>(list: T[], size: number): T[][] {
   const out: T[][] = []
   for (let i = 0; i < list.length; i += size) out.push(list.slice(i, i + size))
   return out

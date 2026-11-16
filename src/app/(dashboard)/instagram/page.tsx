@@ -17,11 +17,12 @@ import { RuleFormDialog } from "@/components/instagram/rule-form-dialog";
 import { CommentsPanel } from "@/components/instagram/comments-panel";
 import { InstagramSettingsPanel } from "@/components/instagram/instagram-settings-panel";
 import { InstagramReportPanel } from "@/components/instagram/instagram-report-panel";
+import { LinksPanel } from "@/components/instagram/links-panel";
 import { SampleDataBar } from "@/components/samples/sample-data-bar";
 import { apiErrorText, type InstagramPageData } from "@/components/instagram/instagram-utils";
 
-type Tab = "posts" | "keywords" | "comments" | "ai" | "results";
-const TABS: Tab[] = ["posts", "keywords", "comments", "ai", "results"];
+type Tab = "posts" | "keywords" | "comments" | "ai" | "links" | "results";
+const TABS: Tab[] = ["posts", "keywords", "comments", "ai", "links", "results"];
 
 /** `?tab=` from the URL (notifications link to the comments). */
 function initialTab(): Tab {
@@ -97,7 +98,10 @@ export default function InstagramPage() {
   const generalRules = data.rules.filter((r) => r.media_ids.length === 0);
   const duplicate = (rule: KeywordRule) => setEditing({ rule: duplicateRule(rule, t("copySuffix")) });
   const reportsOn = isModuleEnabled(account?.enabled_modules, "instagram_reports");
-  const tabs = TABS.filter((k) => (k === "results" ? reportsOn && data.migrated : k === "ai" ? data.migrated : true));
+  const linksOn = isModuleEnabled(account?.enabled_modules, "instagram_links");
+  const tabs = TABS.filter((k) =>
+    k === "results" ? reportsOn && data.migrated : k === "links" ? linksOn : k === "ai" ? data.migrated : true,
+  );
 
   return (
     <div className="space-y-6">
@@ -213,6 +217,7 @@ export default function InstagramPage() {
         ) : (
           <Notice>{t("needsMigration082")}</Notice>
         ))}
+      {tab === "links" && <LinksPanel canManage={isAdmin} />}
       {tab === "results" && <InstagramReportPanel />}
 
       <RuleFormDialog

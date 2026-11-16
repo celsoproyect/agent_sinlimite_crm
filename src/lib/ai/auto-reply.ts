@@ -37,6 +37,7 @@ import { applyQualificationCapture, loadQualificationContext, qualificationPromp
 import { formatQualificationBlock } from './qualification'
 import { productCardCaption } from './whatsapp-format'
 import { conversationOfferPrompt } from '@/lib/instagram/offers'
+import { linkPromptForConversation } from '@/lib/instagram/links'
 
 // Pending reply-delay timers, keyed by conversation. In-process only —
 // doesn't survive a restart and doesn't coordinate across replicas, which
@@ -232,6 +233,7 @@ export async function dispatchInboundToAiReply(
       venue,
       agendaOn,
       instagramOffer,
+      instagramLink,
     ] = await Promise.all([
       retrieveKnowledge(db, accountId, config, latestUserMessage(messages)),
       getKnowledgeBaseRoster(db, accountId),
@@ -249,6 +251,8 @@ export async function dispatchInboundToAiReply(
       agendaModuleOn(db, accountId),
       // Module instagram_offers: the post the customer came from and its offer.
       isInstagram ? conversationOfferPrompt(db, accountId, conversationId) : Promise.resolve(null),
+      // Module instagram_links: the campaign link the chat came from.
+      isInstagram ? linkPromptForConversation(db, accountId, conversationId) : Promise.resolve(null),
     ])
     const bookingAvailable = hoursSaved && agendaOn
     const venueOn = !!(venue.restaurant || venue.events)
@@ -280,7 +284,11 @@ export async function dispatchInboundToAiReply(
       sentimentCaptureAvailable: true,
       qualification: qualificationSetup?.options ?? null,
     })
-    const systemPrompt = instagramOffer ? [basePrompt, '## Instagram post', instagramOffer].join('\n\n') : basePrompt
+    const systemPrompt = [
+      basePrompt,
+      ...(instagramOffer ? ['## Instagram post', instagramOffer] : []),
+      ...(instagramLink ? ['## Instagram campaign link', instagramLink] : []),
+    ].join('\n\n')
 
     // Property photos send_property_photos picked, sent before the text.
     const propertyPhotos: ResolvedAttachment[] = []

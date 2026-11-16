@@ -14,6 +14,7 @@ import { wasSentByUs } from './send'
 import { deliverPendingRuleContent, processInstagramComments } from './comments'
 import { ruleIdFromPayload } from './keywords'
 import { handleEngagementInbound } from './engagement'
+import { handleLinkArrival, pendingLinkRef } from './links'
 import { loadInstagramSettings } from './settings'
 import {
   describeInstagramEvent,
@@ -174,9 +175,27 @@ async function handleCustomerEvent(
     console.error('[instagram] delivering the rule content failed:', err)
     return false
   })
+  // Campaign links (083): the chat came by ig.me/...?ref=CODE (on this
+  // message, or a referral event before it whose action hasn't run yet).
+  const linkRef =
+    tappedRuleId || deliveredRule
+      ? null
+      : source?.type === 'link'
+        ? (source.ref ?? null)
+        : await pendingLinkRef(db, conversation.id).catch(() => null)
+  const linkOutcome = linkRef
+    ? await handleLinkArrival(db, conn, {
+        ref: linkRef,
+        igsid: event.igsid,
+        contactId: contact.id,
+        conversationId: conversation.id,
+        isNewContact: contactOutcome.created,
+        hasMessage: true,
+      })
+    : { handled: false }
   // Phase 4: ice breakers, menu, story mentions, story/DM keyword rules.
   const engagement =
-    tappedRuleId || deliveredRule
+    tappedRuleId || deliveredRule || linkOutcome.handled
       ? { handled: false, letAiAnswer: false }
       : await handleEngagementInbound(db, conn, {
           igsid: event.igsid,
@@ -188,7 +207,7 @@ async function handleCustomerEvent(
           sourceType: source?.type ?? null,
           sourceId: source?.id ?? null,
         })
-  if (tappedRuleId || deliveredRule || engagement.handled) {
+  if (tappedRuleId || deliveredRule || linkOutcome.handled || engagement.handled) {
     await dispatchWebhookEvent(db, conn.accountId, 'message.received', {
       conversation_id: conversation.id,
       contact_id: contact.id,
@@ -276,7 +295,19 @@ async function handleReferral(
   if (!contactOutcome) return
   const convResult = await findOrCreateConversation(db, conn, contactOutcome.contact.id)
   if (!convResult) return
-  await saveSource(db, convResult.conversation.id, referralSource(event.referral, new Date(event.timestamp).toISOString()))
+  const source = referralSource(event.referral, new Date(event.timestamp).toISOString())
+  await saveSource(db, convResult.conversation.id, source)
+  // A campaign link: log the arrival and greet them before they write.
+  if (source.type === 'link' && source.ref) {
+    await handleLinkArrival(db, conn, {
+      ref: source.ref,
+      igsid: event.igsid,
+      contactId: contactOutcome.contact.id,
+      conversationId: convResult.conversation.id,
+      isNewContact: contactOutcome.created,
+      hasMessage: false,
+    })
+  }
 }
 
 /**

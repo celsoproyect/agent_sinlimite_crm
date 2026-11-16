@@ -51,6 +51,9 @@
 //   `instagram_engagement` rules on story replies and DMs, "follow me to
 //     get it", story-mention thanks, ice breakers and the fixed menu,
 //   `instagram_reports` the Resultados tab (comments → DMs → leads → sales).
+// `instagram_links` (migration 083): campaign links and QR codes
+//   (ig.me/m/<account>?ref=CODE through <site>/go/<slug>), each running a
+//   welcome, a rule, an automation or the AI, with clicks → chats → sales.
 // ============================================================
 
 export const MODULE_KEYS = [
@@ -72,6 +75,7 @@ export const MODULE_KEYS = [
   "instagram_offers",
   "instagram_engagement",
   "instagram_reports",
+  "instagram_links",
   "widget_booking",
   "google_calendar",
   "web_push",

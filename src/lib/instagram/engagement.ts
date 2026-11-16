@@ -132,7 +132,7 @@ export async function handleEngagementInbound(
   }
 }
 
-async function runRule(
+export async function runRule(
   db: SupabaseClient,
   conn: InstagramConnection,
   rule: KeywordRule,

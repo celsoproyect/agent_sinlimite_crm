@@ -187,7 +187,8 @@
     "instagramAiCommentsModule": "Instagram: IA en comentarios",
     "instagramOffersModule": "Instagram: ofertas por publicación",
     "instagramEngagementModule": "Instagram: historias, menú y botones de inicio",
-    "instagramReportsModule": "Instagram: resultados por publicación"
+    "instagramReportsModule": "Instagram: resultados por publicación",
+    "instagramLinksModule": "Instagram: enlaces y QR de campaña"
   },
   "Push": {
     "title": "Notificaciones en este dispositivo",
@@ -3445,7 +3446,8 @@
       "events": "Carga salones, paquetes y una solicitud de ejemplo en cada etapa (Solicitud → Cotizado → Depósito pagado → Confirmado → Realizado/Cancelado). Los ejemplos están marcados y nunca reciben recordatorios.",
       "clinic": "Carga doctores, servicios, una ausencia y citas de ejemplo para ver cómo funciona la agenda de cada doctor. Los ejemplos están marcados y nunca reciben recordatorios.",
       "properties": "Carga 3 inmuebles con fotos y amenidades (apartamento en venta en Piantini, villa en Cap Cana y casa en alquiler en Santiago), 2 asesores con su agenda de visitas y una visita de ejemplo. Los ejemplos están marcados y nunca reciben recordatorios.",
-      "instagram": "Carga una regla de ejemplo de cada tipo (palabra clave en una publicación, en todas, cualquier comentario, texto y enlace, una regla para varias publicaciones, enviar PDF, producto del catálogo y calificar con automatización) y 3 automatizaciones que califican al lead. Las reglas se crean apagadas: actívalas cuando quieras usarlas."
+      "instagram": "Carga una regla de ejemplo de cada tipo (palabra clave en una publicación, en todas, cualquier comentario, texto y enlace, una regla para varias publicaciones, enviar PDF, producto del catálogo y calificar con automatización) y 3 automatizaciones que califican al lead. Las reglas se crean apagadas: actívalas cuando quieras usarlas.",
+      "instagram_links": "Crea 3 enlaces de ejemplo activos (QR del mostrador, enlace de la bio y promo) para probarlos desde otra cuenta de Instagram."
     },
     "load": "Cargar ejemplos",
     "reload": "Recargar ejemplos",
@@ -3458,7 +3460,8 @@
     "needsMigration": "Primero ejecuta la migración 068 en Supabase",
     "moduleDisabled": "Primero activa el módulo",
     "badge": "Ejemplo",
-    "needsMigration080": "Primero ejecuta la migración 080 en Supabase"
+    "needsMigration080": "Primero ejecuta la migración 080 en Supabase",
+    "needsMigration083": "Primero ejecuta la migración 083 en Supabase"
   },
   "Agents": {
     "page": {
@@ -4199,7 +4202,8 @@
       "keywords": "Palabras clave",
       "comments": "Comentarios",
       "ai": "IA y automatización",
-      "results": "Resultados"
+      "results": "Resultados",
+      "links": "Enlaces y QR"
     },
     "sync": "Sincronizar",
     "synced": "{count, plural, =0 {No hay publicaciones nuevas} one {# publicación sincronizada} other {# publicaciones sincronizadas}}",
@@ -4434,5 +4438,82 @@
     "addOffer": "Agregar oferta",
     "validUntil": "válida hasta {date}",
     "postAiOff": "La IA no responde los comentarios de esta publicación."
+  },
+  "InstagramLinks": {
+    "howTitle": "Cómo funciona",
+    "how1": "Cada enlace abre el chat de Instagram del negocio con un código (por ejemplo QR_LOCAL). Ponlo en tu bio, una historia, un anuncio o imprime su QR.",
+    "how2": "Cuando la persona escribe, el CRM sabe por qué enlace llegó: le envía la bienvenida, inicia la regla o la automatización, o la IA responde sabiendo de qué campaña viene. También puede etiquetarla.",
+    "how3": "Aquí ves por cada enlace los clics, los chats abiertos, los contactos nuevos, los negocios y las ventas que vinieron después.",
+    "notConnected": "Conecta tu cuenta de Instagram en Canales para que los enlaces funcionen.",
+    "needsMigration": "Para usar los enlaces y QR de campaña, aplica la migración 083 en Supabase.",
+    "newLink": "Nuevo enlace",
+    "editLink": "Editar enlace",
+    "empty": "Aún no tienes enlaces. Crea uno o carga los ejemplos.",
+    "code": "Código",
+    "codeHint": "Letras, números, _ o -. Es lo que Instagram le devuelve al CRM para saber de qué enlace vino la persona.",
+    "name": "Nombre",
+    "namePlaceholder": "Ej.: QR de la vitrina",
+    "action": "Qué pasa cuando escriben",
+    "actions": {
+      "message": "Mensaje de bienvenida",
+      "ai": "Responde la IA",
+      "rule": "Regla de palabras clave",
+      "automation": "Automatización"
+    },
+    "actionHints": {
+      "message": "Le envía tu mensaje de bienvenida. Después la IA sigue la conversación normalmente.",
+      "ai": "La IA responde lo que la persona escribió, sabiendo de qué campaña viene (usa el contexto de abajo).",
+      "rule": "Envía el contenido de una de tus reglas de Instagram (texto, enlace, producto, archivo…).",
+      "automation": "Inicia una de tus automatizaciones (por ejemplo, calificar al lead con botones)."
+    },
+    "rule": "Regla",
+    "automation": "Automatización",
+    "choose": "Elige una…",
+    "welcome": "Mensaje de bienvenida",
+    "welcomeOptional": "Mensaje de bienvenida (opcional, va primero)",
+    "welcomePlaceholder": "¡Hola! Gracias por escanear nuestro QR…",
+    "aiContext": "Contexto para la IA",
+    "aiContextPlaceholder": "Ej.: viene del QR del local; tiene 10% de descuento en su primera compra.",
+    "aiContextHint": "La IA lo tiene presente durante todo el chat cuando la persona dice \"la promo\" o \"lo del QR\".",
+    "tag": "Etiquetar al contacto",
+    "noTag": "Sin etiqueta",
+    "active": "Activo",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "saved": "Enlace guardado",
+    "edit": "Editar",
+    "delete": "Eliminar",
+    "confirmDelete": "¿Eliminar el enlace \"{name}\"? Su QR dejará de funcionar.",
+    "sample": "ejemplo",
+    "copy": "Copiar",
+    "copied": "Copiado",
+    "open": "Abrir",
+    "copyDirect": "Copiar enlace directo (ig.me)",
+    "noUrl": "Falta la URL del sitio o conectar Instagram.",
+    "qr": "QR",
+    "download": "Descargar PNG",
+    "qrHint": "Imprímelo o súbelo a una historia. Al escanearlo se abre el chat de Instagram del negocio; cada escaneo se cuenta como clic.",
+    "stats": {
+      "clicks": "Clics",
+      "chats": "Chats",
+      "newContacts": "Contactos nuevos",
+      "deals": "Negocios",
+      "won": "Ganados",
+      "revenue": "Ventas"
+    },
+    "errors": {
+      "generic": "Algo salió mal. Inténtalo de nuevo.",
+      "forbidden": "No tienes permiso para esto.",
+      "name_required": "Ponle un nombre al enlace.",
+      "invalid_code": "El código debe tener de 2 a 40 letras, números, _ o -.",
+      "invalid_action": "Elige qué pasa cuando escriben.",
+      "invalid_reference": "La regla, automatización o etiqueta elegida no es válida.",
+      "welcome_required": "Escribe el mensaje de bienvenida.",
+      "rule_required": "Elige la regla.",
+      "automation_required": "Elige la automatización.",
+      "code_taken": "Ya tienes otro enlace con ese código.",
+      "module_disabled": "El módulo de enlaces y QR está apagado.",
+      "not_found": "Ese enlace ya no existe."
+    }
   }
 }

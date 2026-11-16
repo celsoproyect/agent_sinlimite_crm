@@ -187,7 +187,8 @@
     "instagramAiCommentsModule": "Instagram: comments AI",
     "instagramOffersModule": "Instagram: offers per post",
     "instagramEngagementModule": "Instagram: stories, menu and ice breakers",
-    "instagramReportsModule": "Instagram: results per post"
+    "instagramReportsModule": "Instagram: results per post",
+    "instagramLinksModule": "Instagram: campaign links & QR"
   },
   "Push": {
     "title": "Notifications on this device",
@@ -3445,7 +3446,8 @@
       "events": "Load example halls, packages and one request in each stage (Request → Quoted → Deposit paid → Confirmed → Done/Cancelled). Examples are marked and never reminded.",
       "clinic": "Load example doctors, services, a day off and appointments to see how each doctor's agenda works. Examples are marked and never reminded.",
       "properties": "Loads 3 properties with photos and amenities (an apartment for sale in Piantini, a villa in Cap Cana and a house for rent in Santiago), 2 advisors with their visit agenda and a sample visit. Samples are marked and never get reminders.",
-      "instagram": "Loads one example rule of every kind (keyword on one post, on every post, any comment, text and link, one rule for several posts, send a PDF, a catalog product and qualify with an automation) plus 3 automations that qualify the lead. The rules are created switched off: turn them on when you want to use them."
+      "instagram": "Loads one example rule of every kind (keyword on one post, on every post, any comment, text and link, one rule for several posts, send a PDF, a catalog product and qualify with an automation) plus 3 automations that qualify the lead. The rules are created switched off: turn them on when you want to use them.",
+      "instagram_links": "Creates 3 active example links (counter QR, bio link and promo) to try them from another Instagram account."
     },
     "load": "Load examples",
     "reload": "Reload examples",
@@ -3458,7 +3460,8 @@
     "needsMigration": "Run migration 068 in Supabase first",
     "moduleDisabled": "Turn the module on first",
     "badge": "Example",
-    "needsMigration080": "First run migration 080 in Supabase"
+    "needsMigration080": "First run migration 080 in Supabase",
+    "needsMigration083": "Run migration 083 in Supabase first"
   },
   "Agents": {
     "page": {
@@ -4199,7 +4202,8 @@
       "keywords": "Keywords",
       "comments": "Comments",
       "ai": "AI & automation",
-      "results": "Results"
+      "results": "Results",
+      "links": "Links & QR"
     },
     "sync": "Sync",
     "synced": "{count, plural, =0 {No new posts} one {# post synced} other {# posts synced}}",
@@ -4434,5 +4438,82 @@
     "addOffer": "Add offer",
     "validUntil": "valid until {date}",
     "postAiOff": "The AI doesn't answer this post's comments."
+  },
+  "InstagramLinks": {
+    "howTitle": "How it works",
+    "how1": "Each link opens the business's Instagram chat with a code (e.g. QR_LOCAL). Put it in your bio, a story, an ad, or print its QR.",
+    "how2": "When the person writes, the CRM knows which link they came from: it sends the welcome, starts the rule or automation, or the AI answers knowing the campaign. It can tag them too.",
+    "how3": "Here you see, per link, clicks, chats opened, new contacts, deals and the sales that followed.",
+    "notConnected": "Connect your Instagram account in Channels for the links to work.",
+    "needsMigration": "To use campaign links and QR codes, run migration 083 in Supabase.",
+    "newLink": "New link",
+    "editLink": "Edit link",
+    "empty": "No links yet. Create one or load the examples.",
+    "code": "Code",
+    "codeHint": "Letters, digits, _ or -. Instagram passes it back so the CRM knows which link the person came from.",
+    "name": "Name",
+    "namePlaceholder": "E.g.: Shop window QR",
+    "action": "What happens when they write",
+    "actions": {
+      "message": "Welcome message",
+      "ai": "The AI answers",
+      "rule": "Keyword rule",
+      "automation": "Automation"
+    },
+    "actionHints": {
+      "message": "Sends your welcome message. Then the AI carries on as usual.",
+      "ai": "The AI answers what they wrote, knowing which campaign they came from (uses the context below).",
+      "rule": "Sends the content of one of your Instagram rules (text, link, product, file…).",
+      "automation": "Starts one of your automations (e.g. qualify the lead with buttons)."
+    },
+    "rule": "Rule",
+    "automation": "Automation",
+    "choose": "Choose one…",
+    "welcome": "Welcome message",
+    "welcomeOptional": "Welcome message (optional, goes first)",
+    "welcomePlaceholder": "Hi! Thanks for scanning our QR…",
+    "aiContext": "Context for the AI",
+    "aiContextPlaceholder": "E.g.: comes from the shop QR; 10% off their first purchase.",
+    "aiContextHint": "The AI keeps it in mind for the whole chat when the person says \"the promo\" or \"the QR\".",
+    "tag": "Tag the contact",
+    "noTag": "No tag",
+    "active": "Active",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Link saved",
+    "edit": "Edit",
+    "delete": "Delete",
+    "confirmDelete": "Delete the link \"{name}\"? Its QR will stop working.",
+    "sample": "example",
+    "copy": "Copy",
+    "copied": "Copied",
+    "open": "Open",
+    "copyDirect": "Copy direct link (ig.me)",
+    "noUrl": "The site URL is missing or Instagram isn't connected.",
+    "qr": "QR",
+    "download": "Download PNG",
+    "qrHint": "Print it or post it in a story. Scanning it opens the business's Instagram chat; every scan counts as a click.",
+    "stats": {
+      "clicks": "Clicks",
+      "chats": "Chats",
+      "newContacts": "New contacts",
+      "deals": "Deals",
+      "won": "Won",
+      "revenue": "Sales"
+    },
+    "errors": {
+      "generic": "Something went wrong. Try again.",
+      "forbidden": "You don't have permission for this.",
+      "name_required": "Give the link a name.",
+      "invalid_code": "The code must be 2 to 40 letters, digits, _ or -.",
+      "invalid_action": "Choose what happens when they write.",
+      "invalid_reference": "The chosen rule, automation or tag isn't valid.",
+      "welcome_required": "Write the welcome message.",
+      "rule_required": "Choose the rule.",
+      "automation_required": "Choose the automation.",
+      "code_taken": "You already have another link with that code.",
+      "module_disabled": "The links & QR module is switched off.",
+      "not_found": "That link no longer exists."
+    }
   }
 }

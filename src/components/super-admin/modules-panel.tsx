@@ -37,6 +37,7 @@ import {
   Tag,
   Heart,
   TrendingUp,
+  QrCode,
   Zap,
   type LucideIcon,
 } from "lucide-react";
@@ -80,6 +81,7 @@ export const MODULE_META: Record<ModuleKey, { icon: LucideIcon; labelKey: string
   instagram_offers: { icon: Tag, labelKey: "instagramOffersModule" },
   instagram_engagement: { icon: Heart, labelKey: "instagramEngagementModule" },
   instagram_reports: { icon: TrendingUp, labelKey: "instagramReportsModule" },
+  instagram_links: { icon: QrCode, labelKey: "instagramLinksModule" },
   widget_booking: { icon: Globe, labelKey: "widgetBookingModule" },
   google_calendar: { icon: CalendarCheck2, labelKey: "googleCalendarModule" },
   web_push: { icon: BellRing, labelKey: "webPushModule" },

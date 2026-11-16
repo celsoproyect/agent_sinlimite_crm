@@ -22,8 +22,8 @@ import { DEFAULT_EVENT_SETTINGS } from '@/lib/events/settings'
 //    rows flagged `is_sample`.
 // ============================================================
 
-export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'properties' | 'reminders' | 'instagram'
-export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'properties', 'reminders', 'instagram']
+export type SampleModule = 'restaurant' | 'events' | 'clinic' | 'properties' | 'reminders' | 'instagram' | 'instagram_links'
+export const SAMPLE_MODULES: SampleModule[] = ['restaurant', 'events', 'clinic', 'properties', 'reminders', 'instagram', 'instagram_links']
 
 export class SampleError extends Error {
   constructor(
@@ -61,7 +61,7 @@ function plusMinutes(iso: string, minutes: number): string {
 
 /** Example customers. Phones in 809-000-xxxx: an exchange no real line has. */
 async function sampleContacts(ctx: Ctx, module: SampleModule, names: string[]): Promise<{ id: string; name: string; phone: string }[]> {
-  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4, properties: 5, instagram: 6 }[module]
+  const block = { restaurant: 1, events: 2, clinic: 3, reminders: 4, properties: 5, instagram: 6, instagram_links: 7 }[module]
   const rows = names.map((name, i) => ({
     account_id: ctx.accountId,
     user_id: ctx.userId,
@@ -992,6 +992,84 @@ async function seedInstagram(ctx: Ctx): Promise<Record<string, number | boolean>
 
 // ---------- removal ----------
 
+// ---------- instagram campaign links (migration 083) ----------
+
+/**
+ * Three campaign links, active, so the owner can open them from another
+ * Instagram account and see each action: a welcome message with a tag
+ * (QR on the counter), the AI with the campaign's context (bio link),
+ * and the lead-qualifying automation of the Instagram examples (promo).
+ */
+async function seedInstagramLinks(ctx: Ctx): Promise<Record<string, number | boolean>> {
+  const probe = await ctx.db.from('instagram_links').select('id', { head: true }).eq('account_id', ctx.accountId)
+  if (probe.error) {
+    if (MISSING.has(probe.error.code ?? '')) throw new SampleError('Run migration 083 first.', 'needs_migration', 503)
+    fail(probe.error, 'instagram_links')
+  }
+  // Real links keep their codes: an example only takes a free one.
+  const { data: existing } = await ctx.db.from('instagram_links').select('code').eq('account_id', ctx.accountId)
+  const taken = new Set(((existing ?? []) as { code: string }[]).map((l) => l.code.toLowerCase()))
+  const free = (code: string) => (taken.has(code.toLowerCase()) ? `${code}_EJ` : code)
+
+  const [qrTag, promoTag] = await Promise.all([
+    findOrCreateTag(ctx, 'Campaña QR', '#0ea5e9'),
+    findOrCreateTag(ctx, 'Promo Instagram', '#f59e0b'),
+  ])
+  const { data: autos } = await ctx.db
+    .from('automations')
+    .select('id, name')
+    .eq('account_id', ctx.accountId)
+    .eq('trigger_type', 'instagram_rule')
+    .order('created_at', { ascending: false })
+  const qualify = ((autos ?? []) as { id: string; name: string }[]).find((a) => /calificar lead/i.test(a.name))
+
+  const rows = [
+    {
+      name: 'Ejemplo: QR del mostrador',
+      code: free('QR_LOCAL'),
+      action: 'message',
+      welcome_text:
+        '¡Hola! 👋 Gracias por escanear nuestro QR. Por venir de la tienda tienes *10% de descuento* en tu primera compra.\n\nCuéntame qué estás buscando y te ayudo.',
+      ai_context: 'Llegó escaneando el QR del mostrador de la tienda. Tiene 10% de descuento en su primera compra.',
+      tag_id: qrTag,
+    },
+    {
+      name: 'Ejemplo: enlace de la bio',
+      code: free('BIO'),
+      action: 'ai',
+      welcome_text: null,
+      ai_context:
+        'Llegó desde el enlace de la biografía de Instagram. Salúdalo, pregúntale qué le interesa y muéstrale lo que tenemos.',
+      tag_id: null,
+    },
+    qualify
+      ? {
+          name: 'Ejemplo: promo con calificación',
+          code: free('PROMO'),
+          action: 'automation',
+          welcome_text: '¡Hola! 🎉 Viste nuestra promo. Te hago una pregunta rápida para darte la mejor oferta.',
+          ai_context: 'Llegó por el enlace de la promo publicada en Instagram.',
+          automation_id: qualify.id,
+          tag_id: promoTag,
+        }
+      : {
+          name: 'Ejemplo: promo',
+          code: free('PROMO'),
+          action: 'message',
+          welcome_text: '¡Hola! 🎉 Viste nuestra promo. ¿Quieres que te cuente los detalles?',
+          ai_context: 'Llegó por el enlace de la promo publicada en Instagram.',
+          tag_id: promoTag,
+        },
+  ]
+  const alphabet = 'abcdefghjkmnpqrstuvwxyz23456789'
+  const slug = () => Array.from({ length: 8 }, () => alphabet[Math.floor(Math.random() * alphabet.length)]).join('')
+  const { error } = await ctx.db
+    .from('instagram_links')
+    .insert(rows.map((r) => ({ ...r, account_id: ctx.accountId, slug: slug(), active: true, is_sample: true })))
+  if (error) fail(error, 'instagram_links')
+  return { links: rows.length, automation: !!qualify }
+}
+
 async function del(ctx: Ctx, table: string, apply?: (q: ReturnType<ReturnType<SupabaseClient['from']>['delete']>) => unknown) {
   let q = ctx.db.from(table).delete().eq('account_id', ctx.accountId).eq('is_sample', true)
   if (apply) q = apply(q) as typeof q
@@ -1009,6 +1087,10 @@ export async function removeSamples(ctx: Ctx, module: SampleModule, scope: Remin
     // Rules first (they point at the automations); steps cascade.
     await del(ctx, 'instagram_keyword_rules')
     await del(ctx, 'automations')
+    return
+  }
+  if (module === 'instagram_links') {
+    await del(ctx, 'instagram_links')
     return
   }
   if (module === 'properties') {
@@ -1078,6 +1160,8 @@ export async function loadSamples(ctx: Ctx, module: SampleModule, scope: Reminde
       return seedReminders(ctx, scope)
     case 'instagram':
       return seedInstagram(ctx)
+    case 'instagram_links':
+      return seedInstagramLinks(ctx)
   }
 }
 
@@ -1089,13 +1173,14 @@ export async function countSamples(ctx: Ctx): Promise<Record<SampleModule, numbe
     const { count: n, error } = await q
     return error ? 0 : (n ?? 0)
   }
-  const [restaurant, events, clinic, properties, reminders, instagram] = await Promise.all([
+  const [restaurant, events, clinic, properties, reminders, instagram, instagram_links] = await Promise.all([
     count('restaurant_tables'),
     count('event_halls'),
     count('professionals'),
     count('properties'),
     count('booking_reminder_rules'),
     count('instagram_keyword_rules'),
+    count('instagram_links'),
   ])
-  return { restaurant, events, clinic, properties, reminders, instagram }
+  return { restaurant, events, clinic, properties, reminders, instagram, instagram_links }
 }
