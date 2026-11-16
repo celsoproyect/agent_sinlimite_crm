@@ -263,7 +263,7 @@ function LinkCard({
       </div>
 
       <div className="flex flex-wrap gap-2">
-        <Button size="sm" variant="outline" onClick={onQr} disabled={!url}>
+        <Button size="sm" variant="outline" onClick={onQr} disabled={!link.ig_url && !link.short_url}>
           <QrCode className="mr-1 h-4 w-4" />
           {t("qr")}
         </Button>
@@ -293,7 +293,9 @@ function LinkCard({
 function QrDialog({ link, onOpenChange }: { link: LinkRow | null; onOpenChange: (open: boolean) => void }) {
   const t = useTranslations("InstagramLinks");
   const [image, setImage] = useState<string | null>(null);
-  const url = link ? (link.short_url ?? link.ig_url) : null;
+  // The QR goes straight to ig.me: the phone's camera then offers "Open in
+  // Instagram". Through the short URL it would land on a web page first.
+  const url = link ? (link.ig_url ?? link.short_url) : null;
 
   useEffect(() => {
     if (!url) return;

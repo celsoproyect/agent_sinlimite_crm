@@ -80,6 +80,33 @@ export function shortLinkUrl(baseUrl: string, slug: string): string {
   return `${baseUrl.replace(/\/+$/, '')}/go/${slug}`
 }
 
+function escapeHtml(text: string): string {
+  return text.replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]!)
+}
+
+/**
+ * The page /go/<slug> shows: one button to the Instagram chat. iOS only
+ * opens the app from a tapped link, never at the end of redirects. Pure.
+ */
+export function linkLandingHtml(args: { url: string; username: string; business: string | null }): string {
+  const url = escapeHtml(args.url)
+  const user = escapeHtml(args.username)
+  const title = escapeHtml(args.business?.trim() || `@${args.username}`)
+  return `<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex"><title>${title}</title>
+<style>
+body{margin:0;min-height:100dvh;display:flex;align-items:center;justify-content:center;font-family:system-ui,-apple-system,sans-serif;background:#f4f4f5;color:#18181b}
+main{width:100%;max-width:22rem;margin:1rem;padding:2rem 1.5rem;background:#fff;border-radius:1rem;box-shadow:0 4px 20px rgba(0,0,0,.08);text-align:center}
+.logo{width:4rem;height:4rem;margin:0 auto 1rem;border-radius:1rem;background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af);display:flex;align-items:center;justify-content:center;color:#fff;font-size:2rem}
+h1{font-size:1.25rem;margin:0 0 .25rem}p{margin:0 0 1.5rem;color:#71717a;font-size:.95rem}
+a.btn{display:block;padding:.9rem 1rem;border-radius:.75rem;background:linear-gradient(45deg,#f58529,#dd2a7b,#8134af);color:#fff;font-weight:600;text-decoration:none;font-size:1rem}
+small{display:block;margin-top:1rem;color:#a1a1aa}
+</style></head>
+<body><main><div class="logo">&#9993;</div><h1>${title}</h1><p>Escríbenos por Instagram y te atendemos al momento.</p>
+<a class="btn" href="${url}">Abrir chat en Instagram</a><small>@${user}</small></main></body></html>`
+}
+
 /** Meta's ref may come back with other characters around it; compare like this. Pure. */
 export function sameCode(a: string | null | undefined, b: string | null | undefined): boolean {
   return !!a && !!b && a.trim().toLowerCase() === b.trim().toLowerCase()

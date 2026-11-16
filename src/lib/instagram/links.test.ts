@@ -95,3 +95,13 @@ describe('computeLinkStats', () => {
     expect(stats.get('L2')).toEqual({ clicks: 0, chats: 1, newContacts: 1, deals: 1, won: 0, revenue: 0 })
   })
 })
+
+describe('linkLandingHtml', () => {
+  it('is one tappable button to the chat, escaped', async () => {
+    const { linkLandingHtml } = await import('./links')
+    const html = linkLandingHtml({ url: 'https://ig.me/m/a?ref=X&y=1', username: 'a', business: '<Tienda>' })
+    expect(html).toContain('href="https://ig.me/m/a?ref=X&amp;y=1"')
+    expect(html).toContain('&lt;Tienda&gt;')
+    expect(html).not.toContain('<Tienda>')
+  })
+})

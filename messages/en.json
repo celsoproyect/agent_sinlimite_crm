@@ -4492,7 +4492,7 @@
     "noUrl": "The site URL is missing or Instagram isn't connected.",
     "qr": "QR",
     "download": "Download PNG",
-    "qrHint": "Print it or post it in a story. Scanning it opens the business's Instagram chat; every scan counts as a click.",
+    "qrHint": "Print it or post it in a story. When scanned with the camera, the phone offers \"Open in Instagram\" and goes straight to the business chat. Scans count under Chats (Clicks count the short link).",
     "stats": {
       "clicks": "Clicks",
       "chats": "Chats",

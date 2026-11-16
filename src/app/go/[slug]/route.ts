@@ -2,12 +2,14 @@ import { NextResponse } from 'next/server'
 import { supabaseAdmin } from '@/lib/automations/admin-client'
 import { accountModuleEnabled } from '@/lib/modules-server'
 import { loadInstagramConnection } from '@/lib/instagram/connection'
-import { igMeUrl } from '@/lib/instagram/links'
+import { igMeUrl, linkLandingHtml } from '@/lib/instagram/links'
 
 // Public short URL of a campaign link (module instagram_links, 083):
-// counts the click and sends the person to the business's Instagram chat
-// (ig.me/m/<account>?ref=<code>). Unknown, inactive or switched-off
-// links go to the site's home page.
+// counts the click and shows a small page with an "Open the chat in
+// Instagram" button to ig.me/m/<account>?ref=<code>. Not a redirect: iOS
+// only opens the Instagram app from a link the person taps, so after a
+// chain of redirects it lands on instagram.com's login page instead.
+// Unknown, inactive or switched-off links go to the site's home page.
 
 export const dynamic = 'force-dynamic'
 
@@ -36,7 +38,13 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
     const { error } = await db.from('instagram_link_events').insert({ account_id: accountId, link_id: link.id, kind: 'click' })
     if (error) console.error('[instagram] counting the link click failed:', error)
   }
-  const res = NextResponse.redirect(igMeUrl(conn.username, link.code as string), 302)
-  res.headers.set('Cache-Control', 'no-store')
-  return res
+  const { data: account } = await db.from('accounts').select('name').eq('id', accountId).maybeSingle()
+  const html = linkLandingHtml({
+    url: igMeUrl(conn.username, link.code as string),
+    username: conn.username,
+    business: (account?.name as string | null) ?? null,
+  })
+  return new NextResponse(html, {
+    headers: { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' },
+  })
 }

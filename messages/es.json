@@ -4492,7 +4492,7 @@
     "noUrl": "Falta la URL del sitio o conectar Instagram.",
     "qr": "QR",
     "download": "Descargar PNG",
-    "qrHint": "Imprímelo o súbelo a una historia. Al escanearlo se abre el chat de Instagram del negocio; cada escaneo se cuenta como clic.",
+    "qrHint": "Imprímelo o súbelo a una historia. Al escanearlo con la cámara, el teléfono ofrece «Abrir en Instagram» y entra directo al chat del negocio. Los escaneos se cuentan en Chats (los Clics cuentan el enlace corto).",
     "stats": {
       "clicks": "Clics",
       "chats": "Chats",
